@@ -862,14 +862,14 @@ function telaLogin(erro) {
   });
 }
 function pintarAdmin() {
-  const abas = [['corridas', 'Corridas'], ['noticias', 'Notícias'], ['modulos', 'Módulos'], ['inscritos', 'Inscritos']];
+  const abas = [['corridas', 'Corridas'], ['pendentes', 'Pendentes'], ['noticias', 'Notícias'], ['modulos', 'Módulos'], ['inscritos', 'Inscritos']];
   $('#adminBox').innerHTML = `
     <div class="barra-admin"><h1 class="display" style="margin:0">Painel</h1><div style="display:flex;gap:10px"><a href="#" class="btn btn-linha">Ver o site</a><button class="btn btn-linha" id="btnSair">Sair</button></div></div>
     <div class="abas" role="tablist">${abas.map(([k, n]) => `<button role="tab" data-aba="${k}" aria-selected="${abaAdmin === k}">${n}</button>`).join('')}</div>
     <div id="conteudoAdmin"></div>`;
   $$('[data-aba]').forEach((b) => b.addEventListener('click', () => { abaAdmin = b.dataset.aba; pintarAdmin(); }));
   $('#btnSair').addEventListener('click', async () => { await sb.auth.signOut(); estado.admin = false; $('#btnEntrar').textContent = 'Entrar'; location.hash = ''; });
-  ({ corridas: adminCorridas, noticias: adminNoticias, modulos: adminModulos, inscritos: adminInscritos })[abaAdmin]();
+  ({ corridas: adminCorridas, pendentes: adminPendentes, noticias: adminNoticias, modulos: adminModulos, inscritos: adminInscritos })[abaAdmin]();
 }
 async function recarregarCorridas() {
   const { data } = await sb.from('corridas').select('*, corrida_distancias(*)').order('data', { ascending: false });
@@ -895,10 +895,48 @@ async function adminCorridas() {
   }));
 }
 
+/* ---------- Fila de corridas encontradas pela busca automática ---------- */
+const COORD_CIDADES = {
+  'indaiatuba': [-23.0903, -47.2181], 'salto': [-23.2003, -47.2869], 'itu': [-23.2642, -47.2993], 'elias fausto': [-23.0428, -47.3736],
+  'monte mor': [-22.9467, -47.3158], 'campinas': [-22.9056, -47.0608], 'hortolandia': [-22.8582, -47.2200], 'sumare': [-22.8219, -47.2669],
+  'cabreuva': [-23.3075, -47.1328], 'valinhos': [-22.9707, -46.9958], 'vinhedo': [-23.0297, -46.9750], 'capivari': [-22.9951, -47.5071],
+  'rafard': [-23.0106, -47.5317], 'jundiai': [-23.1857, -46.8978], 'itupeva': [-23.1526, -47.0578], 'porto feliz': [-23.2153, -47.5236]
+};
+const semAcento = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+async function adminPendentes() {
+  const box = $('#conteudoAdmin');
+  box.innerHTML = '<p class="muted">Carregando…</p>';
+  const { data, error } = await sb.from('corridas_pendentes').select('*').eq('status', 'pendente').order('data');
+  if (error) { box.innerHTML = '<div class="aviso erro">Não foi possível carregar a fila. Confira se a tabela de pendentes existe no banco.</div>'; return; }
+  const lista = data || [];
+  box.innerHTML = `<div class="barra-admin"><span class="muted">${lista.length ? `${lista.length} corrida(s) encontrada(s) pela busca automática esperando revisão` : 'Nenhuma corrida esperando revisão. A busca automática roda todo dia de manhã.'}</span></div>
+  <div class="tabela-wrap"><table class="tab"><thead><tr><th>Data</th><th>Corrida</th><th>Cidade</th><th>Distâncias</th><th>Fonte</th><th><span class="muted" style="font-weight:400">Ações</span></th></tr></thead><tbody>
+  ${lista.map((p) => { const [a, m, d] = p.data.split('-'); return `<tr><td>${d}/${m}/${a}</td><td><b>${esc(p.nome)}</b>${p.observacao ? `<br><small class="muted">${esc(p.observacao)}</small>` : ''}</td><td>${esc(p.cidade)}</td><td>${esc(p.distancias || '—')}</td>
+    <td>${p.fonte_url ? `<a href="${esc(p.fonte_url)}" target="_blank" rel="noopener" style="color:var(--cone-txt);font-weight:600">${esc(p.fonte || 'ver fonte')}</a>` : esc(p.fonte || '—')}</td>
+    <td class="acoes"><button class="btn btn-escuro" data-revisar="${p.id}">Revisar e aprovar</button> <button class="btn btn-perigo" data-recusar="${p.id}">Recusar</button></td></tr>`; }).join('') || '<tr><td colspan="6" class="muted">Tudo revisado por aqui.</td></tr>'}
+  </tbody></table></div>`;
+  $$('[data-recusar]', box).forEach((b) => b.addEventListener('click', async () => {
+    await sb.from('corridas_pendentes').update({ status: 'recusada', revisado_em: new Date().toISOString() }).eq('id', b.dataset.recusar);
+    toast('Corrida recusada'); adminPendentes();
+  }));
+  $$('[data-revisar]', box).forEach((b) => b.addEventListener('click', () => {
+    const p = lista.find((x) => x.id === b.dataset.revisar);
+    const coord = COORD_CIDADES[semAcento(p.cidade)];
+    const dists = String(p.distancias || '').split(/\s*(?:,|;|\/|\be\b)\s*/).map((s) => s.trim()).filter(Boolean).map((s) => {
+      const n = parseFloat(s.replace(',', '.').replace(/[^\d.]/g, ''));
+      const km = /21|meia/i.test(s) ? 21.0975 : /42|marat/i.test(s) ? 42.195 : n;
+      return km ? { rotulo: s.toUpperCase().replace(/\s*KM$/, 'K'), km, preco: p.preco_a_partir } : null;
+    }).filter(Boolean);
+    formCorrida({ nome: p.nome, cidade: p.cidade, estado: p.estado, data: p.data, horario: p.horario, link_inscricao: p.link_inscricao,
+      lat: coord ? coord[0] : null, lng: coord ? coord[1] : null, status: 'publicado', inscricoes_abertas: true,
+      corrida_distancias: dists.length ? dists : [{}] }, p);
+  }));
+}
+
 function linhaDist(d = {}) {
   return `<div class="dist-form"><label class="campo">Nome<input name="rotulo" value="${esc(d.rotulo || '')}" placeholder="10K" required></label><label class="campo">Km<input name="km" type="number" step="0.001" min="0" value="${d.km ?? ''}" required></label><label class="campo">Preço (R$)<input name="preco" type="number" step="0.01" min="0" value="${d.preco ?? ''}"></label><button type="button" class="btn btn-linha" data-rm aria-label="Remover distância">×</button></div>`;
 }
-function formCorrida(c = {}) {
+function formCorrida(c = {}, pendente = null) {
   const box = $('#conteudoAdmin');
   box.innerHTML = `<form class="form" id="fCorrida">
     <h2 class="display inteiro" style="font-size:40px">${c.id ? 'Editar corrida' : 'Nova corrida'}</h2>
@@ -928,7 +966,7 @@ function formCorrida(c = {}) {
   const f = $('#fCorrida');
   $('#addDist').addEventListener('click', () => $('#distancias').insertAdjacentHTML('beforeend', linhaDist()));
   $('#distancias').addEventListener('click', (e) => { if (e.target.closest('[data-rm]')) e.target.closest('.dist-form').remove(); });
-  $('#cancelar').addEventListener('click', adminCorridas);
+  $('#cancelar').addEventListener('click', pendente ? adminPendentes : adminCorridas);
 
   if (mapaForm) mapaForm.remove();
   const inicio = c.lat != null ? [c.lat, c.lng] : CENTRO;
@@ -974,8 +1012,9 @@ function formCorrida(c = {}) {
     const dists = $$('.dist-form', f).map((el) => ({ corrida_id: id, rotulo: $('[name=rotulo]', el).value.trim(), km: Number($('[name=km]', el).value), preco: $('[name=preco]', el).value ? Number($('[name=preco]', el).value) : null })).filter((d) => d.rotulo && d.km);
     await sb.from('corrida_distancias').delete().eq('corrida_id', id);
     if (dists.length) await sb.from('corrida_distancias').insert(dists);
-    toast('Corrida salva');
-    adminCorridas(); atualizarPublico();
+    if (pendente) await sb.from('corridas_pendentes').update({ status: 'aprovada', corrida_id: id, revisado_em: new Date().toISOString() }).eq('id', pendente.id);
+    toast(pendente ? 'Corrida aprovada e salva' : 'Corrida salva');
+    (pendente ? adminPendentes : adminCorridas)(); atualizarPublico();
   });
 }
 
