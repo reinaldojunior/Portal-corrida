@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PaceClub · Corridas de rua em Indaiatuba e região</title>
+<meta name="description" content="Mapa e agenda de corridas de rua em Indaiatuba, Itu, Salto, Elias Fausto, Monte Mor, Campinas e região.">
+<meta name="theme-color" content="#15181B">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="assets/estilo.css">
+
+</head>
+<body>
+
+<header class="topo">
+  <div class="wrap">
+    <a href="#" class="logo" aria-label="PaceClub, página inicial">Pace<span>Club</span></a>
+    <nav class="menu" aria-label="Principal">
+      <a href="#mapa" data-mod="mapa">Mapa</a>
+      <a href="#" data-mod="agenda" data-ir="quadro">Agenda</a>
+      <a href="#" data-mod="noticias" data-ir="noticias">Notícias</a>
+      <a href="#" data-mod-algum="calculadora aviso_provas zonas_fc ritmos_treino pulseira_pace conversor_esteira" data-ir="ferramentas">Ferramentas</a>
+    </nav>
+    <div class="spacer"></div>
+    <a href="#mapa" class="busca-viagem" data-mod="mapa">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+      Para onde você vai viajar?
+    </a>
+    <a href="#admin" class="btn-entrar" id="btnEntrar">Entrar</a>
+  </div>
+</header>
+
+<!-- HOME -->
+<main id="vHome">
+  <section class="hero" aria-label="Corridas no mapa">
+    <div class="hero-mapa">
+      <div id="mapaHero" aria-hidden="true"></div>
+      <div class="hero-veu"></div>
+      <div class="contagem" id="contagem" hidden>
+        <span class="ao-vivo">Próxima largada na região</span>
+        <h1 class="display hero-tit">Ache a sua próxima corrida no mapa</h1>
+        <div class="relogio" id="contRelogio" aria-live="polite"></div>
+        <a class="cont-nome" id="contLink"><span id="contNome"></span></a>
+        <span class="cont-info" id="contInfo"></span>
+      </div>
+      <a href="#mapa" class="hero-abrir" data-mod="mapa">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        Abrir mapa completo
+      </a>
+    </div>
+    <div class="painel" id="perto" data-mod="agenda">
+      <div class="alca" aria-hidden="true"></div>
+      <div class="painel-cab">
+        <h2 class="display" id="painelTit">Corridas perto de você</h2>
+        <a href="#mapa" class="editoria" data-mod="mapa">Ver no mapa</a>
+      </div>
+      <p class="painel-sub">Raio de 30 km a partir de Indaiatuba</p>
+      <div class="filtros" id="filtrosPainel" role="group" aria-label="Filtrar por distância"></div>
+      <div class="cartoes" id="listaPerto"><p class="vazio">Carregando corridas…</p></div>
+    </div>
+  </section>
+
+  <svg class="divisor" viewBox="0 0 1440 48" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 36 L120 30 L210 34 L320 16 L410 22 L500 8 L620 28 L740 24 L860 36 L960 12 L1050 20 L1160 28 L1260 10 L1360 22 L1440 28" fill="none" stroke="#1E2124" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+  </svg>
+
+  <div class="wrap grade-home" id="gradeHome">
+    <section class="quadro" id="quadro" data-mod="agenda" aria-labelledby="quadroTit">
+      <div class="quadro-cab"><h2 class="display" id="quadroTit">Quadro de largadas</h2><span>PRÓXIMAS PROVAS</span></div>
+      <div class="q-head" aria-hidden="true"><span class="q-data">DATA</span><span class="q-nome">PROVA</span><span class="q-dist">DIST</span><span class="q-st">INSCRIÇÃO</span></div>
+      <div id="quadroLinhas"></div>
+    </section>
+    <section class="noticias" id="noticias" hidden aria-labelledby="noticiasTit">
+      <div class="noticias-cab"><h2 class="display" id="noticiasTit">Notícias</h2><span id="noticiasConta"></span></div>
+      <div class="noticias-corpo" id="noticiasConteudo"></div>
+    </section>
+  </div>
+
+  <section class="wrap rk" id="ranking" data-mod="ranking_recorde" aria-labelledby="rkTit">
+    <div class="rk-cab-sec">
+      <div><h2 class="display" id="rkTit">Onde bater meu recorde</h2><p>As provas dos próximos 4 meses com mais chance de você correr o seu melhor tempo.</p></div>
+      <div class="rk-filtros" role="group" aria-label="Distância">
+        <button type="button" data-rk="todas" aria-pressed="true">Todas</button>
+        <button type="button" data-rk="ate10" aria-pressed="false">Até 10K</button>
+        <button type="button" data-rk="meia" aria-pressed="false">21K</button>
+      </div>
+    </div>
+    <div id="rkLista"></div>
+    <p class="rk-nota">O índice soma o percurso (subida por km), o clima do dia e horário da largada (previsão, ou a média dos anos anteriores) e o horário. Dados de clima: Open-Meteo.</p>
+  </section>
+
+  <section class="wrap ferramentas-grade" id="ferramentas" data-mod-algum="calculadora aviso_provas zonas_fc ritmos_treino pulseira_pace conversor_esteira" aria-label="Ferramentas">
+    <div class="ferr ferr-zonas" id="ferrZonas" data-mod="zonas_fc">
+      <div class="fz-topo">
+        <span class="rot">FERRAMENTA</span>
+        <h2 class="display">Zonas de frequência cardíaca</h2>
+        <p>Descubra em que batimento fazer rodagem, ritmo de prova e tiros.</p>
+      </div>
+      <div class="fz-grade">
+        <div class="fz-entrada">
+          <div class="z-metodo" role="group" aria-label="Método de cálculo">
+            <button type="button" data-metodo="repmax" aria-pressed="true">Repouso e máxima</button>
+            <button type="button" data-metodo="repidade" aria-pressed="false">Repouso e idade</button>
+            <button type="button" data-metodo="idade" aria-pressed="false">Só idade</button>
+          </div>
+          <div class="z-campos">
+            <label id="zRepWrap">FC de repouso (bpm)<input id="zRepouso" type="number" inputmode="numeric" min="30" max="110" value="58"></label>
+            <label id="zMaxWrap">FC máxima (bpm)<input id="zMax" type="number" inputmode="numeric" min="120" max="230" value="185"></label>
+            <label id="zIdadeWrap">Idade<input id="zIdade" type="number" inputmode="numeric" min="16" max="90" value="35"></label>
+            <p class="inteiro z-dica" id="zDica"></p>
+          </div>
+        </div>
+        <div class="fz-saida" aria-live="polite">
+          <div class="z-barra" id="zBarra" aria-hidden="true"></div>
+          <div class="z-escala" id="zEscala"></div>
+          <ul class="fz-lista" id="zCompacto"></ul>
+        </div>
+      </div>
+      <details class="fz-det" id="zDetalhes">
+        <summary>Ver detalhes das zonas</summary>
+        <div class="z-resumo" id="zResumo"></div>
+        <div class="z-campos">
+          <label class="inteiro">Seu pace nos 10K, em min:seg por km (opcional)
+            <input id="zPace" inputmode="decimal" placeholder="Ex.: 5:15">
+            <small id="zPaceDica">Se preencher, cada zona mostra também o ritmo aproximado. Pode deixar em branco.</small>
+          </label>
+        </div>
+        <div class="z-lista" id="zLista"></div>
+        <p class="z-aviso">Estimativa para adultos saudáveis. Os ritmos são aproximados e variam com calor, subida e cansaço. Antes de começar a treinar forte, procure um médico. Se sentir dor no peito, falta de ar fora do normal ou tontura, pare na hora.</p>
+      </details>
+    </div>
+    <div class="ferr ferr-calc" data-mod="calculadora">
+      <span class="rot">FERRAMENTA</span>
+      <h2 class="display">Calculadora de pace</h2>
+      <div class="linha">
+        <label>Distância
+          <select id="calcDist">
+            <option value="5">5 km</option>
+            <option value="10" selected>10 km</option>
+            <option value="21.0975">21 km</option>
+            <option value="42.195">42 km</option>
+          </select>
+        </label>
+        <label>Tempo (h:mm:ss)
+          <input id="calcTempo" value="0:52:30" inputmode="numeric" style="width:130px">
+        </label>
+      </div>
+      <div class="pace" id="calcPace">5:15 /km</div>
+      <table class="proj" id="calcProj" aria-label="Projeção para outras distâncias"></table>
+    </div>
+    <div class="ferr ferr-calc" id="ferrRitmos" data-mod="ritmos_treino">
+      <span class="rot">FERRAMENTA</span>
+      <h2 class="display">Ritmos de treino</h2>
+      <p>Informe uma prova recente e veja o ritmo de cada tipo de treino.</p>
+      <div class="linha">
+        <label>Distância
+          <select id="rtDist">
+            <option value="5">5 km</option>
+            <option value="10" selected>10 km</option>
+            <option value="21.0975">21 km</option>
+            <option value="42.195">42 km</option>
+          </select>
+        </label>
+        <label>Tempo (h:mm:ss)<input id="rtTempo" value="0:52:30" inputmode="numeric" style="width:130px"></label>
+      </div>
+      <div class="vdot"><span>Seu índice VDOT</span><b id="rtVdot">—</b></div>
+      <table class="proj tab-ritmos" id="rtTabela" aria-label="Ritmos de treino"></table>
+      <small class="nota">Método VDOT, de Jack Daniels. Valores aproximados, para corredores saudáveis.</small>
+    </div>
+    <div class="ferr ferr-calc" id="ferrPulseira" data-mod="pulseira_pace">
+      <span class="rot">DIA DA PROVA</span>
+      <h2 class="display">Pulseira de pace</h2>
+      <p>Seus tempos de passagem em cada quilômetro para chegar no tempo alvo.</p>
+      <div class="linha">
+        <label>Prova
+          <select id="pzDist">
+            <option value="5">5 km</option>
+            <option value="10" selected>10 km</option>
+            <option value="21.0975">21 km</option>
+            <option value="42.195">42 km</option>
+          </select>
+        </label>
+        <label>Tempo alvo<input id="pzTempo" value="0:50:00" inputmode="numeric" style="width:120px"></label>
+      </div>
+      <div class="seg-pz" role="group" aria-label="Estratégia">
+        <button type="button" data-pz="constante" aria-pressed="true">Ritmo constante</button>
+        <button type="button" data-pz="negativo" aria-pressed="false">Terminar mais forte</button>
+      </div>
+      <div class="pulseira" id="pzTabela" aria-live="polite"></div>
+      <button type="button" class="btn btn-escuro" id="pzImprimir">Imprimir pulseira</button>
+    </div>
+    <div class="ferr ferr-calc" id="ferrEsteira" data-mod="conversor_esteira">
+      <span class="rot">TREINO</span>
+      <h2 class="display">Conversor de esteira</h2>
+      <p>Pace em velocidade e o contrário. Altere qualquer campo.</p>
+      <div class="linha conv">
+        <label>Pace (min/km)<input id="esPace" value="5:15" inputmode="decimal"></label>
+        <label>Velocidade (km/h)<input id="esKmh" inputmode="decimal"></label>
+        <label>Pace (min/milha)<input id="esMilha" inputmode="decimal"></label>
+      </div>
+      <table class="proj" id="esTabela" aria-label="Velocidades comuns na esteira"></table>
+    </div>
+    <div class="ferr ferr-aviso" data-mod="aviso_provas">
+      <span class="rot">AVISO</span>
+      <h2 class="display">Aviso de novas provas</h2>
+      <p>Receba um e-mail quando abrir inscrição para uma corrida na região.</p>
+      <form id="formAviso">
+        <label>E-mail<input type="email" id="avisoEmail" required placeholder="voce@email.com"></label>
+        <button class="btn btn-cone" type="submit">Quero receber</button>
+      </form>
+      <p class="msg" id="avisoMsg" role="status"></p>
+    </div>
+  </section>
+</main>
+
+<!-- PÁGINA DA CORRIDA -->
+<main id="vCorrida" hidden></main>
+
+<!-- ADMIN -->
+<main id="vAdmin" hidden><div class="wrap admin" id="adminBox"></div></main>
+
+<footer class="rodape">
+  <div class="wrap">
+    <span class="logo">Pace<span>Club</span></span>
+    <span>Corridas de rua de Indaiatuba e região</span>
+    <div class="spacer"></div>
+    <a href="#admin">Área do administrador</a>
+  </div>
+</footer>
+
+<nav class="nav-app" id="navApp" aria-label="Atalhos">
+  <a href="#mapa" data-mod="mapa"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/></svg>Mapa</a>
+  <a href="#" data-mod="agenda" data-ir="quadro"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg>Agenda</a>
+  <a href="#" data-mod="noticias" data-ir="noticias"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg>Notícias</a>
+  <a href="#" data-mod-algum="calculadora aviso_provas zonas_fc ritmos_treino pulseira_pace conversor_esteira" data-ir="ferramentas"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"/></svg>Ferramentas</a>
+</nav>
+
+<!-- MAPA EXPANDIDO -->
+<div class="tela-mapa" id="vMapa" hidden role="dialog" aria-modal="true" aria-labelledby="mapaTit">
+  <div class="barra">
+    <a href="#" class="logo">Pace<span>Club</span></a>
+    <label class="busca">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+      <input id="buscaMapa" type="search" placeholder="Buscar cidade ou corrida" aria-label="Buscar cidade ou corrida">
+    </label>
+    <div class="filtros" id="filtrosMapa"></div>
+    <div class="spacer"></div>
+    <a href="#" class="btn btn-linha">Fechar mapa</a>
+  </div>
+  <div class="corpo">
+    <aside>
+      <h1 class="display" id="mapaTit">Corridas nesta área</h1>
+      <p class="muted" style="margin:0 0 12px">A lista acompanha o que aparece no mapa.</p>
+      <div id="listaMapa"></div>
+    </aside>
+    <div class="area-mapa">
+      <div id="mapaGrande"></div>
+      <div class="alterna" role="group" aria-label="Tipo de mapa">
+        <button type="button" data-camada="mapa" aria-pressed="true">Mapa</button>
+        <button type="button" data-camada="sat" aria-pressed="false">Satélite</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
