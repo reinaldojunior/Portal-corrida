@@ -1,4 +1,5 @@
 -- PaceClub · Fase 3: percurso (GPX), simulador da prova e ranking de recorde
+-- (já aplicado no banco pelo conector do Supabase em 29/10/2026)
 -- Cole no SQL Editor do Supabase e clique em Run.
 
 -- 1) Campos do percurso na tabela de corridas

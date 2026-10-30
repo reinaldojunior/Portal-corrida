@@ -1,4 +1,5 @@
 -- PaceClub · Novas ferramentas
+-- (já aplicado no banco pelo conector do Supabase em 29/10/2026)
 -- Cole no SQL Editor do Supabase e clique em Run.
 insert into modulos (chave, nome, descricao, ativo, ordem) values
   ('ritmos_treino',     'Ritmos de treino',     'Ritmos de rodagem, limiar e tiros pelo método VDOT', true, 7),
