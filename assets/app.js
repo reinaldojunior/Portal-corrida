@@ -227,7 +227,7 @@ function montarNoticias() {
     <article class="manchete">
       <div class="manchete-foto">${principal.imagem_url ? `<img src="${esc(principal.imagem_url)}" alt="${esc(principal.titulo)}" loading="lazy">` : ''}<span class="selo">${esc((NOMES_ED[principal.editoria] || '').toUpperCase())}</span></div>
       <h3 class="display">${esc(principal.titulo)}</h3>
-      ${principal.resumo ? `<p>${esc(principal.resumo)}</p>` : ''}
+      ${principal.resumo ? `<p>${esc(principal.resumo)}</p>` : ''}${principal.fonte_nome ? `<p class="credito" style="font-size:12px;opacity:.7;margin-top:4px">Com informações de ${principal.fonte_url ? `<a href="${esc(principal.fonte_url)}" target="_blank" rel="noopener">${esc(principal.fonte_nome)}</a>` : esc(principal.fonte_nome)}</p>` : ''}
     </article>
     ${resto.length ? `<ol class="lista-num">${resto.map((n, i) => `<li><span class="num">${String(i + 2).padStart(2, '0')}</span><span><span class="editoria">${esc(NOMES_ED[n.editoria] || '')}</span><span class="tit">${esc(n.titulo)}</span></span></li>`).join('')}</ol>` : ''}`;
 }
@@ -1019,13 +1019,20 @@ function formCorrida(c = {}, pendente = null) {
   });
 }
 
+function seloVerif(n) {
+  if (n.origem !== 'robo') return '<span class="muted">Própria</span>';
+  const v = n.verificacao || 'pendente';
+  const cor = v === 'aprovada' ? '#2E8B57' : v === 'reprovada' ? '#C0392B' : '#B8860B';
+  const txt = v === 'aprovada' ? 'Aprovada' : v === 'reprovada' ? 'Reprovada' : 'Aguardando';
+  return `<b style="color:${cor}">${txt}</b>${n.verificacao_nota ? `<br><small class="muted">${esc(n.verificacao_nota)}</small>` : ''}`;
+}
 async function adminNoticias() {
   const box = $('#conteudoAdmin');
   const { data: ns = [] } = await sb.from('noticias').select('*').order('criado_em', { ascending: false });
   box.innerHTML = `${mod('noticias') ? '' : '<div class="aviso ok" style="margin-bottom:16px">O módulo Notícias está desligado. Você pode cadastrar e publicar à vontade; elas só aparecem no site quando o módulo for ligado na aba Módulos.</div>'}
   <div class="barra-admin"><span class="muted">${(ns || []).length} notícia(s)</span><button class="btn btn-cone" id="novaNoticia">Nova notícia</button></div>
-  <div class="tabela-wrap"><table class="tab"><thead><tr><th>Título</th><th>Editoria</th><th>Status</th><th><span class="muted" style="font-weight:400">Ações</span></th></tr></thead><tbody>
-  ${(ns || []).map((n) => `<tr><td><b>${esc(n.titulo)}</b>${n.destaque ? ' <span class="status">Manchete</span>' : ''}</td><td>${esc(NOMES_ED[n.editoria])}</td><td><span class="status ${n.status}">${n.status}</span></td><td class="acoes"><button class="btn btn-linha" data-editar="${n.id}">Editar</button> <button class="btn btn-perigo" data-excluir="${n.id}">Excluir</button></td></tr>`).join('') || '<tr><td colspan="4" class="muted">Nenhuma notícia ainda.</td></tr>'}
+  <div class="tabela-wrap"><table class="tab"><thead><tr><th>Título</th><th>Editoria</th><th>Status</th><th>Direitos</th><th><span class="muted" style="font-weight:400">Ações</span></th></tr></thead><tbody>
+  ${(ns || []).map((n) => `<tr><td><b>${esc(n.titulo)}</b>${n.destaque ? ' <span class="status">Manchete</span>' : ''}</td><td>${esc(NOMES_ED[n.editoria])}</td><td><span class="status ${n.status}">${n.status}</span></td><td>${seloVerif(n)}</td><td class="acoes"><button class="btn btn-linha" data-editar="${n.id}">Editar</button> <button class="btn btn-perigo" data-excluir="${n.id}">Excluir</button></td></tr>`).join('') || '<tr><td colspan="5" class="muted">Nenhuma notícia ainda.</td></tr>'}
   </tbody></table></div>`;
   $('#novaNoticia').addEventListener('click', () => formNoticia());
   $$('[data-editar]', box).forEach((b) => b.addEventListener('click', () => formNoticia(ns.find((n) => n.id === b.dataset.editar))));
@@ -1044,6 +1051,9 @@ function formNoticia(n = {}) {
     <label class="campo">Editoria<select name="editoria">${Object.entries(NOMES_ED).map(([k, v]) => `<option value="${k}" ${n.editoria === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
     <label class="campo">Imagem (link)<input name="imagem_url" type="url" value="${esc(n.imagem_url || '')}" placeholder="https://"></label>
     <label class="campo">Autor<input name="autor" value="${esc(n.autor || '')}"></label>
+    <label class="campo">Fonte (nome)<input name="fonte_nome" value="${esc(n.fonte_nome || '')}" placeholder="Ex.: World Athletics"></label>
+    <label class="campo">Fonte (link)<input name="fonte_url" type="url" value="${esc(n.fonte_url || '')}" placeholder="https://"></label>
+    ${n.origem === 'robo' ? `<div class="aviso ${n.verificacao === 'aprovada' ? 'ok' : 'erro'} inteiro">Escrita pela busca automática. Verificação de direitos: ${seloVerif(n)}${n.fontes_extras ? `<br><small>Outras fontes: ${esc(n.fontes_extras)}</small>` : ''}</div>` : ''}
     <label class="campo">Status<select name="status">${['rascunho', 'publicado', 'arquivado'].map((s) => `<option value="${s}" ${(n.status || 'rascunho') === s ? 'selected' : ''}>${s[0].toUpperCase() + s.slice(1)}</option>`).join('')}</select></label>
     <label class="check inteiro"><input type="checkbox" name="destaque" ${n.destaque ? 'checked' : ''}> Usar como manchete principal da home</label>
     <div class="acoes-form"><span id="nMsg" role="status"></span><button type="button" class="btn btn-linha" id="cancelarN">Cancelar</button><button class="btn btn-escuro" type="submit">Salvar notícia</button></div>
@@ -1052,7 +1062,8 @@ function formNoticia(n = {}) {
   $('#cancelarN').addEventListener('click', adminNoticias);
   f.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const dados = { titulo: f.titulo.value.trim(), resumo: f.resumo.value.trim() || null, conteudo: f.conteudo.value.trim() || null, editoria: f.editoria.value, imagem_url: f.imagem_url.value.trim() || null, autor: f.autor.value.trim() || null, status: f.status.value, destaque: f.destaque.checked };
+    const dados = { titulo: f.titulo.value.trim(), resumo: f.resumo.value.trim() || null, conteudo: f.conteudo.value.trim() || null, editoria: f.editoria.value, imagem_url: f.imagem_url.value.trim() || null, autor: f.autor.value.trim() || null, fonte_nome: f.fonte_nome.value.trim() || null, fonte_url: f.fonte_url.value.trim() || null, status: f.status.value, destaque: f.destaque.checked };
+    if (dados.status === 'publicado' && n.origem === 'robo' && n.verificacao !== 'aprovada' && !confirm('Esta notícia ainda não foi aprovada na verificação de direitos. Publicar mesmo assim?')) return;
     if (dados.status === 'publicado' && !n.publicado_em) dados.publicado_em = new Date().toISOString();
     if (!n.id) dados.slug = slugify(dados.titulo) + '-' + Date.now().toString(36);
     if (dados.destaque) await sb.from('noticias').update({ destaque: false }).neq('id', n.id || '00000000-0000-0000-0000-000000000000');
