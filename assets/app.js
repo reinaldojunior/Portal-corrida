@@ -911,7 +911,7 @@ async function adminPendentes() {
   const lista = data || [];
   box.innerHTML = `<div class="barra-admin"><span class="muted">${lista.length ? `${lista.length} corrida(s) encontrada(s) pela busca automática esperando revisão` : 'Nenhuma corrida esperando revisão. A busca automática roda todo dia de manhã.'}</span></div>
   <div class="tabela-wrap"><table class="tab"><thead><tr><th>Data</th><th>Corrida</th><th>Cidade</th><th>Distâncias</th><th>Fonte</th><th><span class="muted" style="font-weight:400">Ações</span></th></tr></thead><tbody>
-  ${lista.map((p) => { const [a, m, d] = p.data.split('-'); return `<tr><td>${d}/${m}/${a}</td><td><b>${esc(p.nome)}</b>${p.observacao ? `<br><small class="muted">${esc(p.observacao)}</small>` : ''}</td><td>${esc(p.cidade)}</td><td>${esc(p.distancias || '—')}</td>
+  ${lista.map((p) => { const [a, m, d] = p.data.split('-'); return `<tr><td>${d}/${m}/${a}</td><td><b>${esc(p.nome)}</b>${p.descricao ? `<br><small>${esc(p.descricao.length > 140 ? p.descricao.slice(0, 140) + '…' : p.descricao)}</small>` : ''}${p.observacao ? `<br><small class="muted">${esc(p.observacao)}</small>` : ''}</td><td>${esc(p.cidade)}</td><td>${esc(p.distancias || '—')}</td>
     <td>${p.fonte_url ? `<a href="${esc(p.fonte_url)}" target="_blank" rel="noopener" style="color:var(--cone-txt);font-weight:600">${esc(p.fonte || 'ver fonte')}</a>` : esc(p.fonte || '—')}</td>
     <td class="acoes"><button class="btn btn-escuro" data-revisar="${p.id}">Revisar e aprovar</button> <button class="btn btn-perigo" data-recusar="${p.id}">Recusar</button></td></tr>`; }).join('') || '<tr><td colspan="6" class="muted">Tudo revisado por aqui.</td></tr>'}
   </tbody></table></div>`;
@@ -928,6 +928,7 @@ async function adminPendentes() {
       return km ? { rotulo: s.toUpperCase().replace(/\s*KM$/, 'K'), km, preco: p.preco_a_partir } : null;
     }).filter(Boolean);
     formCorrida({ nome: p.nome, cidade: p.cidade, estado: p.estado, data: p.data, horario: p.horario, link_inscricao: p.link_inscricao,
+      descricao: p.descricao, organizador: p.organizador,
       lat: coord ? coord[0] : null, lng: coord ? coord[1] : null, status: 'publicado', inscricoes_abertas: true,
       corrida_distancias: dists.length ? dists : [{}] }, p);
   }));
