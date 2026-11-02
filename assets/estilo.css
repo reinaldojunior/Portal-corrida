@@ -112,7 +112,7 @@ table.tab{width:100%;border-collapse:collapse;font-size:15px}
 .campo small{font-weight:400;color:var(--cinza)}
 .check{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;min-height:44px}
 .check input{width:20px;height:20px;accent-color:var(--cone)}
-.dist-form{display:grid;grid-template-columns:1fr 1fr 1fr 44px;gap:10px;align-items:end;margin-bottom:10px}
+.dist-form{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 44px;gap:10px;align-items:end;margin-bottom:10px}
 #mapaForm{height:280px;border-radius:4px;border:1px solid var(--chip)}
 .acoes-form{grid-column:1/-1;display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;align-items:center}
 .modulo{display:flex;align-items:center;gap:20px;padding:18px 20px;border-bottom:1px solid var(--linha2);background:var(--papel)}
@@ -752,3 +752,5 @@ a.manchete-foto{display:block}
 .foto-cred{margin:0}
 .foto-cred figcaption,.noticia-foto figcaption,.cred-foto{display:block;margin-top:6px;font-size:12px;line-height:1.35;color:var(--cinza);text-align:right}
 .manchete .cred-foto{margin-top:-6px}
+
+@media (max-width:600px){.dist-form{grid-template-columns:1fr 1fr 44px}.dist-form .campo:nth-child(4){grid-column:1/3}}

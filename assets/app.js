@@ -40,14 +40,17 @@ function distKm(a, b) {
 }
 function slugify(t) { return t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
 function bib(iso, peq) { const p = partes(iso); return `<div class="bib${peq ? ' p' : ''}" aria-hidden="true"><div class="mes">${p.mes}</div><div class="dia">${p.dia}</div></div>`; }
-function rotulos(c) { return (c.corrida_distancias || []).slice().sort((a, b) => a.km - b.km).map((d) => d.rotulo); }
+// Ordem das distâncias: por km; provas por tempo (6h, 12h) e sem distância vão para o fim
+const ordemDist = (d) => (d.km != null && +d.km > 0 ? +d.km : d.horas ? 1000 + +d.horas : 2000);
+const porDist = (a, b) => ordemDist(a) - ordemDist(b);
+function rotulos(c) { return (c.corrida_distancias || []).slice().sort(porDist).map((d) => d.rotulo); }
 function toast(t) { const el = document.createElement('div'); el.className = 'toast'; el.setAttribute('role', 'status'); el.textContent = t; document.body.appendChild(el); setTimeout(() => el.remove(), 2600); }
 const mod = (k) => !!estado.modulos[k];
 const publicadas = () => estado.corridas.filter((c) => c.status === 'publicado');
 function passaFiltro(c) {
   if (estado.filtro === 'todas') return true;
   const alvo = { '5K': [4, 6], '10K': [8, 12], '21K': [15, 25], '42K': [30, 50] }[estado.filtro];
-  return (c.corrida_distancias || []).some((d) => d.km >= alvo[0] && d.km <= alvo[1]);
+  return (c.corrida_distancias || []).some((d) => d.km != null && +d.km >= alvo[0] && +d.km <= alvo[1]);
 }
 function linkCorrida(c) {
   if (mod('pagina_corrida')) return { href: `#corrida/${encodeURIComponent(c.slug)}`, ext: false };
@@ -596,7 +599,7 @@ function kmOficialDe(c) {
   return k && Math.abs(k - g) / k <= 0.15 ? k : null;
 }
 function percursosDe(c) {
-  const lista = (c.corrida_distancias || []).filter(temTrajeto).slice().sort((a, b) => a.km - b.km)
+  const lista = (c.corrida_distancias || []).filter(temTrajeto).slice().sort(porDist)
     .map((d) => ({ rotulo: d.rotulo, km: +d.km, percurso: d.percurso, percurso_km: d.percurso_km, subida_m: d.subida_m, descida_m: d.descida_m }));
   if (temTrajeto(c) && !lista.some((d) => Math.abs((d.percurso_km || 0) - (c.percurso_km || 0)) < 0.3)) lista.unshift({ rotulo: lista.length ? 'Principal' : 'Percurso', km: kmOficialDe(c), percurso: c.percurso, percurso_km: c.percurso_km, subida_m: c.subida_m, descida_m: c.descida_m });
   return lista;
@@ -611,7 +614,7 @@ let rkFiltro = 'todas', rkAberta = null;
 const notaPercurso = (c) => c.subida_m == null || !c.percurso_km ? null : Math.max(0, Math.min(100, Math.round(100 - 5 * (c.subida_m / c.percurso_km))));
 function notaClima(cl) { if (!cl) return null; let n = 100; if (cl.t > 15) n -= (cl.t - 15) * 5; if (cl.t < 10) n -= (10 - cl.t) * 3; if (cl.u > 70) n -= (cl.u - 70) * 0.5; return Math.max(0, Math.min(100, Math.round(n))); }
 function notaHorario(c) { if (!c.horario) return 70; const h = horaLargada(c); return h < 5 ? 80 : h <= 7.5 ? 95 : h <= 8.5 ? 80 : h <= 10 ? 60 : h < 17 ? 40 : 50; }
-function grupoDist(c) { const ks = (c.corrida_distancias || []).map((d) => +d.km); return { ate10: ks.some((k) => k <= 12) || (!ks.length && c.percurso_km <= 12), meia: ks.some((k) => k > 18 && k < 25) || (!ks.length && c.percurso_km > 18 && c.percurso_km < 25) }; }
+function grupoDist(c) { const ks = (c.corrida_distancias || []).filter((d) => d.km != null && +d.km > 0).map((d) => +d.km); return { ate10: ks.some((k) => k <= 12) || (!ks.length && c.percurso_km <= 12), meia: ks.some((k) => k > 18 && k < 25) || (!ks.length && c.percurso_km > 18 && c.percurso_km < 25) }; }
 async function montarRanking() {
   const box = $('#rkLista'); if (!box) return;
   const limite = Date.now() + 120 * 864e5;
@@ -875,7 +878,7 @@ function mostrarCorrida(slug, percIdx = 0) {
   const c = c0 && pSel ? { ...c0, percurso: pSel.percurso, percurso_km: pSel.percurso_km, subida_m: pSel.subida_m, descida_m: pSel.descida_m, km_oficial: pSel.km && Math.abs(pSel.km - pSel.percurso_km) / pSel.km <= 0.15 ? pSel.km : null } : c0;
   const v = $('#vCorrida');
   if (!c) { v.innerHTML = '<div class="wrap" style="padding:64px 0"><h1 class="display" style="font-size:56px">Corrida não encontrada</h1><p class="muted">Ela pode ter sido removida ou já aconteceu. <a href="#" style="color:var(--cone-txt);font-weight:600">Voltar para a agenda</a></p></div>'; return; }
-  const dist = (c.corrida_distancias || []).slice().sort((a, b) => a.km - b.km);
+  const dist = (c.corrida_distancias || []).slice().sort(porDist);
   const temPerc = Array.isArray(c.percurso) && c.percurso.length > 1;
   const brl = (v) => v == null ? 'Preço a confirmar' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const simHtml = temPerc && mod('simulador') ? `<section class="caixa sim sim-lado" id="simBox" aria-labelledby="simTit">
@@ -1113,7 +1116,7 @@ async function adminPendentes() {
 const percDist = new WeakMap();
 const infoPerc = (p) => `${String(p.percurso_km).replace('.', ',')} km${p.subida_m != null ? `, +${p.subida_m} m` : ''}`;
 function linhaDist(d = {}) {
-  return `<div class="dist-form"><label class="campo">Nome<input name="rotulo" value="${esc(d.rotulo || '')}" placeholder="10K" required></label><label class="campo">Km<input name="km" type="number" step="0.001" min="0" value="${d.km ?? ''}" required></label><label class="campo">Preço (R$)<input name="preco" type="number" step="0.01" min="0" value="${d.preco ?? ''}"></label><button type="button" class="btn btn-linha" data-rm aria-label="Remover distância">×</button>
+  return `<div class="dist-form"><label class="campo">Nome<input name="rotulo" value="${esc(d.rotulo || '')}" placeholder="10K" required></label><label class="campo">Km <small>ou vazio</small><input name="km" type="number" step="0.001" min="0" value="${d.km ?? ''}" placeholder="10"></label><label class="campo">Duração (h) <small>prova por tempo</small><input name="horas" type="number" step="0.5" min="0" value="${d.horas ?? ''}" placeholder="6"></label><label class="campo">Preço (R$)<input name="preco" type="number" step="0.01" min="0" value="${d.preco ?? ''}"></label><button type="button" class="btn btn-linha" data-rm aria-label="Remover distância">×</button>
     <div class="dist-gpx"><label class="btn btn-linha gpx-btn">GPX desta distância<input type="file" accept=".gpx,application/gpx+xml" data-gpx-dist hidden></label>
     <small data-gpx-info>${temTrajeto(d) ? `Percurso salvo: ${infoPerc(d)}.` : 'Sem percurso próprio.'}</small>
     ${temTrajeto(d) ? '<label class="check"><input type="checkbox" data-gpx-rm> Remover</label>' : ''}</div></div>`;
@@ -1351,9 +1354,10 @@ function formCorrida(c = {}, pendente = null) {
     const id = r.data.id;
     const dists = $$('.dist-form', f).map((el) => {
       const p = $('[data-gpx-rm]', el)?.checked ? null : percDist.get(el);
-      return { corrida_id: id, rotulo: $('[name=rotulo]', el).value.trim(), km: Number($('[name=km]', el).value), preco: $('[name=preco]', el).value ? Number($('[name=preco]', el).value) : null,
+      const kmV = $('[name=km]', el).value, hV = $('[name=horas]', el).value;
+      return { corrida_id: id, rotulo: $('[name=rotulo]', el).value.trim(), km: kmV ? Number(kmV) : null, horas: hV ? Number(hV) : null, preco: $('[name=preco]', el).value ? Number($('[name=preco]', el).value) : null,
         percurso: p ? p.percurso : null, percurso_km: p ? p.percurso_km : null, subida_m: p ? p.subida_m : null, descida_m: p ? p.descida_m : null };
-    }).filter((d) => d.rotulo && d.km);
+    }).filter((d) => d.rotulo);
     await sb.from('corrida_distancias').delete().eq('corrida_id', id);
     if (dists.length) await sb.from('corrida_distancias').insert(dists);
     if (pendente) await sb.from('corridas_pendentes').update({ status: 'aprovada', corrida_id: id, revisado_em: new Date().toISOString() }).eq('id', pendente.id);
