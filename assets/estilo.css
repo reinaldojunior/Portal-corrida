@@ -718,6 +718,6 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
 .sim .pulseira tr.km-duro td:first-child{box-shadow:inset 3px 0 0 var(--cone)}
 
 .pulseira th{z-index:3}
-/* gráfico e tabela do simulador ocupam a largura toda do painel */
-.sim .sim-col:last-child{margin-left:-14px;margin-right:-14px}
-@media (max-width:860px){.sim .sim-col:last-child{margin-left:-10px;margin-right:-10px}}
+/* todas as partes do simulador alinhadas na mesma largura */
+.sim-lado .sim-grade{align-items:stretch}
+.sim-lado .sim-col{width:100%}
