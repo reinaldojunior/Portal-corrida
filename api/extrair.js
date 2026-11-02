@@ -78,9 +78,17 @@ module.exports = async (req, res) => {
   }
   const url = urlValida(String((req.query && req.query.url) || ''));
   if (!url) return res.status(400).json({ erro: 'Link inválido.' });
+  try { res.status(200).json(await analisar(url)); }
+  catch (e) { res.status(502).json({ erro: e.message }); }
+};
+
+// Lê a página de inscrição e devolve imagem de divulgação e local (usado pelo botão do admin e pelo robô)
+async function analisar(url) {
+  url = urlValida(url);
+  if (!url) throw new Error('Link inválido.');
   let pg;
-  try { pg = await baixar(url); } catch { return res.status(502).json({ erro: 'Não consegui abrir a página da inscrição.' }); }
-  if (!pg.ok) return res.status(502).json({ erro: `A página respondeu com erro ${pg.status}.` });
+  try { pg = await baixar(url); } catch { throw new Error('Não consegui abrir a página da inscrição.'); }
+  if (!pg.ok) throw new Error(`A página respondeu com erro ${pg.status}.`);
   const html = desfazer(pg.texto);
 
   // imagem de divulgação
@@ -113,5 +121,6 @@ module.exports = async (req, res) => {
   if (lat == null && local) { const g = await geocodificar(local, cidadeEv && cidadeEv[1]); if (g) [lat, lng] = g; }
   // a página monta o link do Maps na hora; montamos o mesmo link a partir do endereço
   if (!mapa && local) mapa = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(local)}`;
-  res.status(200).json({ imagem, lat, lng, local, mapa, aproximado: lat != null && !coordsDoLink(mapa || '') });
-};
+  return { imagem, lat, lng, local, mapa, aproximado: lat != null && !coordsDoLink(mapa || '') };
+}
+module.exports.analisar = analisar;

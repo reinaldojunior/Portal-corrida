@@ -1,9 +1,11 @@
 {
   "functions": {
     "api/coletar.js": { "maxDuration": 60 },
+    "api/enriquecer.js": { "maxDuration": 60 },
     "api/extrair.js": { "maxDuration": 30 }
   },
   "crons": [
-    { "path": "/api/coletar", "schedule": "0 9 * * *" }
+    { "path": "/api/coletar", "schedule": "0 9 * * *" },
+    { "path": "/api/enriquecer", "schedule": "0 10 * * *" }
   ]
 }
