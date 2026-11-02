@@ -480,11 +480,11 @@ function climaNa(clima, hora) {
 function simular(c, pts, alvoSeg, clima, opc = {}) {
   const est = opc.est ?? 0, adj = opc.adj ?? 1, passo = opc.passo || 1;
   const tot = pts[pts.length - 1].km;
-  const n = Math.ceil(tot / passo - 1e-6);
+  const n = Math.max(1, Math.ceil(tot / passo - 0.1));
   const base = alvoSeg / tot, larg = horaLargada(c);
   const trechos = [];
   for (let i = 0; i < n; i++) {
-    const ini = i * passo, fim = Math.min(tot, (i + 1) * passo), len = fim - ini;
+    const ini = i * passo, fim = i === n - 1 ? tot : (i + 1) * passo, len = fim - ini;
     const a = noKm(pts, ini), b = noKm(pts, fim);
     const dEle = a.ele != null && b.ele != null ? b.ele - a.ele : 0;
     const inc = (dEle / (len * 1000)) * 100;
@@ -493,7 +493,7 @@ function simular(c, pts, alvoSeg, clima, opc = {}) {
     const fCal = cl ? 1 + 0.004 * Math.max(0, cl.t - 15) + (cl.u > 60 ? 0.001 * Math.max(0, cl.t - 15) : 0) : 1;
     const meio = (ini + len / 2) / tot;
     const fEst = 1 + (est / 5) * 0.04 * (1 - 2 * meio);
-    trechos.push({ km: fim, rot: Math.abs(fim - Math.round(fim)) < 1e-6 ? String(Math.round(fim)) : fim.toFixed(1).replace('.', ','), len, dEle, f: fInc * fCal, w: (1 + adj * (fInc - 1)) * fCal * fEst, temp: cl ? cl.t : null });
+    trechos.push({ km: fim, rot: Math.abs(fim - Math.round(fim)) < 0.06 ? String(Math.round(fim)) : fim.toFixed(1).replace('.', ','), len, dEle, f: fInc * fCal, w: (1 + adj * (fInc - 1)) * fCal * fEst, temp: cl ? cl.t : null });
   }
   const plano = trechos.reduce((s, t) => s + base * t.f * t.len, 0);
   const k = alvoSeg / trechos.reduce((s, t) => s + base * t.w * t.len, 0); let acum = 0;
@@ -514,7 +514,7 @@ async function montarSimulador(c) {
   }
   $('#simAlvo').value = simEstado.alvo;
   $('#simEst').value = simEstado.est; $('#simAdj').value = simEstado.adj; $('#simPasso').value = String(simEstado.passo);
-  $('#simKm').max = tot.toFixed(1);
+  if ($('#simKm')) $('#simKm').max = tot.toFixed(1);
   $('#simClimaInfo').textContent = 'Buscando o clima…';
   simClima = await climaProva(c);
   atualizarSimulador();
@@ -536,8 +536,8 @@ function atualizarSimulador() {
     <div class="sim-tempo"><b>${fmt(r.plano)}</b><span class="${r.dif > 5 ? 'pior' : 'melhor'}">${r.dif > 5 ? `+${fmt(r.dif, true)} acima do alvo` : r.dif < -5 ? `${fmt(-r.dif, true)} abaixo do alvo` : 'no alvo'}</span></div>
     <p>${r.dif > 5 ? `${clima ? 'O percurso e o calor custam' : 'O percurso custa'} cerca de ${fmt(r.dif, true)}. Os trechos mais pesados são ${piores}. Para fechar em ${fmt(alvo)}, siga o ritmo de cada km abaixo: segure nas subidas e use as descidas para recuperar.` : 'Para o seu alvo, o percurso é praticamente neutro. Ritmo constante funciona bem.'}</p>`;
   const media = alvo / r.tot, maxDev = Math.max(...r.trechos.map((t) => Math.abs(t.pace - media))) || 1;
-  $('#simBarras').innerHTML = r.trechos.map((t) => { const dv = t.pace - media, h = Math.max(3, Math.round(Math.abs(dv) / maxDev * 30));
-    return `<span class="${dv >= 0 ? 'lento' : 'rapido'}" style="height:${h}px;${dv >= 0 ? `align-self:flex-start;margin-top:${35 - h}px` : `align-self:flex-end;margin-bottom:${35 - h}px`}" title="km ${t.rot}: ${fmt(t.pace, true)}/km"></span>`; }).join('');
+  $('#simBarras').innerHTML = r.trechos.map((t) => { const dv = t.pace - media, h = Math.max(3, Math.round(Math.abs(dv) / maxDev * 24));
+    return `<span class="${dv >= 0 ? 'lento' : 'rapido'}" style="height:${h}px;${dv >= 0 ? `align-self:flex-start;margin-top:${28 - h}px` : `align-self:flex-end;margin-bottom:${28 - h}px`}" title="km ${t.rot}: ${fmt(t.pace, true)}/km"></span>`; }).join('');
   $('#simTabela').innerHTML = `<table><thead><tr><th>KM</th><th>TERRENO</th><th>PACE</th><th>PASSAGEM</th></tr></thead><tbody>${r.trechos.map((t) => {
     const ter = t.dEle > 3 ? `<span class="sobe">subida +${Math.round(t.dEle)} m</span>` : t.dEle < -3 ? `<span class="desce">descida ${Math.round(t.dEle)} m</span>` : 'plano';
     return `<tr><td>${t.rot}</td><td>${ter}</td><td>${fmt(t.pace, true)}</td><td>${fmt(t.pass)}</td></tr>`; }).join('')}</tbody></table>`;
@@ -545,7 +545,7 @@ function atualizarSimulador() {
   moverFantasma();
 }
 function moverFantasma() {
-  const r = simEstado.r; if (!r) return;
+  const r = simEstado.r; if (!r || !$('#simKm')) return;
   const km = Math.min(r.tot, Number($('#simKm').value) || 0);
   const p = noKm(simPts, km);
   let pass = 0, pace = r.trechos[0].pace;
@@ -801,11 +801,13 @@ function ligarAltimetria(pts, mapa) {
     if (!mapa.getBounds().pad(-0.1).contains(ponto.getLatLng())) mapa.panTo(ponto.getLatLng(), { animate: true });
     const x = (km / tot) * 1000; cur.setAttribute('x1', x); cur.setAttribute('x2', x); cur.style.display = '';
     dica.hidden = false;
-    dica.innerHTML = `<b>km ${km.toFixed(2).replace('.', ',')}</b>${p.ele != null ? `<span>${Math.round(p.ele)} m</span>` : ''}${inc != null ? `<span class="${inc > 1 ? 'sobe' : inc < -1 ? 'desce' : ''}">${inc > 0 ? '+' : ''}${inc.toFixed(1).replace('.', ',')}%</span>` : ''}`;
+    let pass = null; const rs = simEstado && simEstado.r && $('#simBox') ? simEstado.r : null;
+    if (rs) { pass = 0; for (const t of rs.trechos) { const i0 = t.km - t.len; if (km >= t.km) pass = t.pass; else { pass += (km - i0) * t.pace; break; } } }
+    dica.innerHTML = `<b>km ${km.toFixed(2).replace('.', ',')}</b>${pass != null ? `<span class="pass">passa em ${fmt(pass)}</span>` : ''}${p.ele != null ? `<span>${Math.round(p.ele)} m</span>` : ''}${inc != null ? `<span class="${inc > 1 ? 'sobe' : inc < -1 ? 'desce' : ''}">${inc > 0 ? '+' : ''}${inc.toFixed(1).replace('.', ',')}%</span>` : ''}`;
     const w = box.clientWidth, px = (km / tot) * w;
     dica.style.left = Math.max(0, Math.min(w - dica.offsetWidth, px - dica.offsetWidth / 2)) + 'px';
   };
-  const sair = () => { dica.hidden = true; ponto.remove(); if (simEstado && simEstado.r && $('#simKm')) moverFantasma(); else cur.style.display = 'none'; };
+  const sair = () => { dica.hidden = true; ponto.remove(); cur.style.display = 'none'; };
   const kmDoEvento = (e) => { const r = svg.getBoundingClientRect(); return ((e.clientX - r.left) / r.width) * tot; };
   box.addEventListener('pointerdown', (e) => { box.setPointerCapture(e.pointerId); mostrar(kmDoEvento(e)); });
   box.addEventListener('pointermove', (e) => mostrar(kmDoEvento(e)));
@@ -831,6 +833,30 @@ function mostrarCorrida(slug, percIdx = 0) {
   const dist = (c.corrida_distancias || []).slice().sort((a, b) => a.km - b.km);
   const temPerc = Array.isArray(c.percurso) && c.percurso.length > 1;
   const brl = (v) => v == null ? 'Preço a confirmar' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const simHtml = temPerc && mod('simulador') ? `<section class="caixa sim" id="simBox" aria-labelledby="simTit">
+    <div class="sim-cab"><div><span class="rot">SIMULADOR DA PROVA</span><h2 class="display" id="simTit">Monte a sua estratégia</h2></div>
+      <div class="sim-entrada"><label class="campo">Tempo alvo<input id="simAlvo" inputmode="numeric" aria-describedby="simClimaInfo"></label><button type="button" id="simClima" class="sim-clima" aria-pressed="true">Clima</button></div></div>
+    <p class="sim-clima-info" id="simClimaInfo"></p>
+    <div class="sim-grade">
+      <div class="sim-col">
+        <div class="sim-ctrl"><div class="sim-ctrl-top"><span>Estratégia</span><b id="simEstTxt"></b></div>
+          <input type="range" id="simEst" min="-5" max="5" step="1" value="0" aria-describedby="simEstTxt" aria-label="Estratégia de ritmo">
+          <div class="sim-ctrl-pontas"><span>Sair forte</span><span>Igual</span><span>Guardar pro fim</span></div></div>
+        <div class="sim-ctrl"><div class="sim-ctrl-top"><span>Nas subidas</span><b id="simAdjTxt"></b></div>
+          <input type="range" id="simAdj" min="0" max="100" step="5" value="100" aria-describedby="simAdjTxt" aria-label="Ajuste pelo terreno">
+          <div class="sim-ctrl-pontas"><span>Mesmo ritmo</span><span>Mesmo esforço</span></div></div>
+        <div class="sim-ctrl-linha"><label class="campo">Parciais<select id="simPasso"><option value="1">A cada 1 km</option><option value="0.5">A cada 500 m</option></select></label>
+          <button type="button" class="sim-reset" id="simReset">Voltar ao padrão</button></div>
+        <div class="sim-metades" id="simMetades"></div>
+        <div class="sim-resultado" id="simResultado"></div>
+      </div>
+      <div class="sim-col">
+        <div class="sim-barras" id="simBarras" aria-hidden="true"></div><div class="sim-legenda"><span>▲ mais lento</span><span>▼ mais rápido</span></div>
+        <div class="pulseira" id="simTabela"></div>
+        <div class="sim-rodape"><button type="button" class="btn" id="simImprimir">Imprimir pulseira</button>
+          <small class="nota">Estimativa pela altimetria e pelo clima do horário da largada. Passe o dedo na altimetria acima para ver a passagem em cada ponto.</small></div>
+      </div>
+    </div></section>` : '';
   v.innerHTML = `<div class="wrap pagina-corrida">
     <div class="cab">${bib(c.data)}<div><span class="editoria">${dataLonga(c.data)}${c.horario ? ', largada às ' + c.horario.slice(0, 5) : ''}</span><h1 class="display">${esc(c.nome)}</h1><span class="muted" style="font-size:18px">${esc(c.cidade)}, ${esc(c.estado)}${c.organizador ? ' · Organização: ' + esc(c.organizador) : ''}</span></div></div>
     <div class="principal">
@@ -842,28 +868,7 @@ function mostrarCorrida(slug, percIdx = 0) {
         <div id="mapaCorrida" class="mapa-perc"></div>
         <div class="alt-inter" id="altInter">${svgAltimetria(comDistancia(c))}${marcasKm(c.percurso_km)}<div class="alt-dica" id="altDica" hidden></div></div>
         <small class="alt-ajuda">Passe o dedo ou o mouse sobre a altimetria para ver cada ponto no mapa. As setas mostram o sentido da prova.</small></div>
-      ${mod('simulador') ? `<div class="caixa sim" id="simBox"><span class="rot">SIMULADOR DA PROVA</span><h2 class="display">Como vai ser a sua prova</h2>
-        <div class="sim-entrada"><label class="campo">Seu tempo alvo (h:mm:ss)<input id="simAlvo" inputmode="numeric"></label><button type="button" id="simClima" class="sim-clima" aria-pressed="true">Considerar o clima</button></div>
-        <p class="sim-clima-info" id="simClimaInfo"></p>
-        <div class="sim-plano">
-          <div class="sim-ctrl"><div class="sim-ctrl-top"><span>Estratégia de ritmo</span><b id="simEstTxt"></b></div>
-            <input type="range" id="simEst" min="-5" max="5" step="1" value="0" aria-describedby="simEstTxt" aria-label="Estratégia de ritmo">
-            <div class="sim-ctrl-pontas"><span>Sair forte</span><span>Igual</span><span>Guardar pro fim</span></div></div>
-          <div class="sim-ctrl"><div class="sim-ctrl-top"><span>Nas subidas</span><b id="simAdjTxt"></b></div>
-            <input type="range" id="simAdj" min="0" max="100" step="5" value="100" aria-describedby="simAdjTxt" aria-label="Ajuste pelo terreno">
-            <div class="sim-ctrl-pontas"><span>Mesmo ritmo</span><span>Mesmo esforço</span></div></div>
-          <div class="sim-ctrl-linha"><label class="campo">Parciais<select id="simPasso"><option value="1">A cada 1 km</option><option value="0.5">A cada 500 m</option></select></label>
-            <button type="button" class="btn" id="simReset">Voltar ao padrão</button></div>
-          <div class="sim-metades" id="simMetades"></div>
-        </div>
-        <div class="sim-resultado" id="simResultado"></div>
-        <label class="campo">Arraste para acompanhar o seu fantasma no mapa<input type="range" id="simKm" min="0" step="0.1" value="0"></label>
-        <div class="sim-leitura" id="simLeitura"></div>
-        <h3 class="display">Ritmo de cada km para fechar no alvo</h3>
-        <div class="sim-barras" id="simBarras" aria-hidden="true"></div><div class="sim-legenda"><span>mais lento (subidas)</span><span>mais rápido (descidas)</span></div>
-        <div class="pulseira" id="simTabela"></div>
-        <button type="button" class="btn" id="simImprimir">Imprimir pulseira desta prova</button>
-        <small class="nota">Estimativa com base na altimetria do percurso e no clima do horário da largada. Vento, piso e o seu dia mudam o resultado.</small></div>` : ''}` :
+` :
       c.lat != null ? `<div class="caixa"><h2 class="display">Largada</h2><p style="margin:0 0 14px">${esc(c.local_largada || c.cidade)}</p><div id="mapaCorrida"></div></div>` : ''}
       ${(c.kit_inclui || []).length ? `<div class="caixa"><h2 class="display">O que vem no kit</h2><ul class="kit">${c.kit_inclui.map((k) => `<li>${esc(k)}</li>`).join('')}</ul></div>` : ''}
     </div>
@@ -873,7 +878,7 @@ function mostrarCorrida(slug, percIdx = 0) {
         ${c.inscricoes_abertas ? '' : '<p class="muted" style="margin:12px 0 0">Inscrições encerradas.</p>'}
       </div>
       <a href="#mapa" class="btn btn-linha" data-mod="mapa">Ver corridas próximas no mapa</a>
-    </div></div>`;
+    </div>${simHtml}</div>`;
   $$('[data-perc]', v).forEach((b) => b.addEventListener('click', () => {
     const y = window.scrollY; mostrarCorrida(slug, Number(b.dataset.perc)); window.scrollTo(0, y);
     setTimeout(() => $(`[data-perc="${b.dataset.perc}"]`)?.focus(), 60);
@@ -887,7 +892,6 @@ function mostrarCorrida(slug, percIdx = 0) {
         const ll = c.percurso.map((p) => [p[0], p[1]]);
         const ic = (cls) => L.divIcon({ className: '', html: `<div class="${cls}"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] });
         L.polyline(ll, { color: '#1E2124', weight: 6, opacity: .35 }).addTo(mapaCorrida);
-        simFeito = L.polyline([], { color: '#FF4D00', weight: 5 }).addTo(mapaCorrida);
         const ptsP = comDistancia(c);
         enfeitarPercurso(mapaCorrida, ptsP);
         const circuito = metros(c.percurso[0], c.percurso[c.percurso.length - 1]) < 150;
@@ -898,7 +902,6 @@ function mostrarCorrida(slug, percIdx = 0) {
           L.marker(ll[0], { icon: etiqueta('ini', 'Largada'), title: 'Largada', alt: 'Largada', zIndexOffset: 500 }).addTo(mapaCorrida);
         }
         ligarAltimetria(ptsP, mapaCorrida);
-        simFantasma = L.marker(ll[0], { icon: L.divIcon({ className: '', html: '<div class="fantasma"></div>', iconSize: [18, 18], iconAnchor: [9, 9] }), keyboard: false, interactive: false }).addTo(mapaCorrida);
         mapaCorrida.fitBounds(L.latLngBounds(ll).pad(0.08));
         if (mod('simulador')) montarSimulador(c);
       } else L.marker([c.lat, c.lng], { icon: iconePino(true), alt: c.nome }).addTo(mapaCorrida);

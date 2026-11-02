@@ -586,3 +586,44 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
 .etq-perc{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 4px;border-radius:999px;background:#fff;font:700 12px/1 var(--texto, sans-serif);color:#1E2124;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.35);transform:translate(-4px,-4px)}
 .etq-perc span{width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.2)}
 .etq-perc.ini span{background:#1D6B45}.etq-perc.fim span{background:#1E2124}
+
+/* simulador compacto, largura total */
+.pagina-corrida .sim{grid-column:span 12;padding:24px 28px}
+.sim .sim-cab{display:flex;justify-content:space-between;align-items:flex-end;gap:16px 24px;flex-wrap:wrap}
+.sim .sim-cab h2{font-size:34px;margin-top:2px}
+.sim .sim-entrada{margin-top:0;grid-template-columns:150px auto;gap:8px}
+.sim .sim-entrada .campo{font-size:12px}
+.sim .campo input:not([type=range]){font-size:20px;height:46px}
+.sim .sim-clima{height:46px;padding:0 16px;font-size:14px}
+.sim .sim-clima-info{margin:6px 0 0;text-align:right}
+.sim-grade{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:28px;margin-top:16px;align-items:start}
+.sim-col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.sim-ctrl input[type=range]{margin:4px 0 0;height:24px}
+.sim-ctrl-top span{font-size:13px}
+.sim-ctrl-top b{font-size:12px;text-align:right}
+.sim-ctrl-pontas{font-size:11px}
+.sim .sim-ctrl-linha .campo{font-size:12px;min-width:130px}
+.sim .sim-ctrl-linha select{height:40px;background:var(--noite3);color:#fff;border:1px solid #3A4046;font-size:14px}
+.sim-reset{height:40px;padding:0 14px;border-radius:6px;border:1px solid #3A4046;background:transparent;color:var(--claro-esc);font-weight:600;font-size:13px;cursor:pointer}
+.sim-reset:hover,.sim-reset:focus-visible{border-color:var(--cone);color:#fff}
+.sim-metades b{font-size:22px}
+.sim-metades div{padding:8px 10px}
+.sim .sim-resultado{margin:0;padding:12px 14px}
+.sim .sim-tempo b{font-size:28px}
+.sim .sim-resultado p{font-size:13px}
+.sim .sim-barras{height:56px}.sim .sim-barras::after{top:28px}
+.sim .sim-legenda{margin:2px 0 0;font-size:11px}
+.sim .pulseira{max-height:300px}
+.sim-rodape{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.sim-rodape #simImprimir{margin:0}
+.sim-rodape .nota{margin:0;flex:1;min-width:200px}
+.alt-dica .pass{color:#FFB38A;font-family:var(--mono)}
+@media (max-width:860px){
+  .sim-grade{grid-template-columns:1fr;gap:18px}
+  .pagina-corrida .sim{padding:20px 16px}
+  .sim .sim-cab h2{font-size:28px}
+  .sim .sim-clima-info{text-align:left}
+}
+
+.pagina-corrida .lado{position:sticky;top:20px;align-self:start}
+@media (max-width:860px){.pagina-corrida .lado{position:static}}
