@@ -684,13 +684,29 @@ document.addEventListener('click', (e) => {
 });
 
 let grupoCompacto;
+// Agrupa os pinos próximos numa bolinha com o número de corridas; ao aproximar o zoom (ou clicar) eles se separam
+function agrupador(interativo) {
+  if (!L.markerClusterGroup) return L.layerGroup();
+  return L.markerClusterGroup({
+    maxClusterRadius: (z) => (z >= 13 ? 30 : 55),
+    showCoverageOnHover: false,
+    spiderfyOnMaxZoom: true,
+    zoomToBoundsOnClick: interativo,
+    chunkedLoading: true,
+    iconCreateFunction: (cl) => {
+      const n = cl.getChildCount();
+      const tam = n < 10 ? 36 : n < 50 ? 44 : n < 200 ? 52 : 60;
+      return L.divIcon({ html: `<span>${n}</span>`, className: 'grupo-pino', iconSize: [tam, tam] });
+    }
+  });
+}
 function montarMapaCompacto() {
   if (!mapaCompacto) {
     const desk = matchMedia('(min-width: 1000px)').matches;
     mapaCompacto = L.map('mapaHero', { zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, tap: false }).setView(CENTRO, desk ? 10 : 9);
     camadas().escuro.addTo(mapaCompacto);
     circuloRaio().addTo(mapaCompacto);
-    grupoCompacto = L.layerGroup().addTo(mapaCompacto);
+    grupoCompacto = agrupador(false).addTo(mapaCompacto);
     mapaCompacto.on('click', () => { location.hash = '#mapa'; });
     if (!desk) mapaCompacto.panBy([0, -70], { animate: false });
   }
@@ -709,7 +725,7 @@ function montarMapaGrande() {
     camadasGrande = camadas();
     camadasGrande[estado.camada].addTo(mapaGrande);
     circuloRaio().addTo(mapaGrande);
-    grupoGrande = L.layerGroup().addTo(mapaGrande);
+    grupoGrande = agrupador(true).addTo(mapaGrande);
     mapaGrande.on('moveend', listarMapa);
     $$('.alterna button').forEach((b) => b.addEventListener('click', () => trocarCamada(b.dataset.camada)));
     $('#buscaMapa').addEventListener('input', buscar);
@@ -736,17 +752,20 @@ function atualizarMarcadores() {
   const pos = (c) => { const k = c.lat.toFixed(3) + c.lng.toFixed(3); const n = usados[k] = (usados[k] || 0) + 1; return [c.lat + (n - 1) * 0.004, c.lng + (n - 1) * 0.004]; };
   if (grupoCompacto) {
     grupoCompacto.clearLayers();
-    lista.forEach((c) => L.marker([c.lat, c.lng], { icon: iconePino(false, c.inscricoes_abertas), interactive: false, keyboard: false }).addTo(grupoCompacto));
+    grupoCompacto.addLayers ? grupoCompacto.addLayers(lista.map((c) => L.marker([c.lat, c.lng], { icon: iconePino(false, c.inscricoes_abertas), interactive: false, keyboard: false })))
+      : lista.forEach((c) => L.marker([c.lat, c.lng], { icon: iconePino(false, c.inscricoes_abertas), interactive: false, keyboard: false }).addTo(grupoCompacto));
   }
   if (grupoGrande) {
     grupoGrande.clearLayers(); marcadores.clear();
     Object.keys(usados).forEach((k) => delete usados[k]);
+    const novos = [];
     lista.filter(passaExtras).forEach((c) => {
       const mk = L.marker(pos(c), { icon: iconePino(false, c.inscricoes_abertas), title: c.nome, alt: c.nome }).bindPopup(popupHtml(c), { className: 'pc-pop', maxWidth: 290 });
       mk.on('popupopen', () => { mk.setIcon(iconePino(true)); destacarItem(c.id, true); });
       mk.on('popupclose', () => { mk.setIcon(iconePino(false, c.inscricoes_abertas)); destacarItem(c.id, false); });
-      mk.addTo(grupoGrande); marcadores.set(c.id, mk);
+      novos.push(mk); marcadores.set(c.id, mk);
     });
+    if (grupoGrande.addLayers) grupoGrande.addLayers(novos); else novos.forEach((m) => m.addTo(grupoGrande));
     listarMapa();
   }
 }
@@ -856,8 +875,8 @@ $('#listaMapa').addEventListener('click', (e) => {
   const b = e.target.closest('[data-ir]'); if (!b) return;
   b.dataset.id = b.dataset.ir;
   const mk = marcadores.get(b.dataset.id); if (!mk) return;
-  mapaGrande.flyTo(mk.getLatLng(), Math.max(mapaGrande.getZoom(), 12), { duration: .6 });
-  mapaGrande.once('moveend', () => mk.openPopup());
+  if (grupoGrande.zoomToShowLayer) grupoGrande.zoomToShowLayer(mk, () => mk.openPopup());
+  else { mapaGrande.flyTo(mk.getLatLng(), Math.max(mapaGrande.getZoom(), 12), { duration: .6 }); mapaGrande.once('moveend', () => mk.openPopup()); }
 });
 function buscar() {
   const termo = $('#buscaMapa').value.trim().toLowerCase();

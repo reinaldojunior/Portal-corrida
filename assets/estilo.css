@@ -54,6 +54,8 @@ img{max-width:100%;display:block}
 .pop .cid{font-size:15px;color:var(--cinza)}
 .pop .btn{margin-top:8px;color:#fff}
 .leaflet-container{font-family:var(--texto)}
+.grupo-pino{display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--cone);color:var(--asfalto);border:3px solid #fff;box-shadow:0 0 0 6px rgba(255,77,0,.25),0 2px 6px rgba(0,0,0,.3);font-weight:800;font-size:14px;transition:transform .15s}
+.grupo-pino:hover{transform:scale(1.08)}
 
 /* Mapa expandido */
 .tela-mapa{position:fixed;inset:0;z-index:1000;background:var(--concreto);display:flex;flex-direction:column}
