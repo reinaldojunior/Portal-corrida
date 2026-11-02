@@ -219,17 +219,18 @@ function montarQuadro() {
 function fotoOuVazio(url, alt) { return url ? `<div class="foto"><img src="${esc(url)}" alt="${esc(alt)}" loading="lazy"></div>` : '<div class="foto"></div>'; }
 const NOMES_ED = { regiao: 'Região', brasil: 'Brasil', mundo: 'Mundo', treino: 'Treino', percurso: 'Percurso', equipamento: 'Equipamento' };
 function montarNoticias() {
+  estado.noticias.forEach((n) => { if (!n.slug) n.slug = slugify(n.titulo); });
   const ns = estado.noticias.slice();
   const principal = ns.find((n) => n.destaque) || ns[0];
   const resto = ns.filter((n) => n !== principal).slice(0, 5);
   $('#noticiasConta').textContent = ns.length === 1 ? '1 matéria' : `${ns.length} matérias`;
   $('#noticiasConteudo').innerHTML = `
     <article class="manchete">
-      <div class="manchete-foto">${principal.imagem_url ? `<img src="${esc(principal.imagem_url)}" alt="${esc(principal.titulo)}" loading="lazy">` : ''}<span class="selo">${esc((NOMES_ED[principal.editoria] || '').toUpperCase())}</span></div>
-      <h3 class="display">${esc(principal.titulo)}</h3>
+      <a class="manchete-foto" href="#noticia/${esc(principal.slug)}" tabindex="-1" aria-hidden="true">${principal.imagem_url ? `<img src="${esc(principal.imagem_url)}" alt="" loading="lazy">` : ''}<span class="selo">${esc((NOMES_ED[principal.editoria] || '').toUpperCase())}</span></a>
+      <h3 class="display"><a class="link-noticia" href="#noticia/${esc(principal.slug)}">${esc(principal.titulo)}</a></h3>
       ${principal.resumo ? `<p>${esc(principal.resumo)}</p>` : ''}${principal.fonte_nome ? `<p class="credito" style="font-size:12px;opacity:.7;margin-top:4px">Com informações de ${principal.fonte_url ? `<a href="${esc(principal.fonte_url)}" target="_blank" rel="noopener">${esc(principal.fonte_nome)}</a>` : esc(principal.fonte_nome)}</p>` : ''}
     </article>
-    ${resto.length ? `<ol class="lista-num">${resto.map((n, i) => `<li><span class="num">${String(i + 2).padStart(2, '0')}</span><span><span class="editoria">${esc(NOMES_ED[n.editoria] || '')}</span><span class="tit">${esc(n.titulo)}</span></span></li>`).join('')}</ol>` : ''}`;
+    ${resto.length ? `<ol class="lista-num">${resto.map((n, i) => `<li><span class="num">${String(i + 2).padStart(2, '0')}</span><span><span class="editoria">${esc(NOMES_ED[n.editoria] || '')}</span><a class="tit link-noticia" href="#noticia/${esc(n.slug)}">${esc(n.titulo)}</a></span></li>`).join('')}</ol>` : ''}`;
 }
 
 /* ================== Zonas de frequência cardíaca ================== */
@@ -774,6 +775,33 @@ function buscar() {
   listarMapa();
 }
 
+/* ================== Página da notícia ================== */
+async function mostrarNoticia(slug) {
+  const v = $('#vNoticia');
+  estado.noticias.forEach((x) => { if (!x.slug) x.slug = slugify(x.titulo); });
+  let n = estado.noticias.find((x) => x.slug === slug);
+  if (!n && estado.admin && sb) { const r = await sb.from('noticias').select('*').eq('slug', slug).maybeSingle(); n = r.data; }
+  if (!n) { v.innerHTML = '<div class="wrap" style="padding:64px 0"><h1 class="display" style="font-size:56px">Notícia não encontrada</h1><p class="muted">Ela pode ter sido removida. <a href="#" style="color:var(--cone-txt);font-weight:600">Voltar para o início</a></p></div>'; return; }
+  const quando = n.publicado_em || n.criado_em;
+  const data = quando ? new Date(quando).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  const outras = estado.noticias.filter((x) => x.slug !== slug).slice(0, 4);
+  document.title = `${n.titulo} · PaceClub`;
+  v.innerHTML = `<div class="wrap pagina-noticia">
+    <article class="noticia-art">
+      <a href="#" class="voltar">← Voltar</a>
+      ${n.status && n.status !== 'publicado' ? `<div class="aviso erro" style="margin:12px 0">Prévia: esta notícia está como "${esc(n.status)}" e não aparece para o público.</div>` : ''}
+      <span class="editoria">${esc(NOMES_ED[n.editoria] || '')}${data ? ' · ' + data : ''}</span>
+      <h1 class="display">${esc(n.titulo)}</h1>
+      ${n.resumo ? `<p class="noticia-linha">${esc(n.resumo)}</p>` : ''}
+      ${n.autor ? `<p class="noticia-autor">Por ${esc(n.autor)}</p>` : ''}
+      ${n.imagem_url ? `<figure class="noticia-foto"><img src="${esc(n.imagem_url)}" alt=""></figure>` : ''}
+      <div class="texto-corrida noticia-texto">${textoRico(n.conteudo || '')}</div>
+      ${n.fonte_nome ? `<p class="noticia-fonte">Com informações de ${n.fonte_url ? `<a href="${esc(n.fonte_url)}" target="_blank" rel="noopener">${esc(n.fonte_nome)}</a>` : esc(n.fonte_nome)}</p>` : ''}
+    </article>
+    ${outras.length ? `<aside class="noticia-mais"><h2 class="display">Mais notícias</h2><ol class="lista-num">${outras.map((o, i) => `<li><span class="num">${String(i + 1).padStart(2, '0')}</span><span><span class="editoria">${esc(NOMES_ED[o.editoria] || '')}</span><a class="tit link-noticia" href="#noticia/${esc(o.slug)}">${esc(o.titulo)}</a></span></li>`).join('')}</ol></aside>` : ''}
+  </div>`;
+}
+
 /* ================== Página da corrida ================== */
 const passoKm = (tot) => tot <= 12 ? 1 : tot <= 25 ? 2 : 5;
 function marcasKm(tot) {
@@ -951,21 +979,25 @@ $('#formAviso').addEventListener('submit', async (e) => {
 });
 
 /* ================== Rotas ================== */
+const TITULO_SITE = document.title;
 function rotear() {
   const h = decodeURIComponent(location.hash);
-  const eMapa = h === '#mapa', eAdmin = h === '#admin', eCorrida = h.startsWith('#corrida/'), eZonas = h === '#zonas' && mod('zonas_fc');
+  const eMapa = h === '#mapa', eAdmin = h === '#admin', eCorrida = h.startsWith('#corrida/'), eNoticia = h.startsWith('#noticia/'), eZonas = h === '#zonas' && mod('zonas_fc');
   $('#vMapa').hidden = !(eMapa && mod('mapa'));
   document.body.style.overflow = eMapa ? 'hidden' : '';
-  $('#vHome').hidden = eAdmin || eCorrida;
+  $('#vHome').hidden = eAdmin || eCorrida || eNoticia;
+  $('#vNoticia').hidden = !eNoticia;
+  if (!eNoticia) document.title = TITULO_SITE;
   $('#vAdmin').hidden = !eAdmin;
   $('#vCorrida').hidden = !eCorrida;
   $('#navApp').hidden = eAdmin || eMapa;
   $$('#navApp a').forEach((a) => a.classList.toggle('ativo', (eMapa && a.getAttribute('href') === '#mapa') || (eZonas && a.dataset.ir === 'ferramentas')));
   if (eMapa && mod('mapa')) montarMapaGrande();
   if (eCorrida) { mostrarCorrida(h.slice(9)); scrollTo(0, 0); }
+  if (eNoticia) { mostrarNoticia(h.slice(9)); scrollTo(0, 0); }
   if (eAdmin) { abrirAdmin(); scrollTo(0, 0); }
   if (eZonas) setTimeout(() => $('#ferrZonas').scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
-  if (!eMapa && !eAdmin && !eCorrida && mapaCompacto) setTimeout(() => mapaCompacto.invalidateSize(), 50);
+  if (!eMapa && !eAdmin && !eCorrida && !eNoticia && mapaCompacto) setTimeout(() => mapaCompacto.invalidateSize(), 50);
 }
 window.addEventListener('hashchange', rotear);
 document.addEventListener('click', (e) => {
@@ -1342,7 +1374,7 @@ async function adminNoticias() {
   box.innerHTML = `${mod('noticias') ? '' : '<div class="aviso ok" style="margin-bottom:16px">O módulo Notícias está desligado. Você pode cadastrar e publicar à vontade; elas só aparecem no site quando o módulo for ligado na aba Módulos.</div>'}
   <div class="barra-admin"><span class="muted">${(ns || []).length} notícia(s)</span><button class="btn btn-cone" id="novaNoticia">Nova notícia</button></div>
   <div class="tabela-wrap"><table class="tab"><thead><tr><th>Título</th><th>Editoria</th><th>Status</th><th>Direitos</th><th><span class="muted" style="font-weight:400">Ações</span></th></tr></thead><tbody>
-  ${(ns || []).map((n) => `<tr><td><b>${esc(n.titulo)}</b>${n.destaque ? ' <span class="status">Manchete</span>' : ''}</td><td>${esc(NOMES_ED[n.editoria])}</td><td><span class="status ${n.status}">${n.status}</span></td><td>${seloVerif(n)}</td><td class="acoes"><button class="btn btn-linha" data-editar="${n.id}">Editar</button> <button class="btn btn-perigo" data-excluir="${n.id}">Excluir</button></td></tr>`).join('') || '<tr><td colspan="5" class="muted">Nenhuma notícia ainda.</td></tr>'}
+  ${(ns || []).map((n) => `<tr><td><b>${esc(n.titulo)}</b>${n.destaque ? ' <span class="status">Manchete</span>' : ''}</td><td>${esc(NOMES_ED[n.editoria])}</td><td><span class="status ${n.status}">${n.status}</span></td><td>${seloVerif(n)}</td><td class="acoes"><a class="btn btn-linha" href="#noticia/${esc(n.slug)}" target="_blank" rel="noopener">Ver</a> <button class="btn btn-linha" data-editar="${n.id}">Editar</button> <button class="btn btn-perigo" data-excluir="${n.id}">Excluir</button></td></tr>`).join('') || '<tr><td colspan="5" class="muted">Nenhuma notícia ainda.</td></tr>'}
   </tbody></table></div>`;
   $('#novaNoticia').addEventListener('click', () => formNoticia());
   $$('[data-editar]', box).forEach((b) => b.addEventListener('click', () => formNoticia(ns.find((n) => n.id === b.dataset.editar))));
