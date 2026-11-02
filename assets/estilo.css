@@ -837,3 +837,6 @@ a.manchete-foto{display:block}
 .admin-busca-item input{margin-top:4px}
 .admin-busca-item img{width:120px;height:80px;object-fit:cover;border-radius:6px;flex-shrink:0}
 .admin-corrida-acoes{flex-wrap:wrap}
+.selos-pend{display:inline-flex;gap:4px;vertical-align:2px;margin-left:4px}
+.selo-pend{font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;background:#F6E3E1;color:#9B2C22;white-space:nowrap}
+.selo-pend.ok{background:#E6F4EC;color:#1D6B45}
