@@ -5,7 +5,7 @@
 const UA = 'Mozilla/5.0 (compatible; PaceClubBot/1.0; +https://paceclub-mu.vercel.app)';
 const SUPABASE_URL = 'https://ssfsxdmzbubvygctdjgf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
-const MAX_DETALHES = 60; // páginas de detalhe por execução (só das provas novas)
+const MAX_DETALHES = 35; // páginas de detalhe por execução (só das provas novas)
 
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 const limpar = (s) => String(s || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
@@ -101,7 +101,7 @@ async function coletar(estados, gravar) {
         if (detalhesUsados >= MAX_DETALHES) { it.observacao = 'Detalhes não lidos nesta rodada (limite diário).'; continue; }
         try { Object.assign(it, lerDetalhe((await baixar(it.fonte_url)).texto)); } catch { it.observacao = 'Não consegui abrir a página da prova.'; }
         detalhesUsados += 1;
-        await dormir(300); // educado com o site
+        await dormir(150); // educado com o site
       }
       const inseridas = gravar && lote.length ? await rpc('robo_inserir_pendentes', { p_token: token, p_itens: lote }) : 0;
       relatorio.push({ uf, no_calendario: itens.length, novas: lote.length, gravadas: inseridas, exemplo: lote.slice(0, 3) });
