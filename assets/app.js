@@ -1002,13 +1002,55 @@ function ligarAltimetria(pts, mapa) {
 let mapaCorrida;
 // Só para o admin: atalhos de editar/excluir no topo da página da corrida
 let editarAoAbrirAdmin = null;
+// Admin na página da corrida: lê a página de inscrição e oferece a imagem e o local encontrados para salvar
+async function buscarFotoLocal(barra, c) {
+  $('.admin-busca', barra)?.remove();
+  const caixa = document.createElement('div');
+  caixa.className = 'admin-busca';
+  barra.append(caixa);
+  if (!/^https?:\/\//i.test(c.link_inscricao || '')) { caixa.innerHTML = '<small>Esta corrida não tem link de inscrição. Use "Editar" para colar o link e marcar o local no mapa.</small>'; return; }
+  caixa.innerHTML = '<small>Lendo a página da inscrição…</small>';
+  let j;
+  try {
+    const r = await fetch(`/api/extrair?url=${encodeURIComponent(c.link_inscricao)}`);
+    j = await r.json();
+    if (!r.ok) throw new Error(j.erro || 'Não foi possível ler a página.');
+  } catch (e) { caixa.innerHTML = `<small>${esc(e.message || 'Não foi possível ler a página.')}</small>`; return; }
+  const temImg = !!j.imagem, temPonto = j.lat != null && j.lng != null;
+  if (!temImg && !temPonto && !j.local) { caixa.innerHTML = '<small>Não encontrei imagem nem local na página da inscrição. Use "Editar" para colocar à mão.</small>'; return; }
+  caixa.innerHTML = `${temImg ? `<label class="admin-busca-item"><input type="checkbox" data-usar="img"${c.imagem_url ? '' : ' checked'}>
+      <img src="${esc(j.imagem)}" alt="" onerror="this.closest('label').querySelector('small').textContent='Essa imagem não abriu.'">
+      <span><b>Imagem de divulgação</b><br><small>${c.imagem_url ? 'A corrida já tem imagem; marque para trocar. ' : ''}É a arte do organizador: use só com permissão e com o crédito.</small></span></label>` : '<small>Nenhuma imagem encontrada.</small>'}
+    ${temPonto || j.local ? `<label class="admin-busca-item"><input type="checkbox" data-usar="local"${temPonto && c.lat == null ? ' checked' : ''}>
+      <span><b>Local da largada</b><br><small>${esc(j.local || 'sem nome')}${temPonto ? (j.aproximado ? ' · aproximado, pelo endereço (confira no mapa depois)' : ' · local exato') : ' · sem coordenadas'}${c.lat != null ? ' · a corrida já tem pino; marque para trocar' : ''}</small></span></label>` : '<small>Nenhum local encontrado.</small>'}
+    <div><button class="btn btn-escuro" type="button" data-acao="salvar-busca">Salvar o que estiver marcado</button></div>`;
+  $('[data-acao="salvar-busca"]', caixa).addEventListener('click', async () => {
+    const dados = {};
+    if ($('[data-usar="img"]', caixa)?.checked) {
+      dados.imagem_url = j.imagem;
+      if (!c.imagem_credito) dados.imagem_credito = `Imagem: divulgação${c.organizador ? ' / ' + c.organizador : ''}`;
+    }
+    if ($('[data-usar="local"]', caixa)?.checked) {
+      if (j.local) dados.local_largada = j.local;
+      if (temPonto) { dados.lat = j.lat; dados.lng = j.lng; dados.pino_conferido_em = null; }
+    }
+    if (!Object.keys(dados).length) return toast('Marque o que quer salvar.');
+    const { error } = await sb.from('corridas').update(dados).eq('id', c.id);
+    if (error) return toast('Não foi possível salvar.');
+    toast('Corrida atualizada');
+    const alvo = estado.corridas.find((x) => x.id === c.id);
+    if (alvo) Object.assign(alvo, dados);
+    mostrarCorrida(c.slug);
+  });
+}
 function barraAdminCorrida(v, c) {
   if (!estado.admin || !sb || !c || !c.id) return;
   const barra = document.createElement('div');
   barra.className = 'wrap admin-corrida';
   barra.innerHTML = `<span class="muted"><b>Admin</b> · ${c.status === 'publicado' ? 'publicada' : esc(c.status || '')}</span>
-    <span class="admin-corrida-acoes"><button class="btn btn-linha" type="button" data-acao="editar">Editar</button> <button class="btn btn-perigo" type="button" data-acao="excluir">Excluir</button></span>`;
+    <span class="admin-corrida-acoes"><button class="btn btn-cone" type="button" data-acao="buscar">Buscar foto e local</button> <button class="btn btn-linha" type="button" data-acao="editar">Editar</button> <button class="btn btn-perigo" type="button" data-acao="excluir">Excluir</button></span>`;
   v.prepend(barra);
+  $('[data-acao="buscar"]', barra).addEventListener('click', () => buscarFotoLocal(barra, c));
   $('[data-acao="editar"]', barra).addEventListener('click', () => { editarAoAbrirAdmin = c.id; abaAdmin = 'corridas'; location.hash = '#admin'; });
   $('[data-acao="excluir"]', barra).addEventListener('click', async () => {
     if (!confirm(`Excluir "${c.nome}"? Isso não pode ser desfeito.`)) return;

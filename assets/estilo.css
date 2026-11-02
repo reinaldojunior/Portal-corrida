@@ -832,3 +832,8 @@ a.manchete-foto{display:block}
 
 .admin-corrida{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:16px;padding:10px 14px;border:1.5px dashed var(--cone-txt,#c55);border-radius:10px;background:var(--papel)}
 .admin-corrida-acoes{display:flex;gap:8px}
+.admin-busca{flex-basis:100%;display:flex;flex-direction:column;gap:10px;padding-top:8px;border-top:1px solid var(--linha,#ddd)}
+.admin-busca-item{display:flex;align-items:flex-start;gap:10px;cursor:pointer}
+.admin-busca-item input{margin-top:4px}
+.admin-busca-item img{width:120px;height:80px;object-fit:cover;border-radius:6px;flex-shrink:0}
+.admin-corrida-acoes{flex-wrap:wrap}
