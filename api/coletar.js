@@ -116,6 +116,11 @@ module.exports = async (req, res) => {
   const enviada = (req.headers.authorization || '').replace(/^Bearer /, '') || String(req.query.chave || '');
   if (!segredo || enviada !== segredo) return res.status(401).json({ erro: 'não autorizado' });
   const estados = String(process.env.ESTADOS || 'SP').toUpperCase().split(/[,\s]+/).filter((x) => /^[A-Z]{2}$/.test(x));
+  if (req.query.ver) {
+    const pg = await baixar(`https://www.corridasbr.com.br/SP/mostracorrida.asp?escolha=${encodeURIComponent(req.query.ver)}`);
+    const i = pg.texto.search(/Mais Informa/i);
+    return res.status(200).json({ trecho: i < 0 ? null : pg.texto.slice(i, i + 900) });
+  }
   try {
     const relatorio = await coletar(estados, req.query.simular !== '1');
     res.status(200).json({ quando: new Date().toISOString(), relatorio });
