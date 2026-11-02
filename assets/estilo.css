@@ -705,3 +705,6 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
   .sim-lado .sim-rodape #simImprimir{height:34px;padding:0 14px;font-size:13px}
   .sim-lado .sim-rodape .nota{font-size:10px;line-height:1.35}
 }
+
+.sim .sim-entrada{grid-template-columns:110px}
+@media (min-width:1101px){.sim-lado .sim-entrada{grid-template-columns:96px}}

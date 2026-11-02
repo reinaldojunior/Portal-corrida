@@ -510,24 +510,22 @@ async function montarSimulador(c) {
   const tot = simPts[simPts.length - 1].km;
   if (!simEstado.alvo || simEstado.corrida !== c.id) {
     const ref = estado.pace10 ? estado.pace10 * Math.pow(tot / 10, 1.06) * 10 : tot * 330;
-    simEstado = { alvo: fmt(Math.round(ref / 60) * 60), comClima: true, km: 0, corrida: c.id, est: 0, adj: 100, passo: 1 };
+    simEstado = { alvo: fmt(Math.round(ref / 60) * 60), comClima: false, km: 0, corrida: c.id, est: 0, adj: 100, passo: 1 };
   }
   $('#simAlvo').value = simEstado.alvo;
   $('#simEst').value = simEstado.est; $('#simAdj').value = simEstado.adj; $('#simPasso').value = String(simEstado.passo);
   if ($('#simKm')) $('#simKm').max = tot.toFixed(1);
-  $('#simClimaInfo').textContent = 'Buscando o clima…';
-  simClima = await climaProva(c);
+  simClima = null;
   atualizarSimulador();
 }
 function atualizarSimulador() {
   const c = simCorrida; if (!c) return;
   const alvo = segundos($('#simAlvo').value);
   const clima = simEstado.comClima ? simClima : null;
-  $('#simClima').setAttribute('aria-pressed', simEstado.comClima);
-  if (simClima) {
+  if (simClima && $('#simClimaInfo')) {
     const ini = climaNa(simClima, horaLargada(c)), fim = climaNa(simClima, horaLargada(c) + (alvo || 3600) / 3600);
     $('#simClimaInfo').textContent = `${Math.round(ini.t)}°C na largada e ${Math.round(fim.t)}°C na chegada, umidade de ${Math.round(ini.u)}% (${simClima.fonte}).`;
-  } else $('#simClimaInfo').textContent = 'Não foi possível buscar o clima agora. A simulação considera só o percurso.';
+  }
   if (!alvo || alvo < 600) { $('#simResultado').innerHTML = '<p class="muted" style="margin:0">Digite o tempo alvo no formato h:mm:ss.</p>'; return; }
   const r = simular(c, simPts, alvo, clima, { est: simEstado.est, adj: simEstado.adj / 100, passo: simEstado.passo });
   textoEstrategia(r);
@@ -835,8 +833,7 @@ function mostrarCorrida(slug, percIdx = 0) {
   const brl = (v) => v == null ? 'Preço a confirmar' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const simHtml = temPerc && mod('simulador') ? `<section class="caixa sim sim-lado" id="simBox" aria-labelledby="simTit">
     <div class="sim-cab"><div><span class="rot">SIMULADOR DA PROVA</span><h2 class="display" id="simTit">Monte a sua estratégia</h2></div>
-      <div class="sim-entrada"><label class="campo">Tempo alvo<input id="simAlvo" inputmode="numeric" aria-describedby="simClimaInfo"></label><button type="button" id="simClima" class="sim-clima" aria-pressed="true">Clima</button></div></div>
-    <p class="sim-clima-info" id="simClimaInfo"></p>
+      <div class="sim-entrada"><label class="campo">Tempo alvo<input id="simAlvo" inputmode="numeric"></label></div></div>
     <div class="sim-grade">
       <div class="sim-col">
         <div class="sim-ctrl"><div class="sim-ctrl-top"><span>Estratégia</span><b id="simEstTxt"></b></div>
@@ -854,7 +851,7 @@ function mostrarCorrida(slug, percIdx = 0) {
         <div class="sim-barras" id="simBarras" aria-hidden="true"></div><div class="sim-legenda"><span>▲ mais lento</span><span>▼ mais rápido</span></div>
         <div class="pulseira" id="simTabela"></div>
         <div class="sim-rodape"><button type="button" class="btn" id="simImprimir">Imprimir pulseira</button>
-          <small class="nota">Estimativa pela altimetria e pelo clima do horário da largada. Passe o dedo na altimetria acima para ver a passagem em cada ponto.</small></div>
+          <small class="nota">Estimativa pela altimetria do percurso. Passe o dedo na altimetria acima para ver a passagem em cada ponto.</small></div>
       </div>
     </div></section>` : '';
   const percHtml = temPerc ? `<div class="caixa bloco-perc${simHtml ? ' com-sim' : ''}" id="caixaPerc"><div class="perc-topo"><h2 class="display">Percurso</h2>
