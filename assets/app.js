@@ -787,20 +787,37 @@ let mapaMostradas = 40, mapaListaAtual = [];
 function cartaoMapa(c) {
   const p = partes(c.data);
   const dists = rotulos(c);
+  const l = linkCorrida(c);
+  const foto = `${c.imagem_url ? `<img src="${esc(c.imagem_url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span class="cm-sem">${p.dia} ${p.mes}</span>${c.inscricoes_abertas ? '<span class="cm-selo">Inscrições abertas</span>' : ''}`;
   return `<article class="cartao-mapa" data-id="${c.id}">
-    <button type="button" class="cm-foto" data-ir="${c.id}" aria-label="Mostrar ${esc(c.nome)} no mapa">${c.imagem_url ? `<img src="${esc(c.imagem_url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span class="cm-sem">${p.dia} ${p.mes}</span>${c.inscricoes_abertas ? '<span class="cm-selo">Inscrições abertas</span>' : ''}</button>
+    ${l ? `<a class="cm-foto" href="${esc(l.href)}"${l.ext ? ' target="_blank" rel="noopener"' : ''} aria-label="${esc(c.nome)}">${foto}</a>` : `<button type="button" class="cm-foto" data-foco="${c.id}" aria-label="Mostrar ${esc(c.nome)} no mapa">${foto}</button>`}
     <div class="cm-info"><span class="cm-cid">${esc(c.cidade)}${c.estado ? ' · ' + esc(c.estado) : ''}</span><span class="cm-data">${p.sem}, ${p.d} ${p.mes.toLowerCase()}</span></div>
     <span class="cm-nome">${esc(c.nome)}</span>
     ${dists.length ? `<div class="chips">${dists.map((r) => `<span class="chip">${esc(r)}</span>`).join('')}</div>` : ''}
-    ${(() => { const l = linkCorrida(c); return l ? `<a class="cm-link" href="${esc(l.href)}"${l.ext ? ' target="_blank" rel="noopener"' : ''}>${l.ext ? 'Ir para a inscrição' : 'Ver corrida'} →</a>` : ''; })()}
+    <span class="cm-acoes">${l ? `<a class="cm-link" href="${esc(l.href)}"${l.ext ? ' target="_blank" rel="noopener"' : ''}>${l.ext ? 'Ir para a inscrição' : 'Ver corrida'} →</a>` : ''}<button type="button" class="cm-ver-mapa" data-foco="${c.id}">Ver no mapa</button></span>
   </article>`;
 }
 function desenharListaMapa() {
   const lista = mapaListaAtual;
   $('#listaMapa').innerHTML = lista.length ? `<div class="grade-mapa">${lista.slice(0, mapaMostradas).map(cartaoMapa).join('')}</div>` +
-    (lista.length > mapaMostradas ? `<button type="button" class="btn btn-linha mais-mapa" id="maisMapa">Mostrar mais (${lista.length - mapaMostradas})</button>` : '') :
+    (lista.length > mapaMostradas ? `<div class="mais-mapa" id="maisMapa">Carregando mais corridas…</div>` : '') :
     '<p class="vazio">Nenhuma corrida nesta área com esses filtros. Afaste o mapa, arraste para outra região ou tire algum filtro.</p>';
+  const fim = $('#maisMapa');
+  if (fim && 'IntersectionObserver' in window) {
+    if (observaFim) observaFim.disconnect();
+    observaFim = new IntersectionObserver((ent) => {
+      if (!ent[0].isIntersecting) return;
+      observaFim.disconnect();
+      // acrescenta só os próximos cartões, sem redesenhar os que já estão na tela
+      const prox = mapaListaAtual.slice(mapaMostradas, mapaMostradas + 40);
+      mapaMostradas += prox.length;
+      $('.grade-mapa').insertAdjacentHTML('beforeend', prox.map(cartaoMapa).join(''));
+      if (mapaMostradas >= mapaListaAtual.length) fim.remove(); else observaFim.observe(fim);
+    }, { root: $('#vMapa aside'), rootMargin: '600px' });
+    observaFim.observe(fim);
+  }
 }
+let observaFim = null;
 
 /* Filtros extras do mapa (estilo Airbnb) e filtro por cidade */
 const EXTRAS = [
@@ -859,7 +876,7 @@ $('#cidadeMapa').addEventListener('change', (e) => {
   }
 });
 $('#listaMapa').addEventListener('click', (e) => {
-  if (e.target.id === 'maisMapa') { mapaMostradas += 40; desenharListaMapa(); }
+  if (e.target.id === 'maisMapa') { mapaMostradas += 40; desenharListaMapa(); } // sem IntersectionObserver
 });
 $('#listaMapa').addEventListener('mouseover', (e) => {
   const a = e.target.closest('.cartao-mapa'); if (!a) return;
@@ -872,8 +889,8 @@ $('#listaMapa').addEventListener('mouseout', (e) => {
 });
 function destacarItem(id, on) { const el = $(`#listaMapa [data-id="${id}"]`); if (el) { el.classList.toggle('ativo', on); if (on) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } }
 $('#listaMapa').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-ir]'); if (!b) return;
-  b.dataset.id = b.dataset.ir;
+  const b = e.target.closest('[data-foco]'); if (!b) return;
+  b.dataset.id = b.dataset.foco;
   const mk = marcadores.get(b.dataset.id); if (!mk) return;
   if (grupoGrande.zoomToShowLayer) grupoGrande.zoomToShowLayer(mk, () => mk.openPopup());
   else { mapaGrande.flyTo(mk.getLatLng(), Math.max(mapaGrande.getZoom(), 12), { duration: .6 }); mapaGrande.once('moveend', () => mk.openPopup()); }
