@@ -14,8 +14,11 @@ module.exports = async (req, res) => {
   const uf = String(req.query.uf || 'SP').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2);
   if (req.query.debug === '2') {
     const pg = await baixar(`https://www.corridasbr.com.br/${uf}/mostracorrida.asp?escolha=${encodeURIComponent(req.query.id || '63953')}`);
-    const i = Math.max(0, pg.texto.search(/Adora|Data|Local|Inscri/i) - 200);
-    return res.status(200).json({ status: pg.status, trecho: pg.texto.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\s+/g, ' ').slice(i, i + 7000) });
+    const semScript = pg.texto.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<!--[\s\S]*?-->/g, '');
+    const links = [...semScript.matchAll(/href=['"]([^'"]+)['"][^>]*>([\s\S]{0,80}?)<\/a>/gi)].map((m) => m[1] + ' | ' + m[2].replace(/<[^>]+>/g, '').trim()).filter((l) => !/corridasbr|Calendario|por_cidade|^\.\.|facebook|instagram|twitter|whatsapp|javascript/i.test(l));
+    const txt = semScript.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    const i = Math.max(0, txt.search(/Data:|Local|Largada|Hor[aá]rio/i) - 300);
+    return res.status(200).json({ links: links.slice(0, 30), texto: txt.slice(i, i + 2500) });
   }
   if (req.query.debug === '1') {
     const pg = await baixar(`https://www.corridasbr.com.br/${uf}/Calendario.asp`);
