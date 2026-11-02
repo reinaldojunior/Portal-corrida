@@ -1214,6 +1214,47 @@ function ligarEditores(raiz) {
 }
 const valorEditor = (raiz, nome) => { const a = $(`[data-editor="${nome}"] .editor-area`, raiz); const h = limparHtml(a.innerHTML); return a.textContent.trim() ? h : null; };
 
+/* ===== Envio de fotos para o Supabase Storage (bucket "fotos") ===== */
+async function reduzirFoto(arq, max = 1600) {
+  const img = await new Promise((ok, erro) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => erro(new Error('Não consegui ler essa imagem.')); i.src = URL.createObjectURL(arq); });
+  const esc2 = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+  const cv = document.createElement('canvas'); cv.width = Math.round(img.naturalWidth * esc2); cv.height = Math.round(img.naturalHeight * esc2);
+  cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+  URL.revokeObjectURL(img.src);
+  const blob = await new Promise((ok) => cv.toBlob(ok, 'image/webp', 0.85)) || await new Promise((ok) => cv.toBlob(ok, 'image/jpeg', 0.85));
+  return blob;
+}
+async function enviarFoto(arq, pasta) {
+  if (!sb) throw new Error('Sem conexão com o banco.');
+  if (!/^image\/(jpeg|png|webp)$/.test(arq.type)) throw new Error('Use uma foto JPG, PNG ou WebP.');
+  const blob = await reduzirFoto(arq);
+  const ext = blob.type === 'image/webp' ? 'webp' : 'jpg';
+  const nome = `${pasta}/${new Date().toISOString().slice(0, 10)}-${Math.random().toString(36).slice(2, 8)}-${slugify(arq.name.replace(/\.[^.]+$/, '')).slice(0, 40) || 'foto'}.${ext}`;
+  const { error } = await sb.storage.from('fotos').upload(nome, blob, { contentType: blob.type, cacheControl: '31536000', upsert: false });
+  if (error) throw new Error(/row-level|policy|denied/i.test(error.message) ? 'Sem permissão para enviar. Entre como administrador.' : /size|large/i.test(error.message) ? 'A foto ficou grande demais (máx. 5 MB).' : 'Não foi possível enviar a foto.');
+  return sb.storage.from('fotos').getPublicUrl(nome).data.publicUrl;
+}
+function campoFoto(valor) {
+  return `<div class="campo campo-foto">Imagem
+    <div class="foto-envio"><div class="foto-prev">${valor ? `<img src="${esc(valor)}" alt="">` : '<span>Sem foto</span>'}</div>
+      <div class="foto-acoes"><label class="btn btn-linha">Enviar foto<input type="file" accept="image/jpeg,image/png,image/webp" data-foto-arq hidden></label>
+        <input name="imagem_url" type="url" value="${esc(valor || '')}" placeholder="ou cole um link https://">
+        <small data-foto-info>JPG, PNG ou WebP. A foto é reduzida automaticamente para carregar rápido.</small></div></div></div>`;
+}
+function ligarFoto(f, pasta) {
+  const arq = $('[data-foto-arq]', f); if (!arq) return;
+  const prev = $('.foto-prev', f), info = $('[data-foto-info]', f), url = f.imagem_url;
+  const mostrar = (u) => { prev.innerHTML = u ? `<img src="${esc(u)}" alt="">` : '<span>Sem foto</span>'; };
+  url.addEventListener('change', () => mostrar(url.value.trim()));
+  arq.addEventListener('change', async () => {
+    const a = arq.files[0]; if (!a) return;
+    info.textContent = 'Enviando…';
+    try { const u = await enviarFoto(a, pasta); url.value = u; mostrar(u); info.textContent = 'Foto enviada. Ela é salva junto quando você salvar o formulário.'; }
+    catch (e) { info.textContent = e.message; }
+    arq.value = '';
+  });
+}
+
 function formCorrida(c = {}, pendente = null) {
   const box = $('#conteudoAdmin');
   box.innerHTML = `<form class="form" id="fCorrida">
@@ -1237,7 +1278,7 @@ function formCorrida(c = {}, pendente = null) {
     <div class="campo inteiro">Descrição <small>Pode colar texto formatado: negrito, itálico, listas e links são mantidos.</small>${editorRico('descricao', c.descricao)}</div>
     <label class="campo">Organizador<input name="organizador" value="${esc(c.organizador || '')}"></label>
     <label class="campo">Link de inscrição<input name="link_inscricao" type="url" value="${esc(c.link_inscricao || '')}" placeholder="https://"></label>
-    <label class="campo">Imagem (link)<input name="imagem_url" type="url" value="${esc(c.imagem_url || '')}" placeholder="https://"></label>
+    ${campoFoto(c.imagem_url)}
     <label class="campo">Crédito da foto <small>Aparece pequeno embaixo da foto</small><input name="imagem_credito" value="${esc(c.imagem_credito || '')}" placeholder="Ex.: Foto: João Silva / Organização"></label>
     <label class="campo">O que vem no kit <small>Separe por vírgula</small><input name="kit" value="${esc((c.kit_inclui || []).join(', '))}" placeholder="Camiseta, medalha, chip"></label>
     <label class="check"><input type="checkbox" name="inscricoes_abertas" ${c.inscricoes_abertas === false ? '' : 'checked'}> Inscrições abertas</label>
@@ -1246,6 +1287,7 @@ function formCorrida(c = {}, pendente = null) {
   </form>`;
   const f = $('#fCorrida');
   ligarEditores(f);
+  ligarFoto(f, 'corridas');
   $$('.dist-form', f).forEach((el, i) => { const d = (c.corrida_distancias || [])[i]; if (temTrajeto(d)) percDist.set(el, { percurso: d.percurso, percurso_km: d.percurso_km, subida_m: d.subida_m, descida_m: d.descida_m }); });
   const linhasDist = new WeakMap();
   const desenharDist = (el, p) => {
@@ -1396,7 +1438,7 @@ function formNoticia(n = {}) {
     <label class="campo inteiro">Resumo <small>Aparece embaixo da manchete</small><input name="resumo" value="${esc(n.resumo || '')}"></label>
     <div class="campo inteiro">Texto${editorRico('conteudo', n.conteudo, 240)}</div>
     <label class="campo">Editoria<select name="editoria">${Object.entries(NOMES_ED).map(([k, v]) => `<option value="${k}" ${n.editoria === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
-    <label class="campo">Imagem (link)<input name="imagem_url" type="url" value="${esc(n.imagem_url || '')}" placeholder="https://"></label>
+    ${campoFoto(n.imagem_url)}
     <label class="campo">Crédito da foto <small>Aparece pequeno embaixo da foto</small><input name="imagem_credito" value="${esc(n.imagem_credito || '')}" placeholder="Ex.: Foto: Maria Souza / Prefeitura"></label>
     <label class="campo">Autor<input name="autor" value="${esc(n.autor || '')}"></label>
     <label class="campo">Fonte (nome)<input name="fonte_nome" value="${esc(n.fonte_nome || '')}" placeholder="Ex.: World Athletics"></label>
@@ -1408,6 +1450,7 @@ function formNoticia(n = {}) {
   </form>`;
   const f = $('#fNoticia');
   ligarEditores(f);
+  ligarFoto(f, 'noticias');
   $('#cancelarN').addEventListener('click', adminNoticias);
   f.addEventListener('submit', async (e) => {
     e.preventDefault();
