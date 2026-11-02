@@ -40,8 +40,42 @@ function textoDoLink(link) {
   return null;
 }
 
+// Procura o endereço em dois serviços gratuitos do OpenStreetMap, do texto mais completo ao mais simples
+async function geocodificar(local, cidade) {
+  const limpo = local.replace(/,\s*Brasil$/i, '').replace(/\s+/g, ' ').trim();
+  const partes = limpo.split(/[,:]/).map((x) => x.trim()).filter(Boolean);
+  const cid = cidade || partes.slice(1).reverse().find((x) => /^[A-ZÀ-Ú][a-zà-ú]+( [A-Za-zà-ú']+)*$/.test(x) && !/^(SP|Brasil|S\/N)$/i.test(x));
+  const tentativas = [...new Set([
+    limpo,
+    partes[0] && cid ? `${partes[0]}, ${cid}, SP` : null,
+    partes[0] && cid && /\(/.test(partes[0]) ? `${partes[0].replace(/\s*\(.*?\)\s*/g, ' ').trim()}, ${cid}, SP` : null,
+    partes[1] && cid ? `${partes[1].split(' - ')[0]}, ${cid}, SP` : null
+  ].filter(Boolean))];
+  for (const q of tentativas) {
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(q)}`, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR', referer: 'https://paceclub-mu.vercel.app/' } });
+      const j = r.ok ? await r.json() : [];
+      if (j[0]) return [+j[0].lat, +j[0].lon];
+    } catch { /* segue */ }
+    try {
+      const r = await fetch(`https://photon.komoot.io/api/?limit=1&lang=default&bbox=-74,-34,-34,6&q=${encodeURIComponent(q)}`, { headers: { 'user-agent': UA } });
+      const j = r.ok ? await r.json() : null;
+      const g = j && j.features && j.features[0];
+      if (g) return [g.geometry.coordinates[1], g.geometry.coordinates[0]];
+    } catch { /* segue */ }
+  }
+  return null;
+}
+
 module.exports = async (req, res) => {
   res.setHeader('cache-control', 's-maxage=3600');
+  // modo só endereço: /api/extrair?endereco=...
+  const endQ = String((req.query && req.query.endereco) || '').trim();
+  if (endQ) {
+    if (endQ.length > 300) return res.status(400).json({ erro: 'Endereço longo demais.' });
+    const g = await geocodificar(endQ);
+    return res.status(200).json(g ? { lat: g[0], lng: g[1], local: endQ.replace(/,\s*Brasil$/i, ''), aproximado: true } : { lat: null, lng: null });
+  }
   const url = urlValida(String((req.query && req.query.url) || ''));
   if (!url) return res.status(400).json({ erro: 'Link inválido.' });
   let pg;
@@ -75,28 +109,9 @@ module.exports = async (req, res) => {
   const endereco = (ender && ender[1]) || (lugar && lugar[1]) || null;
   if (!local && endereco) local = endereco.replace(/,\s*Brasil$/i, '').replace(/\s+/g, ' ').trim();
 
-  // sem coordenadas: procura o endereço no OpenStreetMap, do mais completo ao mais simples
-  if (lat == null && local) {
-    const partes = local.split(',').map((x) => x.trim()).filter(Boolean);
-    const cid = cidadeEv ? cidadeEv[1] : partes.find((x, k) => k > 0 && /^[A-ZÀ-Ú][a-zà-ú]+( [A-Za-zà-ú']+)*$/.test(x) && !/^(SP|Brasil|S\/N)$/i.test(x));
-    const tentativas = [...new Set([
-      local,
-      partes[0] && cid ? `${partes[0]}, ${cid}, SP` : null,
-      partes[1] && cid ? `${partes[1].split(' - ')[0]}, ${cid}, SP` : null
-    ].filter(Boolean))];
-    for (const q of tentativas) {
-      try {
-        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(q)}`, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR', referer: 'https://paceclub-mu.vercel.app/' } });
-        const j = r.ok ? await r.json() : [];
-        if (j[0]) { lat = +j[0].lat; lng = +j[0].lon; break; }
-      } catch { /* segue */ }
-      try { // segundo serviço gratuito (Photon / OpenStreetMap), limitado ao Brasil
-        const r = await fetch(`https://photon.komoot.io/api/?limit=1&lang=default&bbox=-74,-34,-34,6&q=${encodeURIComponent(q)}`, { headers: { 'user-agent': UA } });
-        const j = r.ok ? await r.json() : null;
-        const g = j && j.features && j.features[0];
-        if (g) { [lng, lat] = g.geometry.coordinates; break; }
-      } catch { /* segue */ }
-    }
-  }
+  // sem coordenadas: procura o endereço no OpenStreetMap
+  if (lat == null && local) { const g = await geocodificar(local, cidadeEv && cidadeEv[1]); if (g) [lat, lng] = g; }
+  // a página monta o link do Maps na hora; montamos o mesmo link a partir do endereço
+  if (!mapa && local) mapa = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(local)}`;
   res.status(200).json({ imagem, lat, lng, local, mapa, aproximado: lat != null && !coordsDoLink(mapa || '') });
 };

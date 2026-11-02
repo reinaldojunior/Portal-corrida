@@ -1372,8 +1372,17 @@ function formCorrida(c = {}, pendente = null) {
     const t = e.target.value.trim(); if (!t) { $('#localInfo').textContent = ''; return; }
     if (/goo\.gl|maps\.app/i.test(t) && !lerCoordenadas(t)) { $('#localInfo').textContent = 'Esse é um link curto do Google Maps, e ele não traz as coordenadas. Abra o link no navegador e copie o endereço completo da barra, ou toque e segure no ponto do mapa e copie os números que aparecem.'; return; }
     const c = lerCoordenadas(t);
-    const mp = t.match(/\/place\/([^/@?]+)/); nomeLink = '';
-    if (mp) { try { nomeLink = decodeURIComponent(mp[1].replace(/\+/g, ' ')).trim(); } catch { nomeLink = mp[1].replace(/\+/g, ' '); } }
+    const mp = t.match(/\/place\/([^/@?]+)/) || t.match(/[?&](?:query|q|destination)=([^&]+)/); nomeLink = '';
+    if (mp) { try { nomeLink = decodeURIComponent(mp[1].replace(/\+/g, ' ')).replace(/,\s*Brasil$/i, '').trim(); } catch { nomeLink = mp[1].replace(/\+/g, ' '); } }
+    if (!c && nomeLink && !/^-?\d+[.,]\d+/.test(nomeLink)) {
+      const alvo = t; $('#localInfo').textContent = 'O link não traz coordenadas; procurando pelo endereço…';
+      fetch(`/api/extrair?endereco=${encodeURIComponent(nomeLink)}`).then((r) => r.json()).then((j) => {
+        if ($('#colarLocal').value.trim() !== alvo) return;
+        if (j.lat != null) { if (!f.local_largada.value.trim()) { f.local_largada.value = nomeLink; autoLocal = nomeLink; } aplicarPonto(j.lat, j.lng, true); setTimeout(() => { $('#localInfo').textContent = 'Local aproximado, achado pelo endereço do link. Confira o pino e ajuste clicando no mapa se precisar.'; }, 1600); }
+        else $('#localInfo').textContent = 'Não achei esse endereço no mapa. Marque o pino clicando no mapa.';
+      }).catch(() => { $('#localInfo').textContent = 'Não consegui procurar o endereço agora. Marque o pino clicando no mapa.'; });
+      return;
+    }
     if (c) aplicarPonto(c[0], c[1], true);
     else if (/^-?\d{1,2}[.,]\d+$/.test(t)) { f.lat.value = t.replace(',', '.'); $('#localInfo').textContent = 'Recebi só a latitude. Cole as duas juntas (latitude, longitude) ou preencha a longitude abaixo.'; }
     else $('#localInfo').textContent = 'Não encontrei coordenadas aqui. Cole o link completo do Google Maps ou os números da latitude e longitude.';
@@ -1389,6 +1398,7 @@ function formCorrida(c = {}, pendente = null) {
       const j = await r.json();
       if (!r.ok) throw new Error(j.erro || 'Não foi possível ler a página.');
       const achou = [];
+      if (j.mapa) $('#colarLocal').value = j.mapa;
       if (j.lat != null && j.lng != null) {
         if (j.local) { nomeLink = j.local; if (!f.local_largada.value.trim()) { f.local_largada.value = j.local; autoLocal = j.local; } }
         aplicarPonto(j.lat, j.lng, true); achou.push(j.aproximado ? 'local (aproximado, pelo endereço — confira o pino)' : 'local exato');
