@@ -559,7 +559,7 @@ function textoEstrategia(r) {
   const e = simEstado.est, a = simEstado.adj;
   $('#simEstTxt').textContent = e === 0 ? 'Ritmo igual do começo ao fim' : e > 0 ? `Guardar para o fim (split negativo, nível ${e})` : `Sair mais forte (split positivo, nível ${-e})`;
   $('#simAdjTxt').textContent = a >= 95 ? 'Mesmo esforço: alivia nas subidas e acelera nas descidas' : a <= 5 ? 'Mesmo ritmo em tudo: subidas custam mais esforço' : `Meio-termo: ${a}% do ajuste pelo terreno`;
-  $('#simMetades').innerHTML = `<div><span>1ª METADE</span><b>${fmt(r.metade[0])}</b></div><div><span>2ª METADE</span><b>${fmt(r.metade[1])}</b></div><div><span>DIFERENÇA</span><b>${r.metade[1] - r.metade[0] >= 0 ? '+' : '−'}${fmt(Math.abs(r.metade[1] - r.metade[0]), true)}</b></div>`;
+  $('#simMetades').innerHTML = `<div><span>1ª METADE</span><b>${fmt(r.metade[0])}</b></div><div><span>2ª METADE</span><b>${fmt(r.metade[1])}</b></div><div><span>DIFERENÇA</span><b>${r.metade[1] - r.metade[0] >= 0 ? '+' : '−'}${fmt(Math.abs(r.metade[1] - r.metade[0]), true)}</b></div><div><span>RITMO PLANO</span><b>${fmt(r.plano)}</b></div>`;
 }
 document.addEventListener('input', (e) => {
   if (e.target.id === 'simAlvo') { simEstado.alvo = e.target.value; atualizarSimulador(); }
@@ -857,9 +857,9 @@ function mostrarCorrida(slug, percIdx = 0) {
           <small class="nota">Estimativa pela altimetria e pelo clima do horário da largada. Passe o dedo na altimetria acima para ver a passagem em cada ponto.</small></div>
       </div>
     </div></section>` : '';
-  const percHtml = temPerc ? `<div class="caixa bloco-perc${simHtml ? ' com-sim' : ''}" id="caixaPerc"><h2 class="display">Percurso</h2>
+  const percHtml = temPerc ? `<div class="caixa bloco-perc${simHtml ? ' com-sim' : ''}" id="caixaPerc"><div class="perc-topo"><h2 class="display">Percurso</h2>
         ${percs.length > 1 ? `<div class="perc-abas" role="group" aria-label="Escolha o percurso">${percs.map((p, i) => `<button type="button" class="filtro" data-perc="${i}" aria-pressed="${p === pSel}">${esc(p.rotulo)}</button>`).join('')}</div>` : ''}
-        <div class="perc-stats"><div><span>DISTÂNCIA</span><b>${String(c.percurso_km).replace('.', ',')} km</b></div><div><span>SUBIDA</span><b>${c.subida_m != null ? '+' + c.subida_m + ' m' : '—'}</b></div><div><span>DESCIDA</span><b>${c.descida_m != null ? '−' + c.descida_m + ' m' : '—'}</b></div><div><span>LARGADA</span><b style="font-size:15px;font-family:var(--texto)">${esc(c.local_largada || c.cidade)}</b></div></div>
+        <div class="perc-stats"><div><span>DISTÂNCIA</span><b>${String(c.percurso_km).replace('.', ',')} km</b></div><div><span>SUBIDA</span><b>${c.subida_m != null ? '+' + c.subida_m + ' m' : '—'}</b></div><div><span>DESCIDA</span><b>${c.descida_m != null ? '−' + c.descida_m + ' m' : '—'}</b></div></div></div>
         <div id="mapaCorrida" class="mapa-perc"></div>
         <div class="alt-inter" id="altInter">${svgAltimetria(comDistancia(c))}${marcasKm(c.percurso_km)}<div class="alt-dica" id="altDica" hidden></div></div>
         <small class="alt-ajuda">Passe o dedo ou o mouse sobre a altimetria para ver cada ponto no mapa. As setas mostram o sentido da prova.</small></div>

@@ -657,3 +657,51 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
 .pagina-corrida .bloco-perc.com-sim .mapa-perc{flex:1 1 auto;min-height:320px}
 @media (max-width:1100px){.pagina-corrida .bloco-perc.com-sim .mapa-perc{flex:none}}
 @media (max-width:860px){.pagina-corrida.sem-texto .cab{grid-column:span 12}}
+
+/* percurso compacto: título, abas e números numa linha */
+.perc-topo{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;margin-bottom:12px}
+.perc-topo h2{margin:0}
+.perc-topo .perc-abas{margin:0}
+.perc-topo .perc-stats{display:flex;gap:6px;margin:0 0 0 auto}
+.perc-topo .perc-stats div{padding:6px 10px;display:flex;align-items:baseline;gap:6px}
+.perc-topo .perc-stats span{font-size:10px}
+.perc-topo .perc-stats b{font-size:15px;margin:0}
+.bloco-perc .alt-inter .altimetria{height:110px;margin-top:10px}
+.bloco-perc .alt-ajuda{font-size:12px;margin-top:4px}
+/* lado a lado cabendo na tela */
+@media (min-width:1101px){
+  .pagina-corrida .bloco-perc.com-sim,.pagina-corrida .sim.sim-lado{height:clamp(560px,calc(100vh - 110px),860px)}
+  .pagina-corrida .bloco-perc.com-sim{padding:20px 22px}
+  .pagina-corrida .bloco-perc.com-sim .mapa-perc{min-height:200px}
+  .pagina-corrida .sim.sim-lado{display:flex;flex-direction:column;padding:18px 20px;overflow:hidden}
+  .sim-lado .sim-cab{flex-direction:row;align-items:flex-end;flex-wrap:nowrap;gap:12px}
+  .sim-lado .sim-cab>div:first-child{flex:1;min-width:0}
+  .sim-lado .sim-cab h2{font-size:24px}
+  .sim-lado .sim-entrada{grid-template-columns:96px auto;gap:6px}
+  .sim-lado .sim-entrada .campo{font-size:11px;gap:3px}
+  .sim .sim-lado .campo input:not([type=range]),.sim-lado .campo input:not([type=range]){font-size:17px;height:38px;padding:0 8px}
+  .sim-lado .sim-clima{height:38px;padding:0 12px;font-size:13px}
+  .sim-lado .sim-clima-info{font-size:11px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sim-lado .sim-grade{display:flex;flex-direction:column;flex:1;min-height:0;gap:10px;margin-top:8px}
+  .sim-lado .sim-col{gap:8px}
+  .sim-lado .sim-col:last-child{flex:1;min-height:0}
+  .sim-lado .sim-ctrl-top{flex-wrap:nowrap}
+  .sim-lado .sim-ctrl-top span{font-size:12px;white-space:nowrap}
+  .sim-lado .sim-ctrl-top b{flex-basis:auto;text-align:right;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sim-lado .sim-ctrl input[type=range]{height:18px;margin:2px 0 0}
+  .sim-lado .sim-ctrl-pontas{font-size:10px}
+  .sim-lado .sim-ctrl-linha{flex-wrap:nowrap;align-items:center}
+  .sim-lado .sim-ctrl-linha .campo{flex-direction:row;align-items:center;gap:8px;font-size:12px;min-width:0}
+  .sim-lado .sim-ctrl-linha select,.sim-lado .sim-reset{height:32px;font-size:12px}
+  .sim-lado .sim-metades{grid-template-columns:repeat(4,1fr);gap:6px}
+  .sim-lado .sim-metades div{padding:5px 8px}
+  .sim-lado .sim-metades span{font-size:9px}
+  .sim-lado .sim-metades b{font-size:17px}
+  .sim-lado .sim-resultado{display:none}
+  .sim-lado .sim-barras{height:56px;flex:none}
+  .sim-lado .sim-legenda{display:none}
+  .sim-lado .pulseira{flex:1;min-height:90px;max-height:none}
+  .sim-lado .pulseira td{padding:4px 10px}
+  .sim-lado .sim-rodape #simImprimir{height:34px;padding:0 14px;font-size:13px}
+  .sim-lado .sim-rodape .nota{font-size:10px;line-height:1.35}
+}
