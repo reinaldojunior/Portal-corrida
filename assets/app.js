@@ -724,7 +724,7 @@ function trocarCamada(k) {
 
 function popupHtml(c) {
   const l = linkCorrida(c);
-  return `<div class="pop"><span class="data">${dataLonga(c.data)}</span><span class="nome">${esc(c.nome)}</span><span class="cid">${esc(c.cidade)}${rotulos(c).length ? ', ' + rotulos(c).join(', ') : ''}</span>${l ? `<a class="btn btn-escuro" href="${esc(l.href)}"${l.ext ? ' target="_blank" rel="noopener"' : ''}>${l.ext ? 'Ir para a inscrição' : 'Ver corrida'}</a>` : ''}</div>`;
+  return `<div class="pop">${c.imagem_url ? `<div class="pop-foto"><img src="${esc(c.imagem_url)}" alt="" loading="lazy" onerror="this.parentNode.remove()"></div>` : ''}<span class="data">${dataLonga(c.data)}</span><span class="nome">${esc(c.nome)}</span><span class="cid">${esc(c.cidade)}${rotulos(c).length ? ', ' + rotulos(c).join(', ') : ''}</span>${l ? `<a class="btn btn-escuro" href="${esc(l.href)}"${l.ext ? ' target="_blank" rel="noopener"' : ''}>${l.ext ? 'Ir para a inscrição' : 'Ver corrida'}</a>` : ''}</div>`;
 }
 
 function atualizarMarcadores() {
