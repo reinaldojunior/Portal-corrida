@@ -851,13 +851,36 @@ a.manchete-foto{display:block}
 .filtros-admin{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin:0 0 12px}
 .filtros-admin .campo{width:auto}
 .aviso-passada{margin:18px 0 0}
-.calendario-box{display:flex;flex-direction:column;gap:12px}
-.calendario-box h2{margin:0}
-.cal-botoes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.cal-btn{background:var(--papel);border:1.5px solid var(--chip);color:var(--asfalto);padding:0 10px;font-size:14px;white-space:nowrap}
-.cal-btn:hover{border-color:var(--asfalto);background:var(--concreto)}
-.cal-btn svg{flex-shrink:0}
-@media (max-width:380px){.cal-botoes{grid-template-columns:1fr}}
 .robo-cartoes{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:0 0 12px}
 .robo-cartao{display:flex;flex-direction:column;gap:6px;margin:0}
 .robo-cartao b{font-size:20px}
+/* lateral da página da corrida: cartão de inscrição */
+.pagina-corrida .lado{gap:14px}
+.card-insc{background:var(--papel);border-radius:8px;padding:22px;display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 0 var(--linha2)}
+.ci-topo{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ci-topo h2{font-size:30px;margin:0}
+.ci-status{font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.ci-status.aberta{background:#DDF0E5;color:var(--ok)}
+.ci-status.aberta::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:6px;vertical-align:1px}
+.ci-status.fechada{background:var(--concreto);color:var(--cinza)}
+.ci-dists{display:flex;flex-direction:column}
+.ci-dist{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:9px 0;border-top:1px solid var(--linha2)}
+.ci-dist:last-child{border-bottom:1px solid var(--linha2)}
+.ci-dist b{font-family:var(--display);font-weight:400;font-size:26px;line-height:1}
+.ci-dist span{font-size:14px;font-weight:600;color:var(--texto2)}
+.ci-cta{width:100%;height:50px;font-size:16px;gap:6px}
+.ci-fonte{margin-top:-8px;text-align:center;font-size:12px;color:var(--cinza)}
+.ci-agenda{display:flex;flex-direction:column;gap:8px;padding-top:14px;border-top:1px dashed var(--linha)}
+.ci-rot{font-size:13px;font-weight:700;color:var(--texto2)}
+.ci-agenda-btns{display:flex;gap:8px;flex-wrap:wrap}
+.ci-mini{flex:1 1 0;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:38px;padding:0 10px;border:1.5px solid var(--chip);border-radius:6px;background:var(--papel);font-size:13px;font-weight:600;white-space:nowrap;cursor:pointer;color:var(--asfalto)}
+.ci-mini:hover{border-color:var(--asfalto);background:var(--concreto)}
+.ci-agenda small{font-size:12px}
+.ci-mapa{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px;color:var(--texto2);padding:4px 2px}
+.ci-mapa:hover{color:var(--cone-txt)}
+@media (min-width:1000px){.pagina-corrida .lado{position:sticky;top:24px;align-self:start}}
+@media (max-width:999px){
+  .pagina-corrida .lado{max-width:520px;order:-1}
+  .pagina-corrida .cab{order:-2}
+  .pagina-corrida .aviso-passada{order:-3;grid-column:span 12}
+}

@@ -1061,6 +1061,7 @@ function barraAdminCorrida(v, c) {
     irInicio(); atualizarPublico();
   });
 }
+const dominioDoLink = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return 'do organizador'; } };
 /* ---------- Adicionar ao calendário ---------- */
 function eventoCalendario(c) {
   const [a, m, d] = c.data.split('-').map(Number);
@@ -1112,6 +1113,7 @@ function mostrarCorrida(slug, percIdx = 0) {
   const v = $('#vCorrida');
   if (!c) { v.innerHTML = '<div class="wrap" style="padding:64px 0"><h1 class="display" style="font-size:56px">Corrida não encontrada</h1><p class="muted">Ela pode ter sido removida ou já aconteceu. <a href="#" style="color:var(--cone-txt);font-weight:600">Voltar para a agenda</a></p></div>'; return; }
   document.title = `${c.nome} · ${c.cidade} · PaceClub`;
+  const passou = c.data < hojeISO();
   const dist = (c.corrida_distancias || []).slice().sort(porDist);
   const temPerc = Array.isArray(c.percurso) && c.percurso.length > 1;
   const brl = (v) => v == null ? 'Preço a confirmar' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -1156,19 +1158,20 @@ function mostrarCorrida(slug, percIdx = 0) {
       c.lat != null ? `<div class="caixa"><h2 class="display">Largada</h2><p style="margin:0 0 14px">${esc(c.local_largada || c.cidade)}</p><div id="mapaCorrida"></div></div>` : ''}
       ${(c.kit_inclui || []).length ? `<div class="caixa"><h2 class="display">O que vem no kit</h2><ul class="kit">${c.kit_inclui.map((k) => `<li>${esc(k)}</li>`).join('')}</ul></div>` : ''}
     </div>
-    <div class="lado">
-      <div class="caixa"><h2 class="display">Distâncias</h2>${dist.length ? dist.map((d) => `<div class="dist-linha"><b>${esc(d.rotulo)}</b><span>${brl(d.preco)}</span></div>`).join('') : '<p class="muted" style="margin:0">Distâncias a confirmar.</p>'}
-        ${c.link_inscricao ? `<a class="btn btn-cone" style="width:100%;margin-top:16px" href="${esc(c.link_inscricao)}" target="_blank" rel="noopener">${c.inscricoes_abertas ? 'Fazer inscrição' : 'Ver site da prova'}</a>` : ''}
-        ${c.inscricoes_abertas && c.data >= hojeISO() ? '' : `<p class="muted" style="margin:12px 0 0">${c.data < hojeISO() ? 'A corrida já aconteceu.' : 'Inscrições encerradas.'}</p>`}
-      </div>
-      ${c.data >= hojeISO() ? `<div class="caixa calendario-box"><h2 class="display">Na sua agenda</h2>
-        <div class="cal-botoes">
-          <a class="btn cal-btn" href="${esc(linkGoogleAgenda(c))}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg>Google Agenda</a>
-          <button class="btn cal-btn" type="button" id="baixarIcs"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg>iPhone / Outlook</button>
-        </div>
-        <small class="muted">Com lembrete um dia antes, para não esquecer de retirar o kit.</small></div>` : ''}
-      <a href="#mapa" class="btn btn-linha" data-mod="mapa">Ver corridas próximas no mapa</a>
-    </div>${percHtml}${simHtml}</div>`;
+    <aside class="lado"><div class="card-insc">
+      <div class="ci-topo"><h2 class="display">Inscrição</h2>${passou ? '<span class="ci-status fechada">Já aconteceu</span>' : c.inscricoes_abertas ? '<span class="ci-status aberta">Abertas</span>' : '<span class="ci-status fechada">Encerradas</span>'}</div>
+      <div class="ci-dists">${dist.length ? dist.map((d) => `<div class="ci-dist"><b>${esc(d.rotulo)}</b><span>${d.preco == null ? 'preço a confirmar' : brl(d.preco)}</span></div>`).join('') : '<p class="muted" style="margin:0">Distâncias a confirmar.</p>'}</div>
+      ${c.link_inscricao ? `<a class="btn btn-cone ci-cta" href="${esc(c.link_inscricao)}" target="_blank" rel="noopener">${c.inscricoes_abertas && !passou ? 'Fazer inscrição' : 'Ver site da prova'}<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" d="M7 17 17 7M9 7h8v8"/></svg></a>
+        <small class="ci-fonte">no site ${esc(dominioDoLink(c.link_inscricao))}</small>` : ''}
+      ${passou ? '' : `<div class="ci-agenda"><span class="ci-rot">Adicionar à agenda</span>
+        <div class="ci-agenda-btns">
+          <a class="ci-mini" href="${esc(linkGoogleAgenda(c))}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg>Google</a>
+          <button class="ci-mini" type="button" id="baixarIcs"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg>iPhone / Outlook</button>
+        </div><small class="muted">Com lembrete na véspera, para retirar o kit.</small></div>`}
+    </div>
+    <a href="#mapa" class="ci-mapa" data-mod="mapa"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Ver corridas próximas no mapa</a>
+    </aside>
+${percHtml}${simHtml}</div>`;
   $('#baixarIcs', v)?.addEventListener('click', () => baixarIcs(c));
   $$('[data-perc]', v).forEach((b) => b.addEventListener('click', () => {
     const y = window.scrollY; mostrarCorrida(slug, Number(b.dataset.perc)); window.scrollTo(0, y);
