@@ -1090,7 +1090,7 @@ async function adminPendentes() {
   const lista = data || [];
   box.innerHTML = `<div class="barra-admin"><span class="muted">${lista.length ? `${lista.length} corrida(s) encontrada(s) pela busca automática esperando revisão` : 'Nenhuma corrida esperando revisão. A busca automática roda todo dia de manhã.'}</span></div>
   <div class="tabela-wrap"><table class="tab"><thead><tr><th>Data</th><th>Corrida</th><th>Cidade</th><th>Distâncias</th><th>Fonte</th><th><span class="muted" style="font-weight:400">Ações</span></th></tr></thead><tbody>
-  ${lista.map((p) => { const [a, m, d] = p.data.split('-'); return `<tr><td>${d}/${m}/${a}</td><td><b>${esc(p.nome)}</b>${p.descricao ? `<br><small>${esc(p.descricao.length > 140 ? p.descricao.slice(0, 140) + '…' : p.descricao)}</small>` : ''}${p.observacao ? `<br><small class="muted">${esc(p.observacao)}</small>` : ''}${p.percurso_url || p.percurso_info ? `<br><small class="tem-perc">Tem percurso${p.percurso_info ? ': ' + esc(p.percurso_info) : ''}${p.percurso_url ? ` · <a href="${esc(p.percurso_url)}" target="_blank" rel="noopener">abrir</a>` : ''}</small>` : ''}</td><td>${esc(p.cidade)}</td><td>${esc(p.distancias || '—')}</td>
+  ${lista.map((p) => { const [a, m, d] = p.data.split('-'); return `<tr><td>${d}/${m}/${a}</td><td><b>${esc(p.nome)}</b>${p.descricao ? `<br><small>${esc(p.descricao.length > 140 ? p.descricao.slice(0, 140) + '…' : p.descricao)}</small>` : ''}${p.observacao ? `<br><small class="muted">${esc(p.observacao)}</small>` : ''}${p.lat != null ? '<br><small class="muted">Local exato encontrado' + (p.local_largada ? ': ' + esc(p.local_largada) : '') + '</small>' : ''}${p.percurso_url || p.percurso_info ? `<br><small class="tem-perc">Tem percurso${p.percurso_info ? ': ' + esc(p.percurso_info) : ''}${p.percurso_url ? ` · <a href="${esc(p.percurso_url)}" target="_blank" rel="noopener">abrir</a>` : ''}</small>` : ''}</td><td>${esc(p.cidade)}</td><td>${esc(p.distancias || '—')}</td>
     <td>${p.fonte_url ? `<a href="${esc(p.fonte_url)}" target="_blank" rel="noopener" style="color:var(--cone-txt);font-weight:600">${esc(p.fonte || 'ver fonte')}</a>` : esc(p.fonte || '—')}</td>
     <td class="acoes"><button class="btn btn-escuro" data-revisar="${p.id}">Revisar e aprovar</button> <button class="btn btn-perigo" data-recusar="${p.id}">Recusar</button></td></tr>`; }).join('') || '<tr><td colspan="6" class="muted">Tudo revisado por aqui.</td></tr>'}
   </tbody></table></div>`;
@@ -1106,9 +1106,10 @@ async function adminPendentes() {
       const km = /21|meia/i.test(s) ? 21.0975 : /42|marat/i.test(s) ? 42.195 : n;
       return km ? { rotulo: s.toUpperCase().replace(/\s*KM$/, 'K'), km, preco: p.preco_a_partir } : null;
     }).filter(Boolean);
+    const temPonto = p.lat != null && p.lng != null;
     formCorrida({ nome: p.nome, cidade: p.cidade, estado: p.estado, data: p.data, horario: p.horario, link_inscricao: p.link_inscricao,
-      descricao: p.descricao, organizador: p.organizador,
-      lat: coord ? coord[0] : null, lng: coord ? coord[1] : null, status: 'publicado', inscricoes_abertas: true,
+      descricao: p.descricao, organizador: p.organizador, local_largada: p.local_largada, imagem_sugerida: p.imagem_sugerida,
+      lat: temPonto ? p.lat : coord ? coord[0] : null, lng: temPonto ? p.lng : coord ? coord[1] : null, status: 'publicado', inscricoes_abertas: true,
       corrida_distancias: dists.length ? dists : [{}] }, p);
   }));
 }
@@ -1279,6 +1280,9 @@ function formCorrida(c = {}, pendente = null) {
     <label class="campo">Organizador<input name="organizador" value="${esc(c.organizador || '')}"></label>
     <label class="campo">Link de inscrição<input name="link_inscricao" type="url" value="${esc(c.link_inscricao || '')}" placeholder="https://"></label>
     ${campoFoto(c.imagem_url)}
+    ${c.imagem_sugerida && !c.imagem_url ? `<div class="campo inteiro sug-img"><span>Imagem de divulgação encontrada pela busca</span>
+      <div class="sug-linha"><img src="${esc(c.imagem_sugerida)}" alt="" loading="lazy"><div><small>É a arte do organizador e tem direitos autorais. Use só se o organizador permitir (muitos liberam para divulgação) e sempre com o crédito.</small>
+      <button type="button" class="btn btn-linha" id="usarSug">Usar esta imagem com crédito</button></div></div></div>` : ''}
     <label class="campo">Crédito da foto <small>Aparece pequeno embaixo da foto</small><input name="imagem_credito" value="${esc(c.imagem_credito || '')}" placeholder="Ex.: Foto: João Silva / Organização"></label>
     <label class="campo">O que vem no kit <small>Separe por vírgula</small><input name="kit" value="${esc((c.kit_inclui || []).join(', '))}" placeholder="Camiseta, medalha, chip"></label>
     <label class="check"><input type="checkbox" name="inscricoes_abertas" ${c.inscricoes_abertas === false ? '' : 'checked'}> Inscrições abertas</label>
@@ -1288,6 +1292,11 @@ function formCorrida(c = {}, pendente = null) {
   const f = $('#fCorrida');
   ligarEditores(f);
   ligarFoto(f, 'corridas');
+  $('#usarSug')?.addEventListener('click', () => {
+    f.imagem_url.value = c.imagem_sugerida; f.imagem_url.dispatchEvent(new Event('change'));
+    if (!f.imagem_credito.value.trim()) f.imagem_credito.value = `Imagem: divulgação${c.organizador ? ' / ' + c.organizador : ''}`;
+    $('.sug-img', f)?.remove();
+  });
   $$('.dist-form', f).forEach((el, i) => { const d = (c.corrida_distancias || [])[i]; if (temTrajeto(d)) percDist.set(el, { percurso: d.percurso, percurso_km: d.percurso_km, subida_m: d.subida_m, descida_m: d.descida_m }); });
   const linhasDist = new WeakMap();
   const desenharDist = (el, p) => {

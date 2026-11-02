@@ -767,3 +767,9 @@ a.manchete-foto{display:block}
 
 .tem-perc{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:999px;background:#E6F4EC;color:#1D6B45;font-weight:600}
 .tem-perc a{color:#1D6B45;text-decoration:underline}
+
+.sug-img{background:#FFF6EE;border:1px solid #F3D3BC;border-radius:8px;padding:12px}
+.sug-img>span{font-weight:700}
+.sug-linha{display:flex;gap:12px;align-items:flex-start;margin-top:8px;flex-wrap:wrap}
+.sug-linha img{width:200px;max-height:120px;object-fit:cover;border-radius:6px}
+.sug-linha>div{flex:1;min-width:200px;display:flex;flex-direction:column;gap:8px;align-items:flex-start;font-weight:400}
