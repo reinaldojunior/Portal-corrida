@@ -552,3 +552,18 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
 .dist-gpx .gpx-btn{height:36px;font-size:13px;cursor:pointer}
 .dist-gpx small{color:var(--cinza)}
 .perc-abas{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+
+/* plano de prova: estratégia e subidas */
+.sim-plano{display:grid;gap:18px;margin:18px 0 6px;padding:18px;border:1px solid #2E3439;border-radius:10px;background:var(--noite3)}
+.sim-ctrl-top{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap}
+.sim-ctrl-top span{font-weight:700;font-size:14px;letter-spacing:.02em}
+.sim-ctrl-top b{font-weight:500;font-size:13px;color:var(--cone)}
+.sim-ctrl input[type=range]{width:100%;margin:10px 0 4px;accent-color:var(--cone)}
+.sim-ctrl-pontas{display:flex;justify-content:space-between;font-size:12px;color:#9AA0A6}
+.sim-ctrl-linha{display:flex;gap:12px;align-items:end;flex-wrap:wrap}
+.sim-ctrl-linha .campo{flex:1;min-width:160px}
+.sim-ctrl-linha select{height:44px;border-radius:6px;padding:0 10px}
+.sim-metades{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sim-metades div{background:var(--noite);border-radius:8px;padding:10px 12px}
+.sim-metades span{display:block;font-size:11px;letter-spacing:.08em;color:#9AA0A6}
+.sim-metades b{font-family:var(--display);font-size:26px;line-height:1.1}

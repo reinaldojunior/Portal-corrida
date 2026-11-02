@@ -475,28 +475,34 @@ function climaNa(clima, hora) {
 /* ================== Simulador da prova ================== */
 // Custo das subidas: +3,3% de tempo por 1% de inclinação; descidas devolvem 1,8% por 1%.
 // Calor: +0,4% por °C acima de 15°C, e mais 0,1% por °C quando a umidade passa de 60%.
-function simular(c, pts, alvoSeg, clima) {
+// Estratégia: est de -5 (sair forte, split positivo) a +5 (guardar para o fim, split negativo), até ±4% nas pontas.
+// Subidas: adj de 0 (manter o mesmo ritmo, mais esforço) a 1 (manter o mesmo esforço, ritmo varia com o terreno).
+function simular(c, pts, alvoSeg, clima, opc = {}) {
+  const est = opc.est ?? 0, adj = opc.adj ?? 1, passo = opc.passo || 1;
   const tot = pts[pts.length - 1].km;
-  const n = Math.ceil(tot - 1e-6);
+  const n = Math.ceil(tot / passo - 1e-6);
   const base = alvoSeg / tot, larg = horaLargada(c);
   const trechos = [];
   for (let i = 0; i < n; i++) {
-    const ini = i, fim = Math.min(tot, i + 1), len = fim - ini;
+    const ini = i * passo, fim = Math.min(tot, (i + 1) * passo), len = fim - ini;
     const a = noKm(pts, ini), b = noKm(pts, fim);
     const dEle = a.ele != null && b.ele != null ? b.ele - a.ele : 0;
     const inc = (dEle / (len * 1000)) * 100;
     const fInc = inc > 0 ? 1 + 0.033 * inc : 1 + 0.018 * Math.max(inc, -6);
     const cl = climaNa(clima, larg + (alvoSeg * (ini + len / 2) / tot) / 3600);
     const fCal = cl ? 1 + 0.004 * Math.max(0, cl.t - 15) + (cl.u > 60 ? 0.001 * Math.max(0, cl.t - 15) : 0) : 1;
-    trechos.push({ km: fim, rot: Number.isInteger(fim) ? String(fim) : fim.toFixed(1).replace('.', ','), len, dEle, f: fInc * fCal, temp: cl ? cl.t : null });
+    const meio = (ini + len / 2) / tot;
+    const fEst = 1 + (est / 5) * 0.04 * (1 - 2 * meio);
+    trechos.push({ km: fim, rot: Math.abs(fim - Math.round(fim)) < 1e-6 ? String(Math.round(fim)) : fim.toFixed(1).replace('.', ','), len, dEle, f: fInc * fCal, w: (1 + adj * (fInc - 1)) * fCal * fEst, temp: cl ? cl.t : null });
   }
   const plano = trechos.reduce((s, t) => s + base * t.f * t.len, 0);
-  const k = alvoSeg / plano; let acum = 0;
-  trechos.forEach((t) => { t.pace = base * t.f * k; acum += t.pace * t.len; t.pass = acum; });
-  return { plano, dif: plano - alvoSeg, trechos, tot };
+  const k = alvoSeg / trechos.reduce((s, t) => s + base * t.w * t.len, 0); let acum = 0;
+  trechos.forEach((t) => { t.pace = base * t.w * k; acum += t.pace * t.len; t.pass = acum; });
+  const metade = trechos.reduce((a, t) => { const ini = t.km - t.len, d1 = Math.max(0, Math.min(t.km, tot / 2) - ini); a[0] += d1 * t.pace; a[1] += (t.len - d1) * t.pace; return a; }, [0, 0]);
+  return { plano, dif: plano - alvoSeg, trechos, tot, metade };
 }
 
-let simEstado = { alvo: null, comClima: true, km: 0 }, simMapa = null, simFantasma = null, simFeito = null, simPts = [], simCorrida = null, simClima = null;
+let simEstado = { alvo: null, comClima: true, km: 0, est: 0, adj: 100, passo: 1 }, simMapa = null, simFantasma = null, simFeito = null, simPts = [], simCorrida = null, simClima = null;
 async function montarSimulador(c) {
   const box = $('#simBox');
   if (!box) return;
@@ -504,9 +510,10 @@ async function montarSimulador(c) {
   const tot = simPts[simPts.length - 1].km;
   if (!simEstado.alvo || simEstado.corrida !== c.id) {
     const ref = estado.pace10 ? estado.pace10 * Math.pow(tot / 10, 1.06) * 10 : tot * 330;
-    simEstado = { alvo: fmt(Math.round(ref / 60) * 60), comClima: true, km: 0, corrida: c.id };
+    simEstado = { alvo: fmt(Math.round(ref / 60) * 60), comClima: true, km: 0, corrida: c.id, est: 0, adj: 100, passo: 1 };
   }
   $('#simAlvo').value = simEstado.alvo;
+  $('#simEst').value = simEstado.est; $('#simAdj').value = simEstado.adj; $('#simPasso').value = String(simEstado.passo);
   $('#simKm').max = tot.toFixed(1);
   $('#simClimaInfo').textContent = 'Buscando o clima…';
   simClima = await climaProva(c);
@@ -522,7 +529,8 @@ function atualizarSimulador() {
     $('#simClimaInfo').textContent = `${Math.round(ini.t)}°C na largada e ${Math.round(fim.t)}°C na chegada, umidade de ${Math.round(ini.u)}% (${simClima.fonte}).`;
   } else $('#simClimaInfo').textContent = 'Não foi possível buscar o clima agora. A simulação considera só o percurso.';
   if (!alvo || alvo < 600) { $('#simResultado').innerHTML = '<p class="muted" style="margin:0">Digite o tempo alvo no formato h:mm:ss.</p>'; return; }
-  const r = simular(c, simPts, alvo, clima);
+  const r = simular(c, simPts, alvo, clima, { est: simEstado.est, adj: simEstado.adj / 100, passo: simEstado.passo });
+  textoEstrategia(r);
   const piores = r.trechos.filter((t) => t.len >= 0.5).sort((a, b) => b.f - a.f).slice(0, 2).sort((a, b) => a.km - b.km).map((t) => `km ${t.rot}`).join(' e ');
   $('#simResultado').innerHTML = `<span class="rot">SE VOCÊ CORRER NO RITMO PLANO DO ALVO</span>
     <div class="sim-tempo"><b>${fmt(r.plano)}</b><span class="${r.dif > 5 ? 'pior' : 'melhor'}">${r.dif > 5 ? `+${fmt(r.dif, true)} acima do alvo` : r.dif < -5 ? `${fmt(-r.dif, true)} abaixo do alvo` : 'no alvo'}</span></div>
@@ -547,12 +555,22 @@ function moverFantasma() {
   $('#simLeitura').innerHTML = [['KM', km.toFixed(1).replace('.', ',')], ['ALTITUDE', p && p.ele != null ? Math.round(p.ele) + ' m' : '—'], ['PACE', fmt(pace, true)], ['PASSAGEM', fmt(pass)]]
     .map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
 }
+function textoEstrategia(r) {
+  const e = simEstado.est, a = simEstado.adj;
+  $('#simEstTxt').textContent = e === 0 ? 'Ritmo igual do começo ao fim' : e > 0 ? `Guardar para o fim (split negativo, nível ${e})` : `Sair mais forte (split positivo, nível ${-e})`;
+  $('#simAdjTxt').textContent = a >= 95 ? 'Mesmo esforço: alivia nas subidas e acelera nas descidas' : a <= 5 ? 'Mesmo ritmo em tudo: subidas custam mais esforço' : `Meio-termo: ${a}% do ajuste pelo terreno`;
+  $('#simMetades').innerHTML = `<div><span>1ª METADE</span><b>${fmt(r.metade[0])}</b></div><div><span>2ª METADE</span><b>${fmt(r.metade[1])}</b></div><div><span>DIFERENÇA</span><b>${r.metade[1] - r.metade[0] >= 0 ? '+' : '−'}${fmt(Math.abs(r.metade[1] - r.metade[0]), true)}</b></div>`;
+}
 document.addEventListener('input', (e) => {
   if (e.target.id === 'simAlvo') { simEstado.alvo = e.target.value; atualizarSimulador(); }
+  if (e.target.id === 'simEst') { simEstado.est = Number(e.target.value); atualizarSimulador(); }
+  if (e.target.id === 'simAdj') { simEstado.adj = Number(e.target.value); atualizarSimulador(); }
+  if (e.target.id === 'simPasso') { simEstado.passo = Number(e.target.value); atualizarSimulador(); }
   if (e.target.id === 'simKm') moverFantasma();
 });
 document.addEventListener('click', (e) => {
   if (e.target.closest('#simClima')) { simEstado.comClima = !simEstado.comClima; atualizarSimulador(); }
+  if (e.target.closest('#simReset')) { Object.assign(simEstado, { est: 0, adj: 100 }); $('#simEst').value = 0; $('#simAdj').value = 100; atualizarSimulador(); }
   if (e.target.closest('#simImprimir')) { document.body.classList.add('imprimindo-sim'); window.print(); setTimeout(() => document.body.classList.remove('imprimindo-sim'), 500); }
 });
 
@@ -763,6 +781,17 @@ function mostrarCorrida(slug, percIdx = 0) {
       ${mod('simulador') ? `<div class="caixa sim" id="simBox"><span class="rot">SIMULADOR DA PROVA</span><h2 class="display">Como vai ser a sua prova</h2>
         <div class="sim-entrada"><label class="campo">Seu tempo alvo (h:mm:ss)<input id="simAlvo" inputmode="numeric"></label><button type="button" id="simClima" class="sim-clima" aria-pressed="true">Considerar o clima</button></div>
         <p class="sim-clima-info" id="simClimaInfo"></p>
+        <div class="sim-plano">
+          <div class="sim-ctrl"><div class="sim-ctrl-top"><span>Estratégia de ritmo</span><b id="simEstTxt"></b></div>
+            <input type="range" id="simEst" min="-5" max="5" step="1" value="0" aria-describedby="simEstTxt" aria-label="Estratégia de ritmo">
+            <div class="sim-ctrl-pontas"><span>Sair forte</span><span>Igual</span><span>Guardar pro fim</span></div></div>
+          <div class="sim-ctrl"><div class="sim-ctrl-top"><span>Nas subidas</span><b id="simAdjTxt"></b></div>
+            <input type="range" id="simAdj" min="0" max="100" step="5" value="100" aria-describedby="simAdjTxt" aria-label="Ajuste pelo terreno">
+            <div class="sim-ctrl-pontas"><span>Mesmo ritmo</span><span>Mesmo esforço</span></div></div>
+          <div class="sim-ctrl-linha"><label class="campo">Parciais<select id="simPasso"><option value="1">A cada 1 km</option><option value="0.5">A cada 500 m</option></select></label>
+            <button type="button" class="btn" id="simReset">Voltar ao padrão</button></div>
+          <div class="sim-metades" id="simMetades"></div>
+        </div>
         <div class="sim-resultado" id="simResultado"></div>
         <label class="campo">Arraste para acompanhar o seu fantasma no mapa<input type="range" id="simKm" min="0" step="0.1" value="0"></label>
         <div class="sim-leitura" id="simLeitura"></div>
