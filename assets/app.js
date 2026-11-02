@@ -226,7 +226,7 @@ function montarNoticias() {
   $('#noticiasConta').textContent = ns.length === 1 ? '1 matéria' : `${ns.length} matérias`;
   $('#noticiasConteudo').innerHTML = `
     <article class="manchete">
-      <a class="manchete-foto" href="#noticia/${esc(principal.slug)}" tabindex="-1" aria-hidden="true">${principal.imagem_url ? `<img src="${esc(principal.imagem_url)}" alt="" loading="lazy">` : ''}<span class="selo">${esc((NOMES_ED[principal.editoria] || '').toUpperCase())}</span></a>
+      <a class="manchete-foto" href="#noticia/${esc(principal.slug)}" tabindex="-1" aria-hidden="true">${principal.imagem_url ? `<img src="${esc(principal.imagem_url)}" alt="" loading="lazy">` : ''}<span class="selo">${esc((NOMES_ED[principal.editoria] || '').toUpperCase())}</span></a>${principal.imagem_url && principal.imagem_credito ? `<small class="cred-foto">${esc(principal.imagem_credito)}</small>` : ''}
       <h3 class="display"><a class="link-noticia" href="#noticia/${esc(principal.slug)}">${esc(principal.titulo)}</a></h3>
       ${principal.resumo ? `<p>${esc(principal.resumo)}</p>` : ''}${principal.fonte_nome ? `<p class="credito" style="font-size:12px;opacity:.7;margin-top:4px">Com informações de ${principal.fonte_url ? `<a href="${esc(principal.fonte_url)}" target="_blank" rel="noopener">${esc(principal.fonte_nome)}</a>` : esc(principal.fonte_nome)}</p>` : ''}
     </article>
@@ -794,7 +794,7 @@ async function mostrarNoticia(slug) {
       <h1 class="display">${esc(n.titulo)}</h1>
       ${n.resumo ? `<p class="noticia-linha">${esc(n.resumo)}</p>` : ''}
       ${n.autor ? `<p class="noticia-autor">Por ${esc(n.autor)}</p>` : ''}
-      ${n.imagem_url ? `<figure class="noticia-foto"><img src="${esc(n.imagem_url)}" alt=""></figure>` : ''}
+      ${n.imagem_url ? `<figure class="noticia-foto"><img src="${esc(n.imagem_url)}" alt="">${n.imagem_credito ? `<figcaption>${esc(n.imagem_credito)}</figcaption>` : ''}</figure>` : ''}
       <div class="texto-corrida noticia-texto">${textoRico(n.conteudo || '')}</div>
       ${n.fonte_nome ? `<p class="noticia-fonte">Com informações de ${n.fonte_url ? `<a href="${esc(n.fonte_url)}" target="_blank" rel="noopener">${esc(n.fonte_nome)}</a>` : esc(n.fonte_nome)}</p>` : ''}
     </article>
@@ -912,7 +912,7 @@ function mostrarCorrida(slug, percIdx = 0) {
   v.innerHTML = `<div class="wrap pagina-corrida${semTexto ? ' sem-texto' : ''}">
     <div class="cab">${bib(c.data)}<div><span class="editoria">${dataLonga(c.data)}${c.horario ? ', largada às ' + c.horario.slice(0, 5) : ''}</span><h1 class="display">${esc(c.nome)}</h1><span class="muted" style="font-size:18px">${esc(c.cidade)}, ${esc(c.estado)}${c.organizador ? ' · Organização: ' + esc(c.organizador) : ''}</span></div></div>
     <div class="principal">
-      ${c.imagem_url ? `<div class="foto" style="height:360px"><img src="${esc(c.imagem_url)}" alt="${esc(c.nome)}"></div>` : ''}
+      ${c.imagem_url ? `<figure class="foto-cred"><div class="foto" style="height:360px"><img src="${esc(c.imagem_url)}" alt="${esc(c.nome)}"></div>${c.imagem_credito ? `<figcaption>${esc(c.imagem_credito)}</figcaption>` : ''}</figure>` : ''}
       ${c.descricao ? `<div class="caixa"><h2 class="display">Sobre a corrida</h2><div class="texto-corrida">${textoRico(c.descricao)}</div></div>` : ''}
       ${temPerc ? '' :
       c.lat != null ? `<div class="caixa"><h2 class="display">Largada</h2><p style="margin:0 0 14px">${esc(c.local_largada || c.cidade)}</p><div id="mapaCorrida"></div></div>` : ''}
@@ -1235,6 +1235,7 @@ function formCorrida(c = {}, pendente = null) {
     <label class="campo">Organizador<input name="organizador" value="${esc(c.organizador || '')}"></label>
     <label class="campo">Link de inscrição<input name="link_inscricao" type="url" value="${esc(c.link_inscricao || '')}" placeholder="https://"></label>
     <label class="campo">Imagem (link)<input name="imagem_url" type="url" value="${esc(c.imagem_url || '')}" placeholder="https://"></label>
+    <label class="campo">Crédito da foto <small>Aparece pequeno embaixo da foto</small><input name="imagem_credito" value="${esc(c.imagem_credito || '')}" placeholder="Ex.: Foto: João Silva / Organização"></label>
     <label class="campo">O que vem no kit <small>Separe por vírgula</small><input name="kit" value="${esc((c.kit_inclui || []).join(', '))}" placeholder="Camiseta, medalha, chip"></label>
     <label class="check"><input type="checkbox" name="inscricoes_abertas" ${c.inscricoes_abertas === false ? '' : 'checked'}> Inscrições abertas</label>
     <label class="campo">Status<select name="status">${['rascunho', 'publicado', 'arquivado'].map((s) => `<option value="${s}" ${(c.status || 'rascunho') === s ? 'selected' : ''}>${s[0].toUpperCase() + s.slice(1)}</option>`).join('')}</select></label>
@@ -1337,7 +1338,7 @@ function formCorrida(c = {}, pendente = null) {
       data: f.data.value, horario: f.horario.value || null, local_largada: f.local_largada.value.trim() || null,
       lat: f.lat.value ? Number(f.lat.value) : null, lng: f.lng.value ? Number(f.lng.value) : null,
       descricao: valorEditor(f, 'descricao'), organizador: f.organizador.value.trim() || null,
-      link_inscricao: f.link_inscricao.value.trim() || null, imagem_url: f.imagem_url.value.trim() || null,
+      link_inscricao: f.link_inscricao.value.trim() || null, imagem_url: f.imagem_url.value.trim() || null, imagem_credito: f.imagem_credito.value.trim() || null,
       kit_inclui: f.kit.value.split(',').map((s) => s.trim()).filter(Boolean),
       inscricoes_abertas: f.inscricoes_abertas.checked, status: f.status.value
     };
@@ -1392,6 +1393,7 @@ function formNoticia(n = {}) {
     <div class="campo inteiro">Texto${editorRico('conteudo', n.conteudo, 240)}</div>
     <label class="campo">Editoria<select name="editoria">${Object.entries(NOMES_ED).map(([k, v]) => `<option value="${k}" ${n.editoria === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
     <label class="campo">Imagem (link)<input name="imagem_url" type="url" value="${esc(n.imagem_url || '')}" placeholder="https://"></label>
+    <label class="campo">Crédito da foto <small>Aparece pequeno embaixo da foto</small><input name="imagem_credito" value="${esc(n.imagem_credito || '')}" placeholder="Ex.: Foto: Maria Souza / Prefeitura"></label>
     <label class="campo">Autor<input name="autor" value="${esc(n.autor || '')}"></label>
     <label class="campo">Fonte (nome)<input name="fonte_nome" value="${esc(n.fonte_nome || '')}" placeholder="Ex.: World Athletics"></label>
     <label class="campo">Fonte (link)<input name="fonte_url" type="url" value="${esc(n.fonte_url || '')}" placeholder="https://"></label>
@@ -1405,7 +1407,7 @@ function formNoticia(n = {}) {
   $('#cancelarN').addEventListener('click', adminNoticias);
   f.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const dados = { titulo: f.titulo.value.trim(), resumo: f.resumo.value.trim() || null, conteudo: valorEditor(f, 'conteudo'), editoria: f.editoria.value, imagem_url: f.imagem_url.value.trim() || null, autor: f.autor.value.trim() || null, fonte_nome: f.fonte_nome.value.trim() || null, fonte_url: f.fonte_url.value.trim() || null, status: f.status.value, destaque: f.destaque.checked };
+    const dados = { titulo: f.titulo.value.trim(), resumo: f.resumo.value.trim() || null, conteudo: valorEditor(f, 'conteudo'), editoria: f.editoria.value, imagem_url: f.imagem_url.value.trim() || null, imagem_credito: f.imagem_credito.value.trim() || null, autor: f.autor.value.trim() || null, fonte_nome: f.fonte_nome.value.trim() || null, fonte_url: f.fonte_url.value.trim() || null, status: f.status.value, destaque: f.destaque.checked };
     if (dados.status === 'publicado' && n.origem === 'robo' && n.verificacao !== 'aprovada' && !confirm('Esta notícia ainda não foi aprovada na verificação de direitos. Publicar mesmo assim?')) return;
     if (dados.status === 'publicado' && !n.publicado_em) dados.publicado_em = new Date().toISOString();
     if (!n.id) dados.slug = slugify(dados.titulo) + '-' + Date.now().toString(36);

@@ -735,7 +735,8 @@ a.manchete-foto{display:block}
 .noticia-art h1{font-size:56px;line-height:1;margin:8px 0 14px}
 .noticia-linha{font-size:20px;line-height:1.45;color:var(--texto2);margin:0 0 12px}
 .noticia-autor{font-size:14px;color:var(--cinza);margin:0 0 20px}
-.noticia-foto{margin:0 0 24px;border-radius:8px;overflow:hidden;background:#CBCFC9}
+.noticia-foto{margin:0 0 24px}
+.noticia-foto img{border-radius:8px;background:#CBCFC9}
 .noticia-foto img{display:block;width:100%;max-height:460px;object-fit:cover}
 .noticia-texto{max-width:none}
 .noticia-fonte{margin-top:24px;padding-top:14px;border-top:1px solid var(--linha);font-size:14px;color:var(--cinza)}
@@ -746,3 +747,8 @@ a.manchete-foto{display:block}
   .noticia-art h1{font-size:38px}
   .noticia-linha{font-size:17px}
 }
+
+/* crédito das fotos */
+.foto-cred{margin:0}
+.foto-cred figcaption,.noticia-foto figcaption,.cred-foto{display:block;margin-top:6px;font-size:12px;line-height:1.35;color:var(--cinza);text-align:right}
+.manchete .cred-foto{margin-top:-6px}
