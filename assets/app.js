@@ -1163,16 +1163,24 @@ function mostrarCorrida(slug, percIdx = 0) {
       <div class="ci-dists">${dist.length ? dist.map((d) => `<div class="ci-dist"><b>${esc(d.rotulo)}</b><span>${d.preco == null ? 'preço a confirmar' : brl(d.preco)}</span></div>`).join('') : '<p class="muted" style="margin:0">Distâncias a confirmar.</p>'}</div>
       ${c.link_inscricao ? `<a class="btn btn-cone ci-cta" href="${esc(c.link_inscricao)}" target="_blank" rel="noopener">${c.inscricoes_abertas && !passou ? 'Fazer inscrição' : 'Ver site da prova'}<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" d="M7 17 17 7M9 7h8v8"/></svg></a>
         <small class="ci-fonte">no site ${esc(dominioDoLink(c.link_inscricao))}</small>` : ''}
-      ${passou ? '' : `<div class="ci-agenda"><span class="ci-rot">Adicionar à agenda</span>
-        <div class="ci-agenda-btns">
-          <a class="ci-mini" href="${esc(linkGoogleAgenda(c))}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg>Google</a>
-          <button class="ci-mini" type="button" id="baixarIcs" title="Apple (iPhone, Mac), Outlook e outros: baixa o evento para abrir no seu calendário"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg>Outro calendário</button>
-        </div><small class="muted">Com lembrete na véspera, para retirar o kit.</small></div>`}
+      ${passou ? '' : `<details class="ci-agenda">
+        <summary><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg>Adicionar à agenda</summary>
+        <div class="ci-agenda-menu">
+          <a href="${esc(linkGoogleAgenda(c))}" target="_blank" rel="noopener">Google Agenda</a>
+          <button type="button" id="baixarIcs">Apple, Outlook e outros</button>
+          <small>Com lembrete na véspera, para retirar o kit.</small>
+        </div></details>`}
     </div>
     <a href="#mapa" class="ci-mapa" data-mod="mapa"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Ver corridas próximas no mapa</a>
     </aside>
 ${percHtml}${simHtml}</div>`;
   $('#baixarIcs', v)?.addEventListener('click', () => baixarIcs(c));
+  // menu "Adicionar à agenda": fecha ao escolher ou ao clicar fora
+  const menuAg = $('.ci-agenda', v);
+  if (menuAg) {
+    $$('.ci-agenda-menu a, .ci-agenda-menu button', menuAg).forEach((x) => x.addEventListener('click', () => { menuAg.open = false; }));
+    document.addEventListener('click', (e) => { if (menuAg.open && !menuAg.contains(e.target)) menuAg.open = false; });
+  }
   $$('[data-perc]', v).forEach((b) => b.addEventListener('click', () => {
     const y = window.scrollY; mostrarCorrida(slug, Number(b.dataset.perc)); window.scrollTo(0, y);
     setTimeout(() => $(`[data-perc="${b.dataset.perc}"]`)?.focus(), 60);
