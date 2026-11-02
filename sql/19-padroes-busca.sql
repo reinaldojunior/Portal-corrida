@@ -13,6 +13,9 @@ create table if not exists padroes_busca (
 );
 
 alter table padroes_busca enable row level security;
+-- este projeto não dá acesso automático a tabelas novas: libera leitura para todos (o robô lê) e escrita para logados (a política limita ao admin)
+grant select on padroes_busca to anon, authenticated;
+grant insert, update, delete on padroes_busca to authenticated;
 drop policy if exists "todos leem padrões" on padroes_busca;
 create policy "todos leem padrões" on padroes_busca for select using (true);
 drop policy if exists "admin edita padrões" on padroes_busca;
@@ -33,3 +36,5 @@ begin
 end $$;
 revoke all on function admin_reprocessar_site(text) from public, anon;
 grant execute on function admin_reprocessar_site(text) to authenticated;
+
+notify pgrst, 'reload schema';
