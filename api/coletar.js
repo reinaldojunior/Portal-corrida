@@ -68,6 +68,15 @@ function lerCalendario(html, uf) {
   return itens;
 }
 
+// O Corridas BR passa o link por um redirecionamento próprio (siteevento.asp?c=<endereço real>)
+function linkReal(u) {
+  if (!u) return null;
+  const c = u.match(/[?&]c=(https?:\/\/.+)$/i);
+  if (c) u = c[1];
+  if (/corridasbr\.com\.br/i.test(u)) return null;
+  return u.slice(0, 500);
+}
+
 // Página de detalhe: local da largada, organizador e link "Mais informações" (geralmente a inscrição)
 function lerDetalhe(html) {
   const semScript = html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<!--[\s\S]*?-->/g, '');
@@ -83,7 +92,7 @@ function lerDetalhe(html) {
   return {
     local_largada: local && local.length < 200 ? local : null,
     organizador: org && org.length < 120 ? org : null,
-    link_inscricao: mais && !/corridasbr/i.test(mais[1]) ? mais[1] : null
+    link_inscricao: linkReal(mais && mais[1])
   };
 }
 
@@ -118,11 +127,6 @@ module.exports = async (req, res) => {
   const enviada = (req.headers.authorization || '').replace(/^Bearer /, '') || String(req.query.chave || '');
   if (!segredo || enviada !== segredo) return res.status(401).json({ erro: 'não autorizado' });
   const estados = String(process.env.ESTADOS || 'SP').toUpperCase().split(/[,\s]+/).filter((x) => /^[A-Z]{2}$/.test(x));
-  if (req.query.ver) {
-    const pg = await baixar(`https://www.corridasbr.com.br/SP/mostracorrida.asp?escolha=${encodeURIComponent(req.query.ver)}`);
-    const i = pg.texto.search(/paraonde/i), j = pg.texto.search(/function\s+paraonde/i);
-    return res.status(200).json({ uso: i, def: j, trecho: j < 0 ? pg.texto.slice(Math.max(0, i - 200), i + 300) : pg.texto.slice(j, j + 700) });
-  }
   try {
     const relatorio = await coletar(estados, req.query.simular !== '1');
     res.status(200).json({ quando: new Date().toISOString(), relatorio });
