@@ -829,3 +829,6 @@ a.manchete-foto{display:block}
 .pop{display:flex;flex-direction:column;gap:2px}
 .pop-foto{margin:-18px -18px 10px;height:130px;overflow:hidden;border-radius:4px 4px 0 0;background:var(--concreto)}
 .pop-foto img{width:100%;height:100%;object-fit:cover;display:block}
+
+.admin-corrida{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:16px;padding:10px 14px;border:1.5px dashed var(--cone-txt,#c55);border-radius:10px;background:var(--papel)}
+.admin-corrida-acoes{display:flex;gap:8px}

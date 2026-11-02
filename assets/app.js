@@ -1000,6 +1000,25 @@ function ligarAltimetria(pts, mapa) {
   mapa.on('mouseout', sair);
 }
 let mapaCorrida;
+// Só para o admin: atalhos de editar/excluir no topo da página da corrida
+let editarAoAbrirAdmin = null;
+function barraAdminCorrida(v, c) {
+  if (!estado.admin || !sb || !c || !c.id) return;
+  const barra = document.createElement('div');
+  barra.className = 'wrap admin-corrida';
+  barra.innerHTML = `<span class="muted"><b>Admin</b> · ${c.status === 'publicado' ? 'publicada' : esc(c.status || '')}</span>
+    <span class="admin-corrida-acoes"><button class="btn btn-linha" type="button" data-acao="editar">Editar</button> <button class="btn btn-perigo" type="button" data-acao="excluir">Excluir</button></span>`;
+  v.prepend(barra);
+  $('[data-acao="editar"]', barra).addEventListener('click', () => { editarAoAbrirAdmin = c.id; abaAdmin = 'corridas'; location.hash = '#admin'; });
+  $('[data-acao="excluir"]', barra).addEventListener('click', async () => {
+    if (!confirm(`Excluir "${c.nome}"? Isso não pode ser desfeito.`)) return;
+    const { error } = await sb.from('corridas').delete().eq('id', c.id);
+    if (error) return toast('Não foi possível excluir.');
+    toast('Corrida excluída');
+    estado.corridas = estado.corridas.filter((x) => x.id !== c.id);
+    location.hash = ''; atualizarPublico();
+  });
+}
 function mostrarCorrida(slug, percIdx = 0) {
   const c0 = estado.corridas.find((x) => x.slug === slug && (x.status === 'publicado' || estado.admin));
   const percs = c0 ? percursosDe(c0) : [];
@@ -1085,6 +1104,7 @@ function mostrarCorrida(slug, percIdx = 0) {
       } else L.marker([c.lat, c.lng], { icon: iconePino(true), alt: c.nome }).addTo(mapaCorrida);
     }, 30);
   }
+  barraAdminCorrida(v, c0);
 }
 
 /* ================== Ferramentas ================== */
@@ -1151,6 +1171,11 @@ async function abrirAdmin() {
   estado.admin = true;
   $('#btnEntrar').textContent = 'Admin';
   pintarAdmin();
+  if (editarAoAbrirAdmin) {
+    const id = editarAoAbrirAdmin; editarAoAbrirAdmin = null;
+    const { data: c } = await sb.from('corridas').select('*, corrida_distancias(*)').eq('id', id).maybeSingle();
+    if (c) formCorrida(c);
+  }
 }
 function telaLogin(erro) {
   $('#adminBox').innerHTML = `<form class="login" id="formLogin">
@@ -1708,5 +1733,14 @@ async function atualizarPublico() {
   montarHome(); $('#vHome').hidden = location.hash === '#admin' || location.hash.startsWith('#corrida/');
 }
 
-if (sb) sb.auth.getSession().then(({ data }) => { if (data.session) $('#btnEntrar').textContent = 'Admin'; }).catch(() => {});
+// se quem abriu o site é admin, libera os atalhos de editar/excluir nas páginas das corridas
+if (sb) sb.auth.getSession().then(async ({ data }) => {
+  if (!data.session) return;
+  $('#btnEntrar').textContent = 'Admin';
+  const { data: ehAdmin } = await sb.rpc('is_admin');
+  if (!ehAdmin) return;
+  estado.admin = true;
+  const h = decodeURIComponent(location.hash);
+  if (h.startsWith('#corrida/') && !$('#vCorrida .admin-corrida')) mostrarCorrida(h.slice(9));
+}).catch(() => {});
 carregar();
