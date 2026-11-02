@@ -1090,7 +1090,7 @@ async function adminPendentes() {
   const lista = data || [];
   box.innerHTML = `<div class="barra-admin"><span class="muted">${lista.length ? `${lista.length} corrida(s) encontrada(s) pela busca automática esperando revisão` : 'Nenhuma corrida esperando revisão. A busca automática roda todo dia de manhã.'}</span></div>
   <div class="tabela-wrap"><table class="tab"><thead><tr><th>Data</th><th>Corrida</th><th>Cidade</th><th>Distâncias</th><th>Fonte</th><th><span class="muted" style="font-weight:400">Ações</span></th></tr></thead><tbody>
-  ${lista.map((p) => { const [a, m, d] = p.data.split('-'); return `<tr><td>${d}/${m}/${a}</td><td><b>${esc(p.nome)}</b>${p.descricao ? `<br><small>${esc(p.descricao.length > 140 ? p.descricao.slice(0, 140) + '…' : p.descricao)}</small>` : ''}${p.observacao ? `<br><small class="muted">${esc(p.observacao)}</small>` : ''}${p.lat != null ? '<br><small class="muted">Local exato encontrado' + (p.local_largada ? ': ' + esc(p.local_largada) : '') + '</small>' : ''}${p.percurso_url || p.percurso_info ? `<br><small class="tem-perc">Tem percurso${p.percurso_info ? ': ' + esc(p.percurso_info) : ''}${p.percurso_url ? ` · <a href="${esc(p.percurso_url)}" target="_blank" rel="noopener">abrir</a>` : ''}</small>` : ''}</td><td>${esc(p.cidade)}</td><td>${esc(p.distancias || '—')}</td>
+  ${lista.map((p) => { const [a, m, d] = p.data.split('-'); return `<tr><td>${d}/${m}/${a}</td><td>${p.imagem_sugerida ? `<img class="pend-mini" src="${esc(p.imagem_sugerida)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<b>${esc(p.nome)}</b>${p.descricao ? `<br><small>${esc(p.descricao.length > 140 ? p.descricao.slice(0, 140) + '…' : p.descricao)}</small>` : ''}${p.observacao ? `<br><small class="muted">${esc(p.observacao)}</small>` : ''}${p.lat != null ? '<br><small class="muted">Local exato encontrado' + (p.local_largada ? ': ' + esc(p.local_largada) : '') + '</small>' : ''}${p.percurso_url || p.percurso_info ? `<br><small class="tem-perc">Tem percurso${p.percurso_info ? ': ' + esc(p.percurso_info) : ''}${p.percurso_url ? ` · <a href="${esc(p.percurso_url)}" target="_blank" rel="noopener">abrir</a>` : ''}</small>` : ''}</td><td>${esc(p.cidade)}</td><td>${esc(p.distancias || '—')}</td>
     <td>${p.fonte_url ? `<a href="${esc(p.fonte_url)}" target="_blank" rel="noopener" style="color:var(--cone-txt);font-weight:600">${esc(p.fonte || 'ver fonte')}</a>` : esc(p.fonte || '—')}</td>
     <td class="acoes"><button class="btn btn-escuro" data-revisar="${p.id}">Revisar e aprovar</button> <button class="btn btn-perigo" data-recusar="${p.id}">Recusar</button></td></tr>`; }).join('') || '<tr><td colspan="6" class="muted">Tudo revisado por aqui.</td></tr>'}
   </tbody></table></div>`;
@@ -1245,7 +1245,17 @@ function campoFoto(valor) {
 function ligarFoto(f, pasta) {
   const arq = $('[data-foto-arq]', f); if (!arq) return;
   const prev = $('.foto-prev', f), info = $('[data-foto-info]', f), url = f.imagem_url;
-  const mostrar = (u) => { prev.innerHTML = u ? `<img src="${esc(u)}" alt="">` : '<span>Sem foto</span>'; };
+  const msgPadrao = info.textContent;
+  const mostrar = (u) => {
+    if (!u) { prev.innerHTML = '<span>Sem foto</span>'; info.textContent = msgPadrao; return; }
+    if (!/^https?:\/\//i.test(u)) { prev.innerHTML = '<span>Link inválido</span>'; info.textContent = 'O link precisa começar com https://'; return; }
+    prev.innerHTML = '<span>Carregando…</span>';
+    const im = new Image();
+    im.onload = () => { if (url.value.trim() !== u) return; prev.innerHTML = ''; prev.appendChild(im); info.textContent = `Pré-visualização ok (${im.naturalWidth}×${im.naturalHeight} px).`; };
+    im.onerror = () => { if (url.value.trim() !== u) return; prev.innerHTML = '<span>Não abriu</span>'; info.textContent = 'Esse link não abriu como imagem. Confira se é o endereço do arquivo da foto (termina em .jpg, .png ou .webp), e não o da página.'; };
+    im.alt = ''; im.src = u;
+  };
+  let tPrev; url.addEventListener('input', () => { clearTimeout(tPrev); tPrev = setTimeout(() => mostrar(url.value.trim()), 400); });
   url.addEventListener('change', () => mostrar(url.value.trim()));
   arq.addEventListener('change', async () => {
     const a = arq.files[0]; if (!a) return;
