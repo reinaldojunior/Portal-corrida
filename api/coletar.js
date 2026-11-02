@@ -12,6 +12,11 @@ async function baixar(url) {
 
 module.exports = async (req, res) => {
   const uf = String(req.query.uf || 'SP').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2);
+  if (req.query.debug === '2') {
+    const pg = await baixar(`https://www.corridasbr.com.br/${uf}/mostracorrida.asp?escolha=${encodeURIComponent(req.query.id || '63953')}`);
+    const i = Math.max(0, pg.texto.search(/Adora|Data|Local|Inscri/i) - 200);
+    return res.status(200).json({ status: pg.status, trecho: pg.texto.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\s+/g, ' ').slice(i, i + 7000) });
+  }
   if (req.query.debug === '1') {
     const pg = await baixar(`https://www.corridasbr.com.br/${uf}/Calendario.asp`);
     const i = Math.max(0, pg.texto.search(/Indaiatuba|Campinas|Salto/i) - 3000);
