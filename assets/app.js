@@ -1211,7 +1211,8 @@ const COORD_CIDADES = {
   'rafard': [-23.0106, -47.5317], 'jundiai': [-23.1857, -46.8978], 'itupeva': [-23.1526, -47.0578], 'porto feliz': [-23.2153, -47.5236]
 };
 const semAcento = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
-let filtroUfPend = '';
+let filtroUfPend = '', ordemPend = 'proximas', prazoPend = '';
+const diasAte = (iso) => { const [a, m, d] = iso.split('-').map(Number); const h = new Date(); return Math.round((new Date(a, m - 1, d) - new Date(h.getFullYear(), h.getMonth(), h.getDate())) / 864e5); };
 async function adminPendentes() {
   const box = $('#conteudoAdmin');
   box.innerHTML = '<p class="muted">Carregando…</p>';
@@ -1226,16 +1227,24 @@ async function adminPendentes() {
   if (error) { box.innerHTML = '<div class="aviso erro">Não foi possível carregar a fila. Confira se a tabela de pendentes existe no banco.</div>'; return; }
   const ufs = [...new Set(data.map((p) => p.estado).filter(Boolean))].sort();
   if (!ufs.includes(filtroUfPend)) filtroUfPend = '';
-  const lista = filtroUfPend ? data.filter((p) => p.estado === filtroUfPend) : data;
-  box.innerHTML = `<div class="barra-admin"><span class="muted">${data.length ? `${lista.length} de ${data.length} corrida(s) encontrada(s) pela busca automática esperando revisão` : 'Nenhuma corrida esperando revisão. A busca automática roda todo dia de manhã.'}</span>
-  ${ufs.length > 1 ? `<select class="campo" id="filtroUfPend" style="width:auto;margin-left:auto"><option value="">Todos os estados</option>${ufs.map((u) => `<option${u === filtroUfPend ? ' selected' : ''}>${u}</option>`).join('')}</select>` : ''}</div>
+  const lista = data.filter((p) => (!filtroUfPend || p.estado === filtroUfPend) && (!prazoPend || diasAte(p.data) <= Number(prazoPend)));
+  const ordens = { proximas: (a, b) => a.data.localeCompare(b.data), distantes: (a, b) => b.data.localeCompare(a.data), recentes: (a, b) => String(b.criado_em || '').localeCompare(String(a.criado_em || '')) };
+  lista.sort(ordens[ordemPend] || ordens.proximas);
+  const opc = (pares, atual) => pares.map(([v, t]) => `<option value="${v}"${v === atual ? ' selected' : ''}>${t}</option>`).join('');
+  box.innerHTML = `<div class="barra-admin" style="flex-wrap:wrap;gap:8px"><span class="muted">${data.length ? `${lista.length} de ${data.length} corrida(s) encontrada(s) pela busca automática esperando revisão` : 'Nenhuma corrida esperando revisão. A busca automática roda todo dia de manhã.'}</span>
+  <span style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto">
+  <select class="campo" id="ordemPend" style="width:auto" title="Ordenar">${opc([['proximas', 'Data mais próxima primeiro'], ['distantes', 'Data mais distante primeiro'], ['recentes', 'Encontradas mais recentemente']], ordemPend)}</select>
+  <select class="campo" id="prazoPend" style="width:auto" title="Período">${opc([['', 'Qualquer data'], ['7', 'Próximos 7 dias'], ['15', 'Próximos 15 dias'], ['30', 'Próximos 30 dias'], ['60', 'Próximos 60 dias']], prazoPend)}</select>
+  ${ufs.length > 1 ? `<select class="campo" id="filtroUfPend" style="width:auto"><option value="">Todos os estados</option>${ufs.map((u) => `<option${u === filtroUfPend ? ' selected' : ''}>${u}</option>`).join('')}</select>` : ''}</span></div>
   <div class="tabela-wrap"><table class="tab"><thead><tr><th>Data</th><th>Corrida</th><th>Cidade</th><th>Distâncias</th><th>Fonte</th><th><span class="muted" style="font-weight:400">Ações</span></th></tr></thead><tbody>
-  ${lista.map((p) => { const [a, m, d] = p.data.split('-'); return `<tr><td>${d}/${m}/${a}</td><td>${p.imagem_sugerida ? `<img class="pend-mini" src="${esc(p.imagem_sugerida)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<b>${esc(p.nome)}</b>${p.descricao ? `<br><small>${esc(p.descricao.length > 140 ? p.descricao.slice(0, 140) + '…' : p.descricao)}</small>` : ''}${p.observacao ? `<br><small class="muted">${esc(p.observacao)}</small>` : ''}${p.lat != null ? '<br><small class="muted">Local exato encontrado' + (p.local_largada ? ': ' + esc(p.local_largada) : '') + '</small>' : ''}${p.percurso_url || p.percurso_info ? `<br><small class="tem-perc">Tem percurso${p.percurso_info ? ': ' + esc(p.percurso_info) : ''}${p.percurso_url ? ` · <a href="${esc(p.percurso_url)}" target="_blank" rel="noopener">abrir</a>` : ''}</small>` : ''}</td><td>${esc(p.cidade)}</td><td>${esc(p.distancias || '—')}</td>
+  ${lista.map((p) => { const [a, m, d] = p.data.split('-'); const fd = diasAte(p.data); return `<tr><td>${d}/${m}/${a}<br><small class="${fd <= 7 ? 'pend-urgente' : 'muted'}">${fd <= 0 ? 'hoje' : fd === 1 ? 'amanhã' : `em ${fd} dias`}</small></td><td>${p.imagem_sugerida ? `<img class="pend-mini" src="${esc(p.imagem_sugerida)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<b>${esc(p.nome)}</b>${p.descricao ? `<br><small>${esc(p.descricao.length > 140 ? p.descricao.slice(0, 140) + '…' : p.descricao)}</small>` : ''}${p.observacao ? `<br><small class="muted">${esc(p.observacao)}</small>` : ''}${p.lat != null ? '<br><small class="muted">Local exato encontrado' + (p.local_largada ? ': ' + esc(p.local_largada) : '') + '</small>' : ''}${p.percurso_url || p.percurso_info ? `<br><small class="tem-perc">Tem percurso${p.percurso_info ? ': ' + esc(p.percurso_info) : ''}${p.percurso_url ? ` · <a href="${esc(p.percurso_url)}" target="_blank" rel="noopener">abrir</a>` : ''}</small>` : ''}</td><td>${esc(p.cidade)}</td><td>${esc(p.distancias || '—')}</td>
     <td>${p.fonte_url ? `<a href="${esc(p.fonte_url)}" target="_blank" rel="noopener" style="color:var(--cone-txt);font-weight:600">${esc(p.fonte || 'ver fonte')}</a>` : esc(p.fonte || '—')}</td>
     <td class="acoes"><button class="btn btn-escuro" data-revisar="${p.id}">Revisar e aprovar</button> <button class="btn btn-perigo" data-recusar="${p.id}">Recusar</button></td></tr>`; }).join('') || '<tr><td colspan="6" class="muted">Tudo revisado por aqui.</td></tr>'}
   </tbody></table></div>`;
   const selUf = $('#filtroUfPend', box);
   if (selUf) selUf.addEventListener('change', () => { filtroUfPend = selUf.value; adminPendentes(); });
+  $('#ordemPend', box).addEventListener('change', (e) => { ordemPend = e.target.value; adminPendentes(); });
+  $('#prazoPend', box).addEventListener('change', (e) => { prazoPend = e.target.value; adminPendentes(); });
   $$('[data-recusar]', box).forEach((b) => b.addEventListener('click', async () => {
     await sb.from('corridas_pendentes').update({ status: 'recusada', revisado_em: new Date().toISOString() }).eq('id', b.dataset.recusar);
     toast('Corrida recusada'); adminPendentes();
