@@ -124,3 +124,36 @@ async function analisar(url) {
   return { imagem, lat, lng, local, mapa, aproximado: lat != null && !coordsDoLink(mapa || '') };
 }
 module.exports.analisar = analisar;
+
+// Centro da cidade (para conferir se um pino caiu no lugar certo). Guarda em memória durante a execução.
+const cacheCidade = new Map();
+async function centroCidade(cidade, uf = 'SP') {
+  const k = `${cidade}|${uf}`.toLowerCase();
+  if (cacheCidade.has(k)) return cacheCidade.get(k);
+  let r = null;
+  try {
+    const q = encodeURIComponent(`${cidade}, ${uf}, Brasil`);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&featuretype=city&q=${q}`, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR', referer: 'https://paceclub-mu.vercel.app/' }, signal: AbortSignal.timeout(5000) });
+    const j = res.ok ? await res.json() : [];
+    if (j[0]) r = [+j[0].lat, +j[0].lon];
+  } catch { /* segue */ }
+  if (!r) {
+    try {
+      const res = await fetch(`https://photon.komoot.io/api/?limit=1&osm_tag=place&q=${encodeURIComponent(`${cidade}, ${uf}`)}&bbox=-74,-34,-34,6`, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(5000) });
+      const j = res.ok ? await res.json() : null;
+      const g = j && j.features && j.features[0];
+      if (g) r = [g.geometry.coordinates[1], g.geometry.coordinates[0]];
+    } catch { /* segue */ }
+  }
+  cacheCidade.set(k, r);
+  return r;
+}
+const distanciaKm = (a, b) => { const R = Math.PI / 180, dLa = (b[0] - a[0]) * R, dLo = (b[1] - a[1]) * R; const h = Math.sin(dLa / 2) ** 2 + Math.cos(a[0] * R) * Math.cos(b[0] * R) * Math.sin(dLo / 2) ** 2; return 12742 * Math.asin(Math.sqrt(h)); };
+// Pino só vale se ficar a até 30 km do centro da cidade da prova; senão usa o centro da cidade
+async function conferirPino(lat, lng, cidade, uf) {
+  const c = await centroCidade(cidade, uf);
+  if (!c) return { lat, lng, ok: null };
+  if (lat == null || distanciaKm([lat, lng], c) > 30) return { lat: c[0], lng: c[1], ok: false };
+  return { lat, lng, ok: true };
+}
+module.exports.conferirPino = conferirPino;

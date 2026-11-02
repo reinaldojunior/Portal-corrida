@@ -3,3 +3,4 @@
 -- e public.robo_inserir_pendentes(token, itens), extensões unaccent e pg_trgm.
 -- Também: public.robo_sem_detalhe(token, limite) e public.robo_completar(token, itens) — completam só campos vazios.
 -- public.robo_publicar_completas(token): publica pendentes com data futura, link, distâncias, imagem e pino (origem 'ia', crédito da imagem).
+-- Conferência de pinos: colunas pino_conferido_em, funções robo_pinos_para_conferir/robo_corrigir_pinos; publicação automática só com pino conferido.
