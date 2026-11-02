@@ -4,7 +4,8 @@ const SUPABASE_KEY = 'sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 module.exports = async (req, res) => {
-  const base = `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
+  // endereço oficial do site (o mesmo em qualquer endereço da Vercel); troque SITE_URL ao usar domínio próprio
+  const base = (process.env.SITE_URL || 'https://paceclub-mu.vercel.app').replace(/\/$/, '');
   let lista = [];
   try {
     for (let de = 0; de < 20000; de += 1000) {
