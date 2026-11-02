@@ -48,6 +48,11 @@ module.exports = async (req, res) => {
   try { pg = await baixar(url); } catch { return res.status(502).json({ erro: 'Não consegui abrir a página da inscrição.' }); }
   if (!pg.ok) return res.status(502).json({ erro: `A página respondeu com erro ${pg.status}.` });
   const html = desfazer(pg.texto);
+  if (req.query && req.query.debug === '1') {
+    const trechos = []; const re = /(maps|endere|latitude|longitude|"address|local|addressLocality|streetAddress|geo)/gi; let m;
+    while ((m = re.exec(html)) && trechos.length < 40) trechos.push(html.slice(Math.max(0, m.index - 80), m.index + 160).replace(/\s+/g, ' '));
+    return res.status(200).json({ tamanho: html.length, trechos });
+  }
 
   // imagem de divulgação
   const og = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]*content=["']([^"']+)["']/i)
