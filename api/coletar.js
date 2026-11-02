@@ -96,7 +96,7 @@ function lerDetalhe(html) {
   };
 }
 
-async function coletar(estados, gravar) {
+async function coletar(estados, gravar, MAX_DETALHES = 35) {
   const token = process.env.ROBO_TOKEN;
   if (!token) throw new Error('ROBO_TOKEN não configurado');
   const relatorio = [];
@@ -123,10 +123,17 @@ async function coletar(estados, gravar) {
     try {
       const faltam = await rpc('robo_sem_detalhe', { p_token: token, p_limite: MAX_DETALHES - detalhesUsados });
       const completos = [];
-      for (const f of faltam || []) {
-        try { completos.push({ chave: f.chave, ...lerDetalhe((await baixar(f.fonte_url)).texto) }); } catch { /* segue */ }
-        await dormir(150);
-      }
+      const fila = [...(faltam || [])];
+      const inicio = Date.now();
+      // 4 de cada vez, parando antes do limite de tempo da Vercel
+      const trab = async () => {
+        while (fila.length && Date.now() - inicio < 45000) {
+          const f = fila.shift();
+          try { completos.push({ chave: f.chave, ...lerDetalhe((await baixar(f.fonte_url)).texto) }); } catch { /* segue */ }
+          await dormir(150);
+        }
+      };
+      await Promise.all([trab(), trab(), trab(), trab()]);
       const n = completos.length ? await rpc('robo_completar', { p_token: token, p_itens: completos }) : 0;
       relatorio.push({ completadas: n });
     } catch (e) { relatorio.push({ completar_erro: e.message }); }
@@ -146,7 +153,9 @@ module.exports = async (req, res) => {
   else if (req.query.grupo === '1') estados = todos.slice(0, Math.ceil(todos.length / 2));
   else if (req.query.grupo === '2') estados = todos.slice(Math.ceil(todos.length / 2));
   try {
-    const relatorio = await coletar(estados, req.query.simular !== '1');
+    // ?detalhes=N (até 200) completa mais provas da fila numa só execução (carga inicial)
+    const maxDet = Math.min(200, Math.max(1, parseInt(req.query.detalhes, 10) || MAX_DETALHES));
+    const relatorio = await coletar(estados, req.query.simular !== '1', maxDet);
     res.status(200).json({ quando: new Date().toISOString(), relatorio });
   } catch (e) { res.status(500).json({ erro: e.message }); }
 };
