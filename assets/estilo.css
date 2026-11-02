@@ -708,3 +708,11 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
 
 .sim .sim-entrada{grid-template-columns:110px}
 @media (min-width:1101px){.sim-lado .sim-entrada{grid-template-columns:96px}}
+
+/* ganho de elevação por km */
+.pulseira td.ganho{position:relative;min-width:80px}
+.pulseira .g-barra{position:absolute;left:6px;top:50%;height:14px;transform:translateY(-50%);max-width:calc(100% - 12px);background:rgba(255,122,46,.22);border-radius:3px}
+.pulseira td.ganho span:last-child{position:relative}
+.sim .pulseira .perda0{color:#8A9096}
+.sim .pulseira tr.km-duro td{background:rgba(255,77,0,.12)}
+.sim .pulseira tr.km-duro td:first-child{box-shadow:inset 3px 0 0 var(--cone)}

@@ -487,13 +487,20 @@ function simular(c, pts, alvoSeg, clima, opc = {}) {
     const ini = i * passo, fim = i === n - 1 ? tot : (i + 1) * passo, len = fim - ini;
     const a = noKm(pts, ini), b = noKm(pts, fim);
     const dEle = a.ele != null && b.ele != null ? b.ele - a.ele : 0;
-    const inc = (dEle / (len * 1000)) * 100;
-    const fInc = inc > 0 ? 1 + 0.033 * inc : 1 + 0.018 * Math.max(inc, -6);
+    // ganho e perda acumulados dentro do trecho (não só a diferença entre começo e fim)
+    let ganho = 0, perda = 0, ant = a.ele;
+    if (ant != null) {
+      for (const q of pts) { if (q.km <= ini || q.km >= fim || q.ele == null) continue; const d = q.ele - ant; if (d > 0) ganho += d; else perda -= d; ant = q.ele; }
+      if (b.ele != null) { const d = b.ele - ant; if (d > 0) ganho += d; else perda -= d; }
+    }
+    // subidas pesam mais que descidas devolvem: +3,3% por 1% de subida, −1,8% por 1% de descida (descida limitada a 6%)
+    const m = len * 1000, incUp = (ganho / m) * 100, incDown = Math.min(6, (perda / m) * 100);
+    const fInc = 1 + 0.033 * incUp - 0.018 * incDown;
     const cl = climaNa(clima, larg + (alvoSeg * (ini + len / 2) / tot) / 3600);
     const fCal = cl ? 1 + 0.004 * Math.max(0, cl.t - 15) + (cl.u > 60 ? 0.001 * Math.max(0, cl.t - 15) : 0) : 1;
     const meio = (ini + len / 2) / tot;
     const fEst = 1 + (est / 5) * 0.04 * (1 - 2 * meio);
-    trechos.push({ km: fim, rot: Math.abs(fim - Math.round(fim)) < 0.06 ? String(Math.round(fim)) : fim.toFixed(1).replace('.', ','), len, dEle, f: fInc * fCal, w: (1 + adj * (fInc - 1)) * fCal * fEst, temp: cl ? cl.t : null });
+    trechos.push({ km: fim, rot: Math.abs(fim - Math.round(fim)) < 0.06 ? String(Math.round(fim)) : fim.toFixed(1).replace('.', ','), len, dEle, ganho, perda, f: fInc * fCal, w: (1 + adj * (fInc - 1)) * fCal * fEst, temp: cl ? cl.t : null });
   }
   const plano = trechos.reduce((s, t) => s + base * t.f * t.len, 0);
   const k = alvoSeg / trechos.reduce((s, t) => s + base * t.w * t.len, 0); let acum = 0;
@@ -536,9 +543,10 @@ function atualizarSimulador() {
   const media = alvo / r.tot, maxDev = Math.max(...r.trechos.map((t) => Math.abs(t.pace - media))) || 1;
   $('#simBarras').innerHTML = r.trechos.map((t) => { const dv = t.pace - media, h = Math.max(3, Math.round(Math.abs(dv) / maxDev * 24));
     return `<span class="${dv >= 0 ? 'lento' : 'rapido'}" style="height:${h}px;${dv >= 0 ? `align-self:flex-start;margin-top:${28 - h}px` : `align-self:flex-end;margin-bottom:${28 - h}px`}" title="km ${t.rot}: ${fmt(t.pace, true)}/km"></span>`; }).join('');
-  $('#simTabela').innerHTML = `<table><thead><tr><th>KM</th><th>TERRENO</th><th>PACE</th><th>PASSAGEM</th></tr></thead><tbody>${r.trechos.map((t) => {
-    const ter = t.dEle > 3 ? `<span class="sobe">subida +${Math.round(t.dEle)} m</span>` : t.dEle < -3 ? `<span class="desce">descida ${Math.round(t.dEle)} m</span>` : 'plano';
-    return `<tr><td>${t.rot}</td><td>${ter}</td><td>${fmt(t.pace, true)}</td><td>${fmt(t.pass)}</td></tr>`; }).join('')}</tbody></table>`;
+  const maxG = Math.max(1, ...r.trechos.map((t) => t.ganho / t.len)), pior = r.trechos.reduce((x, t) => (t.ganho / t.len > x.ganho / x.len ? t : x), r.trechos[0]);
+  $('#simTabela').innerHTML = `<table><thead><tr><th>KM</th><th>GANHO</th><th>PERDA</th><th>PACE</th><th>PASSAGEM</th></tr></thead><tbody>${r.trechos.map((t) => {
+    const g = Math.round(t.ganho), pd = Math.round(t.perda), w = Math.round((t.ganho / t.len) / maxG * 100);
+    return `<tr${t === pior && g >= 5 ? ' class="km-duro" title="Km com mais subida"' : ''}><td>${t.rot}</td><td class="ganho"><span class="g-barra" style="width:${w}%"></span><span class="${g >= 5 ? 'sobe' : ''}">+${g} m</span></td><td class="${pd >= 5 ? 'desce' : 'perda0'}">${pd ? '−' + pd : 0} m</td><td>${fmt(t.pace, true)}</td><td>${fmt(t.pass)}</td></tr>`; }).join('')}</tbody></table>`;
   simEstado.r = r;
   moverFantasma();
 }
@@ -557,7 +565,7 @@ function textoEstrategia(r) {
   const e = simEstado.est, a = simEstado.adj;
   $('#simEstTxt').textContent = e === 0 ? 'Ritmo igual do começo ao fim' : e > 0 ? `Guardar para o fim (split negativo, nível ${e})` : `Sair mais forte (split positivo, nível ${-e})`;
   $('#simAdjTxt').textContent = a >= 95 ? 'Mesmo esforço: alivia nas subidas e acelera nas descidas' : a <= 5 ? 'Mesmo ritmo em tudo: subidas custam mais esforço' : `Meio-termo: ${a}% do ajuste pelo terreno`;
-  $('#simMetades').innerHTML = `<div><span>1ª METADE</span><b>${fmt(r.metade[0])}</b></div><div><span>2ª METADE</span><b>${fmt(r.metade[1])}</b></div><div><span>DIFERENÇA</span><b>${r.metade[1] - r.metade[0] >= 0 ? '+' : '−'}${fmt(Math.abs(r.metade[1] - r.metade[0]), true)}</b></div><div><span>RITMO PLANO</span><b>${fmt(r.plano)}</b></div>`;
+  $('#simMetades').innerHTML = `<div><span>1ª METADE</span><b>${fmt(r.metade[0])}</b></div><div><span>2ª METADE</span><b>${fmt(r.metade[1])}</b></div><div><span>DIFERENÇA</span><b>${Math.abs(r.metade[1] - r.metade[0]) < 0.5 ? '0:00' : (r.metade[1] - r.metade[0] > 0 ? '+' : '−') + fmt(Math.abs(r.metade[1] - r.metade[0]), true)}</b></div><div><span>RITMO PLANO</span><b>${fmt(r.plano)}</b></div>`;
 }
 document.addEventListener('input', (e) => {
   if (e.target.id === 'simAlvo') { simEstado.alvo = e.target.value; atualizarSimulador(); }
