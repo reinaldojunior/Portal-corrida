@@ -786,3 +786,6 @@ a.manchete-foto{display:block}
 #sugTopo .sug-img{margin-top:10px;background:#fff}
 
 .form-topo{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+
+.form-topo-acoes{display:flex;gap:10px;flex-wrap:wrap}
+.btn-olho{padding:0 12px}
