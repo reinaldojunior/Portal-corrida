@@ -26,17 +26,22 @@ module.exports = async (req, res) => {
   try {
     const fila = (await rpc('robo_para_enriquecer', { p_token: token, p_limite: LIMITE })) || [];
     const feitos = [];
-    let i = 0, n = 0;
+    let i = 0, n = 0, falhas = 0;
     const comPrazo = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('demorou')), ms))]);
     const salvar = async (lote) => { if (lote.length) n += (await rpc('robo_enriquecer', { p_token: token, p_itens: lote })) || 0; };
     const trabalhador = async () => {
       while (i < fila.length && Date.now() - inicio < PRAZO_MS) {
         const f = fila[i++];
-        let item = { chave: f.chave };
+        let item;
         try {
           const d = await comPrazo(analisar(f.link_inscricao), 12000);
           item = { chave: f.chave, imagem: d.imagem || null, lat: d.lat ?? null, lng: d.lng ?? null, local: d.local || null };
-        } catch { /* marca como tentado mesmo sem achar nada (ou se a página travou) */ }
+        } catch {
+          // página não abriu ou demorou: conta a tentativa e tenta de novo na próxima rodada (até 3 vezes)
+          try { await rpc('robo_falha_enriquecer', { p_token: token, p_chaves: [f.chave] }); } catch { /* segue */ }
+          falhas += 1;
+          continue;
+        }
         feitos.push(item);
         await salvar([item]); // salva na hora: se a rodada cair, o que já foi feito fica gravado
       }
@@ -59,6 +64,6 @@ module.exports = async (req, res) => {
     // publica sozinho as completas (data futura, link, distâncias, imagem e pino)
     let publicadas = 0;
     try { publicadas = await rpc('robo_publicar_completas', { p_token: token }); } catch { /* segue */ }
-    res.status(200).json({ na_fila: fila.length, processadas: n, publicadas, conferidos, corrigidos, com_imagem: feitos.filter((x) => x.imagem).length, com_local: feitos.filter((x) => x.lat != null).length });
+    res.status(200).json({ na_fila: fila.length, processadas: n, falhas, publicadas, conferidos, corrigidos, com_imagem: feitos.filter((x) => x.imagem).length, com_local: feitos.filter((x) => x.lat != null).length });
   } catch (e) { res.status(500).json({ erro: e.message }); }
 };
