@@ -1270,6 +1270,9 @@ function formCorrida(c = {}, pendente = null) {
   const box = $('#conteudoAdmin');
   box.innerHTML = `<form class="form" id="fCorrida">
     <h2 class="display inteiro" style="font-size:40px">${c.id ? 'Editar corrida' : 'Nova corrida'}</h2>
+    <div class="campo inteiro busca-topo">Link de inscrição <small>Cole o link da página de inscrição (Ticket Sports, Sympla…) e clique no botão para trazer a imagem e o local.</small>
+      <div class="busca-linha"><input name="link_inscricao" type="url" value="${esc(c.link_inscricao || '')}" placeholder="https://"><button type="button" class="btn btn-cone btn-buscar" id="buscarInfo">Buscar imagem e local</button></div>
+      <small id="buscarMsg" role="status"></small><div id="sugTopo"></div></div>
     <label class="campo inteiro">Nome da corrida<input name="nome" required value="${esc(c.nome || '')}"></label>
     <label class="campo">Cidade<input name="cidade" required value="${esc(c.cidade || '')}" list="cidadesSug"></label>
     <datalist id="cidadesSug"><option>Indaiatuba</option><option>Salto</option><option>Itu</option><option>Elias Fausto</option><option>Monte Mor</option></datalist>
@@ -1288,8 +1291,6 @@ function formCorrida(c = {}, pendente = null) {
     <div class="inteiro"><div class="campo" style="margin-bottom:8px">Distâncias</div><div id="distancias">${(c.corrida_distancias || [{}]).map(linhaDist).join('')}</div><button type="button" class="btn btn-linha" id="addDist">Adicionar distância</button></div>
     <div class="campo inteiro">Descrição <small>Pode colar texto formatado: negrito, itálico, listas e links são mantidos.</small>${editorRico('descricao', c.descricao)}</div>
     <label class="campo">Organizador<input name="organizador" value="${esc(c.organizador || '')}"></label>
-    <div class="campo">Link de inscrição<input name="link_inscricao" type="url" value="${esc(c.link_inscricao || '')}" placeholder="https://">
-      <button type="button" class="btn btn-linha btn-buscar" id="buscarInfo">Buscar imagem e local nesse link</button><small id="buscarMsg" role="status"></small></div>
     ${campoFoto(c.imagem_url)}
     ${c.imagem_sugerida && !c.imagem_url ? `<div class="campo inteiro sug-img"><span>Imagem de divulgação encontrada pela busca</span>
       <div class="sug-linha"><img src="${esc(c.imagem_sugerida)}" alt="" loading="lazy"><div><small>É a arte do organizador e tem direitos autorais. Use só se o organizador permitir (muitos liberam para divulgação) e sempre com o crédito.</small>
@@ -1394,7 +1395,7 @@ function formCorrida(c = {}, pendente = null) {
       } else if (j.local && !f.local_largada.value.trim()) { f.local_largada.value = j.local; achou.push('endereço (sem coordenadas — marque o pino no mapa)'); }
       if (j.imagem) {
         $('.sug-img', f)?.remove();
-        $('.campo-foto', f).insertAdjacentHTML('afterend', `<div class="campo inteiro sug-img"><span>Imagem de divulgação encontrada na página</span>
+        $('#sugTopo', f).insertAdjacentHTML('beforeend', `<div class="campo inteiro sug-img"><span>Imagem de divulgação encontrada na página</span>
           <div class="sug-linha"><img src="${esc(j.imagem)}" alt="" onerror="this.closest('.sug-img').querySelector('small').textContent='Essa imagem não abriu.'"><div><small>É a arte do organizador e tem direitos autorais. Use só se o organizador permitir (muitos liberam para divulgação) e sempre com o crédito.</small>
           <button type="button" class="btn btn-linha" data-usar-img>Usar esta imagem com crédito</button></div></div></div>`);
         $('[data-usar-img]', f).addEventListener('click', () => {
