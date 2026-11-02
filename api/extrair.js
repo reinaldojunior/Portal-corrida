@@ -86,9 +86,15 @@ module.exports = async (req, res) => {
     ].filter(Boolean))];
     for (const q of tentativas) {
       try {
-        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(q)}`, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR' } });
+        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(q)}`, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR', referer: 'https://paceclub-mu.vercel.app/' } });
         const j = r.ok ? await r.json() : [];
         if (j[0]) { lat = +j[0].lat; lng = +j[0].lon; break; }
+      } catch { /* segue */ }
+      try { // segundo serviço gratuito (Photon / OpenStreetMap), limitado ao Brasil
+        const r = await fetch(`https://photon.komoot.io/api/?limit=1&lang=default&bbox=-74,-34,-34,6&q=${encodeURIComponent(q)}`, { headers: { 'user-agent': UA } });
+        const j = r.ok ? await r.json() : null;
+        const g = j && j.features && j.features[0];
+        if (g) { [lng, lat] = g.geometry.coordinates; break; }
       } catch { /* segue */ }
     }
   }
