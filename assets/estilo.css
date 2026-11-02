@@ -716,3 +716,5 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
 .sim .pulseira .perda0{color:#8A9096}
 .sim .pulseira tr.km-duro td{background:rgba(255,77,0,.12)}
 .sim .pulseira tr.km-duro td:first-child{box-shadow:inset 3px 0 0 var(--cone)}
+
+.pulseira th{z-index:3}
