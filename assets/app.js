@@ -1314,16 +1314,46 @@ async function adminPendentes() {
   <select class="campo" id="sitePend" style="width:auto" title="Site de inscrição"><option value="">Todos os sites</option>${sitesPend.map((d) => `<option value="${esc(d)}"${d === sitePend ? ' selected' : ''}>${esc(d)} (${contSites[d]})</option>`).join('')}</select>
   <select class="campo" id="prazoPend" style="width:auto" title="Período">${opc([['', 'Qualquer data'], ['7', 'Próximos 7 dias'], ['15', 'Próximos 15 dias'], ['30', 'Próximos 30 dias'], ['60', 'Próximos 60 dias']], prazoPend)}</select>
   ${ufs.length > 1 ? `<select class="campo" id="filtroUfPend" style="width:auto"><option value="">Todos os estados</option>${ufs.map((u) => `<option${u === filtroUfPend ? ' selected' : ''}>${u}</option>`).join('')}</select>` : ''}</span></div>
-  <div class="tabela-wrap"><table class="tab"><thead><tr><th>Data</th><th>Corrida</th><th>Cidade</th><th>Distâncias</th><th>Fonte</th><th><span class="muted" style="font-weight:400">Ações</span></th></tr></thead><tbody>
-  ${lista.map((p) => { const [a, m, d] = p.data.split('-'); const fd = diasAte(p.data); return `<tr><td>${d}/${m}/${a}<br><small class="${fd <= 7 ? 'pend-urgente' : 'muted'}">${fd <= 0 ? 'hoje' : fd === 1 ? 'amanhã' : `em ${fd} dias`}</small></td><td>${p.imagem_sugerida ? `<img class="pend-mini" src="${esc(p.imagem_sugerida)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<b>${esc(p.nome)}</b> <span class="selos-pend"><span class="selo-pend ${p.imagem_sugerida ? 'ok' : ''}">${p.imagem_sugerida ? '✓' : '✗'} imagem</span><span class="selo-pend ${p.lat != null ? 'ok' : ''}">${p.lat != null ? '✓' : '✗'} local</span></span>${p.descricao ? `<br><small>${esc(p.descricao.length > 140 ? p.descricao.slice(0, 140) + '…' : p.descricao)}</small>` : ''}${p.observacao ? `<br><small class="muted">${esc(p.observacao)}</small>` : ''}${p.lat != null ? '<br><small class="muted">Local exato encontrado' + (p.local_largada ? ': ' + esc(p.local_largada) : '') + '</small>' : ''}${p.percurso_url || p.percurso_info ? `<br><small class="tem-perc">Tem percurso${p.percurso_info ? ': ' + esc(p.percurso_info) : ''}${p.percurso_url ? ` · <a href="${esc(p.percurso_url)}" target="_blank" rel="noopener">abrir</a>` : ''}</small>` : ''}</td><td>${esc(p.cidade)}</td><td>${esc(p.distancias || '—')}</td>
+  <div class="lote-pend" id="lotePend"><label><input type="checkbox" id="selTodasPend"> Selecionar todas as ${lista.length} da lista</label>
+    <span class="muted" id="contSelPend">nenhuma selecionada</span>
+    <button class="btn btn-escuro" type="button" id="publicarSelPend" disabled>Publicar selecionadas</button>
+    <button class="btn btn-perigo" type="button" id="recusarSelPend" disabled>Recusar selecionadas</button></div>
+  <div class="tabela-wrap"><table class="tab"><thead><tr><th style="width:28px"></th><th>Data</th><th>Corrida</th><th>Cidade</th><th>Distâncias</th><th>Fonte</th><th><span class="muted" style="font-weight:400">Ações</span></th></tr></thead><tbody>
+  ${lista.map((p) => { const [a, m, d] = p.data.split('-'); const fd = diasAte(p.data); return `<tr><td><input type="checkbox" class="sel-pend" value="${p.id}" aria-label="Selecionar ${esc(p.nome)}"></td><td>${d}/${m}/${a}<br><small class="${fd <= 7 ? 'pend-urgente' : 'muted'}">${fd <= 0 ? 'hoje' : fd === 1 ? 'amanhã' : `em ${fd} dias`}</small></td><td>${p.imagem_sugerida ? `<img class="pend-mini" src="${esc(p.imagem_sugerida)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<b>${esc(p.nome)}</b> <span class="selos-pend"><span class="selo-pend ${p.imagem_sugerida ? 'ok' : ''}">${p.imagem_sugerida ? '✓' : '✗'} imagem</span><span class="selo-pend ${p.lat != null ? 'ok' : ''}">${p.lat != null ? '✓' : '✗'} local</span></span>${p.descricao ? `<br><small>${esc(p.descricao.length > 140 ? p.descricao.slice(0, 140) + '…' : p.descricao)}</small>` : ''}${p.observacao ? `<br><small class="muted">${esc(p.observacao)}</small>` : ''}${p.lat != null ? '<br><small class="muted">Local exato encontrado' + (p.local_largada ? ': ' + esc(p.local_largada) : '') + '</small>' : ''}${p.percurso_url || p.percurso_info ? `<br><small class="tem-perc">Tem percurso${p.percurso_info ? ': ' + esc(p.percurso_info) : ''}${p.percurso_url ? ` · <a href="${esc(p.percurso_url)}" target="_blank" rel="noopener">abrir</a>` : ''}</small>` : ''}</td><td>${esc(p.cidade)}</td><td>${esc(p.distancias || '—')}</td>
     <td>${p.fonte_url ? `<a href="${esc(p.fonte_url)}" target="_blank" rel="noopener" style="color:var(--cone-txt);font-weight:600">${esc(p.fonte || 'ver fonte')}</a>` : esc(p.fonte || '—')}</td>
-    <td class="acoes"><button class="btn btn-escuro" data-revisar="${p.id}">Revisar e aprovar</button> <button class="btn btn-perigo" data-recusar="${p.id}">Recusar</button></td></tr>`; }).join('') || '<tr><td colspan="6" class="muted">Tudo revisado por aqui.</td></tr>'}
+    <td class="acoes"><button class="btn btn-escuro" data-revisar="${p.id}">Revisar e aprovar</button> <button class="btn btn-perigo" data-recusar="${p.id}">Recusar</button></td></tr>`; }).join('') || '<tr><td colspan="7" class="muted">Tudo revisado por aqui.</td></tr>'}
   </tbody></table></div>`;
   const selUf = $('#filtroUfPend', box);
   if (selUf) selUf.addEventListener('change', () => { filtroUfPend = selUf.value; adminPendentes(); });
   $('#ordemPend', box).addEventListener('change', (e) => { ordemPend = e.target.value; adminPendentes(); });
   $('#prazoPend', box).addEventListener('change', (e) => { prazoPend = e.target.value; adminPendentes(); });
   $('#situacaoPend', box).addEventListener('change', (e) => { situacaoPend = e.target.value; adminPendentes(); });
+  // seleção em lote
+  const marcadas = () => $$('.sel-pend:checked', box).map((c) => c.value);
+  const atualizarLote = () => {
+    const n = marcadas().length;
+    $('#contSelPend', box).textContent = n ? `${n} selecionada(s)` : 'nenhuma selecionada';
+    $('#publicarSelPend', box).disabled = !n; $('#recusarSelPend', box).disabled = !n;
+    const todas = $$('.sel-pend', box); $('#selTodasPend', box).checked = todas.length > 0 && n === todas.length;
+  };
+  $$('.sel-pend', box).forEach((c) => c.addEventListener('change', atualizarLote));
+  $('#selTodasPend', box).addEventListener('change', (e) => { $$('.sel-pend', box).forEach((c) => { c.checked = e.target.checked; }); atualizarLote(); });
+  $('#publicarSelPend', box).addEventListener('click', async (e) => {
+    const ids = marcadas();
+    const incompletas = lista.filter((p) => ids.includes(p.id) && !SITUACOES_PEND.prontas(p)).length;
+    if (!confirm(`Publicar ${ids.length} corrida(s) no site agora?${incompletas ? `\n\n${incompletas} delas não têm imagem ou local e serão puladas.` : ''}\n\nA imagem de divulgação entra com crédito ao organizador. Corridas que já existem no site não são duplicadas.`)) return;
+    e.target.disabled = true; e.target.textContent = 'Publicando…';
+    const { data: r, error } = await sb.rpc('admin_publicar_pendentes', { p_ids: ids });
+    if (error) { toast('Não foi possível publicar: ' + error.message); e.target.disabled = false; e.target.textContent = 'Publicar selecionadas'; return; }
+    toast(`${r.publicadas} publicada(s)${r.ja_existiam ? `, ${r.ja_existiam} já existiam no site` : ''}${r.incompletas ? `, ${r.incompletas} puladas por falta de imagem ou local` : ''}.`);
+    adminPendentes(); atualizarPublico();
+  });
+  $('#recusarSelPend', box).addEventListener('click', async () => {
+    const ids = marcadas();
+    if (!confirm(`Recusar ${ids.length} corrida(s)? Elas saem da fila.`)) return;
+    const { error } = await sb.from('corridas_pendentes').update({ status: 'recusada', revisado_em: new Date().toISOString() }).in('id', ids);
+    toast(error ? 'Não foi possível recusar.' : `${ids.length} recusada(s)`); adminPendentes();
+  });
   $('#sitePend', box).addEventListener('change', (e) => { sitePend = e.target.value; adminPendentes(); });
   $$('[data-recusar]', box).forEach((b) => b.addEventListener('click', async () => {
     await sb.from('corridas_pendentes').update({ status: 'recusada', revisado_em: new Date().toISOString() }).eq('id', b.dataset.recusar);
