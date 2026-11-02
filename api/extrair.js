@@ -48,11 +48,6 @@ module.exports = async (req, res) => {
   try { pg = await baixar(url); } catch { return res.status(502).json({ erro: 'Não consegui abrir a página da inscrição.' }); }
   if (!pg.ok) return res.status(502).json({ erro: `A página respondeu com erro ${pg.status}.` });
   const html = desfazer(pg.texto);
-  if (req.query && req.query.debug === '1') {
-    const trechos = []; const re = /(maps|endere|latitude|longitude|"address|local|addressLocality|streetAddress|geo)/gi; let m;
-    while ((m = re.exec(html)) && trechos.length < 40) trechos.push(html.slice(Math.max(0, m.index - 80), m.index + 160).replace(/\s+/g, ' '));
-    return res.status(200).json({ tamanho: html.length, trechos });
-  }
 
   // imagem de divulgação
   const og = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]*content=["']([^"']+)["']/i)
@@ -70,13 +65,32 @@ module.exports = async (req, res) => {
     if (c) { [lat, lng] = c; mapa = l; break; }
     if (!mapa) mapa = l;
   }
-  // sem coordenadas no link: tenta achar pelo endereço (OpenStreetMap)
+  // dados estruturados do evento (schema.org): local e, se houver, coordenadas
+  const plano = html.replace(/\\+"/g, '"');
+  const geo = plano.match(/"geo"\s*:\s*\{[^}]*?"latitude"\s*:\s*"?(-?\d+\.\d+)"?[^}]*?"longitude"\s*:\s*"?(-?\d+\.\d+)/);
+  if (lat == null && geo) { lat = +geo[1]; lng = +geo[2]; }
+  const lugar = plano.match(/"location"\s*:\s*\{[^{}]*?"name"\s*:\s*"([^"]{3,200})"/);
+  const ender = plano.match(/"address"\s*:\s*\{[^{}]*?"(?:name|streetAddress)"\s*:\s*"([^"]{3,250})"/);
+  const cidadeEv = plano.match(/"addressLocality"\s*:\s*"([^"]{2,80})"/);
+  const endereco = (ender && ender[1]) || (lugar && lugar[1]) || null;
+  if (!local && endereco) local = endereco.replace(/,\s*Brasil$/i, '').replace(/\s+/g, ' ').trim();
+
+  // sem coordenadas: procura o endereço no OpenStreetMap, do mais completo ao mais simples
   if (lat == null && local) {
-    try {
-      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(local)}`, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR' } });
-      const j = r.ok ? await r.json() : [];
-      if (j[0]) { lat = +j[0].lat; lng = +j[0].lon; }
-    } catch { /* segue */ }
+    const partes = local.split(',').map((x) => x.trim()).filter(Boolean);
+    const cid = cidadeEv ? cidadeEv[1] : partes.find((x, k) => k > 0 && /^[A-ZÀ-Ú][a-zà-ú]+( [A-Za-zà-ú']+)*$/.test(x) && !/^(SP|Brasil|S\/N)$/i.test(x));
+    const tentativas = [...new Set([
+      local,
+      partes[0] && cid ? `${partes[0]}, ${cid}, SP` : null,
+      partes[1] && cid ? `${partes[1].split(' - ')[0]}, ${cid}, SP` : null
+    ].filter(Boolean))];
+    for (const q of tentativas) {
+      try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(q)}`, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR' } });
+        const j = r.ok ? await r.json() : [];
+        if (j[0]) { lat = +j[0].lat; lng = +j[0].lon; break; }
+      } catch { /* segue */ }
+    }
   }
   res.status(200).json({ imagem, lat, lng, local, mapa, aproximado: lat != null && !coordsDoLink(mapa || '') });
 };
