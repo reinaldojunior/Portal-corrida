@@ -1237,15 +1237,67 @@ function telaLogin(erro) {
     abrirAdmin();
   });
 }
+// ---------- localizador global do painel (corridas publicadas + pendentes) ----------
+let buscaAdmin = '', cacheCorr = null, cachePend = null;
+const textoBusca = (c) => semAcento([c.nome, c.cidade, c.estado, c.local_largada, c.organizador].filter(Boolean).join(' '));
+function filtrarBusca(lista) {
+  const termos = semAcento(buscaAdmin).split(/\s+/).filter(Boolean);
+  if (!termos.length) return lista;
+  return lista.filter((c) => { const t = textoBusca(c); return termos.every((x) => t.includes(x)); });
+}
+function contarBusca() {
+  const ativo = !!buscaAdmin.trim();
+  const info = $('#buscaAdminInfo');
+  $$('.cont-aba').forEach((b) => { b.textContent = ''; });
+  if (!ativo) { if (info) info.textContent = ''; return; }
+  const nc = cacheCorr ? filtrarBusca(cacheCorr).length : null, np = cachePend ? filtrarBusca(cachePend).length : null;
+  const bc = $('[data-cont="corridas"]'), bp = $('[data-cont="pendentes"]');
+  if (bc && nc != null) bc.textContent = ` ${nc}`;
+  if (bp && np != null) bp.textContent = ` ${np}`;
+  if (info) info.textContent = nc == null || np == null ? 'Procurando…' : `${nc} publicada(s) e ${np} pendente(s) encontradas`;
+}
+// carrega as duas listas (uma vez) para contar os resultados nas abas
+async function prepararBusca() {
+  if (!cacheCorr) cacheCorr = await recarregarCorridas();
+  if (!cachePend) cachePend = await carregarPendentes();
+  contarBusca();
+}
+async function carregarPendentes() {
+  // o banco devolve no máximo 1000 linhas por vez: busca em páginas até acabar
+  let data = [];
+  for (let de = 0; ; de += 1000) {
+    const r = await sb.from('corridas_pendentes').select('*').eq('status', 'pendente').order('data').order('id').range(de, de + 999);
+    if (r.error) return null;
+    data = data.concat(r.data || []);
+    if (!r.data || r.data.length < 1000) break;
+  }
+  return data;
+}
+const dominioLink = (u) => { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch { return ''; } };
+const opcoesSel = (pares, atual) => pares.map(([v, t]) => `<option value="${esc(v)}"${v === atual ? ' selected' : ''}>${t}</option>`).join('');
+const ORDENS_DATA = { proximas: (a, b) => a.data.localeCompare(b.data), distantes: (a, b) => b.data.localeCompare(a.data), recentes: (a, b) => String(b.criado_em || '').localeCompare(String(a.criado_em || '')) };
+
 function pintarAdmin(semConteudo) {
   const abas = [['corridas', 'Corridas'], ['pendentes', 'Pendentes'], ['padroes', 'Padrões de busca'], ['noticias', 'Notícias'], ['modulos', 'Módulos'], ['inscritos', 'Inscritos']];
   $('#adminBox').innerHTML = `
     <div class="barra-admin"><h1 class="display" style="margin:0">Painel</h1><div style="display:flex;gap:10px"><a href="#" class="btn btn-linha">Ver o site</a><button class="btn btn-linha" id="btnSair">Sair</button></div></div>
-    <div class="abas" role="tablist">${abas.map(([k, n]) => `<button role="tab" data-aba="${k}" aria-selected="${abaAdmin === k}">${n}</button>`).join('')}</div>
+    <div class="busca-admin"><input type="search" class="campo-busca" id="buscaAdmin" placeholder="Localizar corrida em todo o painel: nome, cidade, local ou organizador…" value="${esc(buscaAdmin)}" aria-label="Localizar corrida"><span class="muted" id="buscaAdminInfo"></span></div>
+    <div class="abas" role="tablist">${abas.map(([k, n]) => `<button role="tab" data-aba="${k}" aria-selected="${abaAdmin === k}"><span>${n}</span><b class="cont-aba" data-cont="${k}"></b></button>`).join('')}</div>
     <div id="conteudoAdmin"></div>`;
+  let tBusca;
+  $('#buscaAdmin').addEventListener('input', (e) => {
+    clearTimeout(tBusca);
+    tBusca = setTimeout(() => {
+      buscaAdmin = e.target.value;
+      if (buscaAdmin.trim() && !['corridas', 'pendentes'].includes(abaAdmin)) { abaAdmin = cacheCorr && filtrarBusca(cacheCorr).length ? 'corridas' : 'pendentes'; pintarAdmin(); return; }
+      if (abaAdmin === 'corridas') adminCorridas(false); else if (abaAdmin === 'pendentes') adminPendentes(false);
+      contarBusca();
+    }, 250);
+  });
   $$('[data-aba]').forEach((b) => b.addEventListener('click', () => { abaAdmin = b.dataset.aba; pintarAdmin(); }));
   $('#btnSair').addEventListener('click', async () => { await sb.auth.signOut(); estado.admin = false; $('#btnEntrar').textContent = 'Entrar'; location.hash = ''; });
   if (semConteudo) return;
+  if (buscaAdmin.trim()) prepararBusca();
   ({ corridas: adminCorridas, pendentes: adminPendentes, padroes: adminPadroes, noticias: adminNoticias, modulos: adminModulos, inscritos: adminInscritos })[abaAdmin]();
 }
 async function recarregarCorridas() {
@@ -1253,15 +1305,39 @@ async function recarregarCorridas() {
   return data || [];
 }
 
-async function adminCorridas() {
+let ordemCorr = 'proximas', prazoCorr = 'futuras', situacaoCorr = '', siteCorr = '', ufCorr = '', statusCorr = '';
+const SITUACOES_CORR = { completas: (c) => c.imagem_url && c.lat != null, sem_img: (c) => !c.imagem_url, sem_local: (c) => c.lat == null, sem_dist: (c) => !(c.corrida_distancias || []).length };
+async function adminCorridas(recarregar = true) {
   const box = $('#conteudoAdmin');
-  box.innerHTML = '<p class="muted">Carregando…</p>';
-  const todas = await recarregarCorridas();
-  box.innerHTML = `<div class="barra-admin"><span class="muted">${todas.length} corrida(s) cadastrada(s)</span><button class="btn btn-cone" id="novaCorrida">Nova corrida</button></div>
+  if (recarregar || !cacheCorr) { box.innerHTML = '<p class="muted">Carregando…</p>'; cacheCorr = await recarregarCorridas(); }
+  const todas = cacheCorr || [];
+  contarBusca();
+  const ufs = [...new Set(todas.map((c) => c.estado).filter(Boolean))].sort();
+  if (ufCorr && !ufs.includes(ufCorr)) ufCorr = '';
+  const contSites = {}; todas.forEach((c) => { const d = dominioLink(c.link_inscricao); if (d) contSites[d] = (contSites[d] || 0) + 1; });
+  const sites = Object.keys(contSites).sort((a, b) => contSites[b] - contSites[a]);
+  if (siteCorr && !contSites[siteCorr]) siteCorr = '';
+  const completas = todas.filter(SITUACOES_CORR.completas).length;
+  const noPrazo = (c) => { const d = diasAte(c.data); return prazoCorr === '' ? true : prazoCorr === 'futuras' ? d >= 0 : prazoCorr === 'passadas' ? d < 0 : d >= 0 && d <= Number(prazoCorr); };
+  // com busca ativa, procura em todas as datas
+  const lista = filtrarBusca(todas).filter((c) => (buscaAdmin.trim() || noPrazo(c)) && (!situacaoCorr || SITUACOES_CORR[situacaoCorr](c))
+    && (!siteCorr || dominioLink(c.link_inscricao) === siteCorr) && (!ufCorr || c.estado === ufCorr) && (!statusCorr || c.status === statusCorr));
+  lista.sort(ORDENS_DATA[ordemCorr] || ORDENS_DATA.proximas);
+  box.innerHTML = `<div class="barra-admin" style="flex-wrap:wrap;gap:8px"><span class="muted">${lista.length} de ${todas.length} corrida(s) cadastrada(s)</span><button class="btn btn-cone" id="novaCorrida" style="margin-left:auto">Nova corrida</button></div>
+  <div class="filtros-admin">
+  <select class="campo" id="ordemCorr" title="Ordenar">${opcoesSel([['proximas', 'Data mais próxima primeiro'], ['distantes', 'Data mais distante primeiro'], ['recentes', 'Cadastradas mais recentemente']], ordemCorr)}</select>
+  <select class="campo" id="situacaoCorr" title="Situação">${opcoesSel([['', 'Qualquer situação'], ['completas', `Completas: com imagem e local (${completas})`], ['sem_img', 'Falta imagem'], ['sem_local', 'Falta local'], ['sem_dist', 'Falta distâncias']], situacaoCorr)}</select>
+  <select class="campo" id="siteCorr" title="Site de inscrição"><option value="">Todos os sites</option>${sites.map((d) => `<option value="${esc(d)}"${d === siteCorr ? ' selected' : ''}>${esc(d)} (${contSites[d]})</option>`).join('')}</select>
+  <select class="campo" id="prazoCorr" title="Período">${opcoesSel([['futuras', 'Próximas (a partir de hoje)'], ['7', 'Próximos 7 dias'], ['15', 'Próximos 15 dias'], ['30', 'Próximos 30 dias'], ['60', 'Próximos 60 dias'], ['passadas', 'Já aconteceram'], ['', 'Qualquer data']], prazoCorr)}</select>
+  <select class="campo" id="statusCorr" title="Status">${opcoesSel([['', 'Qualquer status'], ['publicado', 'Publicadas'], ['rascunho', 'Rascunho'], ['arquivado', 'Arquivadas']], statusCorr)}</select>
+  ${ufs.length > 1 ? `<select class="campo" id="ufCorr" title="Estado"><option value="">Todos os estados</option>${ufs.map((u) => `<option${u === ufCorr ? ' selected' : ''}>${esc(u)}</option>`).join('')}</select>` : ''}
+  </div>${buscaAdmin.trim() ? '<p class="muted" style="margin:0 0 10px"><small>Com a busca ativa, aparecem corridas de qualquer data.</small></p>' : ''}
   <div class="tabela-wrap"><table class="tab"><thead><tr><th>Data</th><th>Corrida</th><th>Cidade</th><th>Distâncias</th><th>Status</th><th><span class="muted" style="font-weight:400">Ações</span></th></tr></thead><tbody>
-  ${todas.map((c) => { const p = partes(c.data); return `<tr><td>${p.dia}/${String(MESES.indexOf(p.mes) + 1).padStart(2, '0')}/${p.ano}</td><td><b>${esc(c.nome)}</b></td><td>${esc(c.cidade)}</td><td>${esc(rotulos(c).join(', '))}</td><td><span class="status ${c.status}">${c.status}</span></td><td class="acoes"><a class="btn btn-linha btn-olho" href="#corrida/${esc(c.slug)}" target="_blank" rel="noopener" title="Visualizar página" aria-label="Visualizar página de ${esc(c.nome)}"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" style="vertical-align:-3px"><path fill="none" stroke="currentColor" stroke-width="2" d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg></a> <button class="btn btn-linha" data-editar="${c.id}">Editar</button> <button class="btn btn-perigo" data-excluir="${c.id}">Excluir</button></td></tr>`; }).join('') || '<tr><td colspan="6" class="muted">Nenhuma corrida ainda. Clique em "Nova corrida" para cadastrar a primeira.</td></tr>'}
+  ${lista.map((c) => { const p = partes(c.data); const fd = diasAte(c.data); return `<tr><td>${p.dia}/${String(MESES.indexOf(p.mes) + 1).padStart(2, '0')}/${p.ano}<br><small class="${fd >= 0 && fd <= 7 ? 'pend-urgente' : 'muted'}">${fd < 0 ? 'já aconteceu' : fd === 0 ? 'hoje' : fd === 1 ? 'amanhã' : `em ${fd} dias`}</small></td><td>${c.imagem_url ? `<img class="pend-mini" src="${esc(c.imagem_url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<b>${esc(c.nome)}</b> <span class="selos-pend"><span class="selo-pend ${c.imagem_url ? 'ok' : ''}">${c.imagem_url ? '✓' : '✗'} imagem</span><span class="selo-pend ${c.lat != null ? 'ok' : ''}">${c.lat != null ? '✓' : '✗'} local</span></span>${c.local_largada ? `<br><small class="muted">${esc(c.local_largada)}</small>` : ''}</td><td>${esc(c.cidade)}${c.estado ? ` <small class="muted">${esc(c.estado)}</small>` : ''}</td><td>${esc(rotulos(c).join(', ') || '—')}</td><td><span class="status ${c.status}">${c.status}</span></td><td class="acoes"><a class="btn btn-linha btn-olho" href="#corrida/${esc(c.slug)}" target="_blank" rel="noopener" title="Visualizar página" aria-label="Visualizar página de ${esc(c.nome)}"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" style="vertical-align:-3px"><path fill="none" stroke="currentColor" stroke-width="2" d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg></a> <button class="btn btn-linha" data-editar="${c.id}">Editar</button> <button class="btn btn-perigo" data-excluir="${c.id}">Excluir</button></td></tr>`; }).join('') || `<tr><td colspan="6" class="muted">${todas.length ? 'Nenhuma corrida com esses filtros.' : 'Nenhuma corrida ainda. Clique em "Nova corrida" para cadastrar a primeira.'}</td></tr>`}
   </tbody></table></div>`;
   $('#novaCorrida').addEventListener('click', () => formCorrida());
+  [['ordemCorr', (v) => { ordemCorr = v; }], ['situacaoCorr', (v) => { situacaoCorr = v; }], ['siteCorr', (v) => { siteCorr = v; }], ['prazoCorr', (v) => { prazoCorr = v; }], ['statusCorr', (v) => { statusCorr = v; }], ['ufCorr', (v) => { ufCorr = v; }]]
+    .forEach(([id, set]) => $('#' + id, box)?.addEventListener('change', (e) => { set(e.target.value); adminCorridas(false); }));
   $$('[data-editar]', box).forEach((b) => b.addEventListener('click', () => formCorrida(todas.find((c) => c.id === b.dataset.editar))));
   $$('[data-excluir]', box).forEach((b) => b.addEventListener('click', async () => {
     const c = todas.find((x) => x.id === b.dataset.excluir);
@@ -1283,18 +1359,12 @@ const semAcento = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, ''
 let filtroUfPend = '', ordemPend = 'proximas', prazoPend = '', situacaoPend = '', sitePend = '';
 const SITUACOES_PEND = { prontas: (p) => p.imagem_sugerida && p.lat != null, sem_img: (p) => !p.imagem_sugerida, sem_local: (p) => p.lat == null };
 const diasAte = (iso) => { const [a, m, d] = iso.split('-').map(Number); const h = new Date(); return Math.round((new Date(a, m - 1, d) - new Date(h.getFullYear(), h.getMonth(), h.getDate())) / 864e5); };
-async function adminPendentes() {
+async function adminPendentes(recarregar = true) {
   const box = $('#conteudoAdmin');
-  box.innerHTML = '<p class="muted">Carregando…</p>';
-  // o banco devolve no máximo 1000 linhas por vez: busca em páginas até acabar
-  let data = [], error = null;
-  for (let de = 0; ; de += 1000) {
-    const r = await sb.from('corridas_pendentes').select('*').eq('status', 'pendente').order('data').order('id').range(de, de + 999);
-    if (r.error) { error = r.error; break; }
-    data = data.concat(r.data || []);
-    if (!r.data || r.data.length < 1000) break;
-  }
-  if (error) { box.innerHTML = '<div class="aviso erro">Não foi possível carregar a fila. Confira se a tabela de pendentes existe no banco.</div>'; return; }
+  if (recarregar || !cachePend) { box.innerHTML = '<p class="muted">Carregando…</p>'; cachePend = await carregarPendentes(); }
+  const data = cachePend || [];
+  contarBusca();
+  if (!cachePend) { box.innerHTML = '<div class="aviso erro">Não foi possível carregar a fila. Confira se a tabela de pendentes existe no banco.</div>'; return; }
   const ufs = [...new Set(data.map((p) => p.estado).filter(Boolean))].sort();
   if (!ufs.includes(filtroUfPend)) filtroUfPend = '';
   const domPend = (p) => { try { return new URL(p.link_inscricao).hostname.replace(/^www\./, ''); } catch { return ''; } };
@@ -1302,7 +1372,7 @@ async function adminPendentes() {
   const sitesPend = Object.keys(contSites).sort((a, b) => contSites[b] - contSites[a]);
   if (sitePend && !contSites[sitePend]) sitePend = '';
   const prontas = data.filter(SITUACOES_PEND.prontas).length;
-  const lista = data.filter((p) => (!filtroUfPend || p.estado === filtroUfPend) && (!prazoPend || diasAte(p.data) <= Number(prazoPend))
+  const lista = filtrarBusca(data).filter((p) => (!filtroUfPend || p.estado === filtroUfPend) && (!prazoPend || diasAte(p.data) <= Number(prazoPend))
     && (!situacaoPend || SITUACOES_PEND[situacaoPend](p)) && (!sitePend || domPend(p) === sitePend));
   const ordens = { proximas: (a, b) => a.data.localeCompare(b.data), distantes: (a, b) => b.data.localeCompare(a.data), recentes: (a, b) => String(b.criado_em || '').localeCompare(String(a.criado_em || '')) };
   lista.sort(ordens[ordemPend] || ordens.proximas);
@@ -1324,10 +1394,10 @@ async function adminPendentes() {
     <td class="acoes"><button class="btn btn-escuro" data-revisar="${p.id}">Revisar e aprovar</button> <button class="btn btn-perigo" data-recusar="${p.id}">Recusar</button></td></tr>`; }).join('') || '<tr><td colspan="7" class="muted">Tudo revisado por aqui.</td></tr>'}
   </tbody></table></div>`;
   const selUf = $('#filtroUfPend', box);
-  if (selUf) selUf.addEventListener('change', () => { filtroUfPend = selUf.value; adminPendentes(); });
-  $('#ordemPend', box).addEventListener('change', (e) => { ordemPend = e.target.value; adminPendentes(); });
-  $('#prazoPend', box).addEventListener('change', (e) => { prazoPend = e.target.value; adminPendentes(); });
-  $('#situacaoPend', box).addEventListener('change', (e) => { situacaoPend = e.target.value; adminPendentes(); });
+  if (selUf) selUf.addEventListener('change', () => { filtroUfPend = selUf.value; adminPendentes(false); });
+  $('#ordemPend', box).addEventListener('change', (e) => { ordemPend = e.target.value; adminPendentes(false); });
+  $('#prazoPend', box).addEventListener('change', (e) => { prazoPend = e.target.value; adminPendentes(false); });
+  $('#situacaoPend', box).addEventListener('change', (e) => { situacaoPend = e.target.value; adminPendentes(false); });
   // seleção em lote
   const marcadas = () => $$('.sel-pend:checked', box).map((c) => c.value);
   const atualizarLote = () => {
@@ -1354,7 +1424,7 @@ async function adminPendentes() {
     const { error } = await sb.from('corridas_pendentes').update({ status: 'recusada', revisado_em: new Date().toISOString() }).in('id', ids);
     toast(error ? 'Não foi possível recusar.' : `${ids.length} recusada(s)`); adminPendentes();
   });
-  $('#sitePend', box).addEventListener('change', (e) => { sitePend = e.target.value; adminPendentes(); });
+  $('#sitePend', box).addEventListener('change', (e) => { sitePend = e.target.value; adminPendentes(false); });
   $$('[data-recusar]', box).forEach((b) => b.addEventListener('click', async () => {
     await sb.from('corridas_pendentes').update({ status: 'recusada', revisado_em: new Date().toISOString() }).eq('id', b.dataset.recusar);
     toast('Corrida recusada'); adminPendentes();
