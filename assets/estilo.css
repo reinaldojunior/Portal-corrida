@@ -625,5 +625,3 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
   .sim .sim-clima-info{text-align:left}
 }
 
-.pagina-corrida .lado{position:sticky;top:20px;align-self:start}
-@media (max-width:860px){.pagina-corrida .lado{position:static}}
