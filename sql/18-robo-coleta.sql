@@ -2,3 +2,4 @@
 -- Schema robo, tabela robo.chave (hash sha256 da chave), funções public.robo_novos(token, itens)
 -- e public.robo_inserir_pendentes(token, itens), extensões unaccent e pg_trgm.
 -- Também: public.robo_sem_detalhe(token, limite) e public.robo_completar(token, itens) — completam só campos vazios.
+-- public.robo_publicar_completas(token): publica pendentes com data futura, link, distâncias, imagem e pino (origem 'ia', crédito da imagem).

@@ -42,6 +42,9 @@ module.exports = async (req, res) => {
       }
     };
     await Promise.all(Array.from({ length: PARALELO }, trabalhador));
-    res.status(200).json({ na_fila: fila.length, processadas: n, com_imagem: feitos.filter((x) => x.imagem).length, com_local: feitos.filter((x) => x.lat != null).length });
+    // publica sozinho as completas (data futura, link, distâncias, imagem e pino)
+    let publicadas = 0;
+    try { publicadas = await rpc('robo_publicar_completas', { p_token: token }); } catch { /* segue */ }
+    res.status(200).json({ na_fila: fila.length, processadas: n, publicadas, com_imagem: feitos.filter((x) => x.imagem).length, com_local: feitos.filter((x) => x.lat != null).length });
   } catch (e) { res.status(500).json({ erro: e.message }); }
 };
