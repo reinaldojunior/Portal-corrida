@@ -24,7 +24,9 @@ module.exports = async (req, res) => {
   const token = process.env.ROBO_TOKEN;
   const inicio = Date.now();
   try {
-    const fila = (await rpc('robo_para_enriquecer', { p_token: token, p_limite: LIMITE })) || [];
+    // ?so=pinos pula a leitura das páginas e usa o tempo todo para conferir pinos (e pôr o centro da cidade)
+    const soPinos = req.query.so === 'pinos';
+    const fila = soPinos ? [] : (await rpc('robo_para_enriquecer', { p_token: token, p_limite: LIMITE })) || [];
     const feitos = [];
     let i = 0, n = 0, falhas = 0;
     const comPrazo = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('demorou')), ms))]);
@@ -50,7 +52,7 @@ module.exports = async (req, res) => {
     // confere os pinos (os recém-achados e os antigos): longe da cidade => centro da cidade
     let conferidos = 0, corrigidos = 0;
     try {
-      const lista = (await rpc('robo_pinos_para_conferir', { p_token: token, p_limite: 40 })) || [];
+      const lista = (await rpc('robo_pinos_para_conferir', { p_token: token, p_limite: soPinos ? 120 : 40 })) || [];
       const res = [];
       for (const p of lista) {
         if (Date.now() - inicio > 52000) break;
