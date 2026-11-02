@@ -568,7 +568,7 @@ function moverFantasma() {
 function textoEstrategia(r) {
   const e = simEstado.est, a = simEstado.adj;
   $('#simEstTxt').textContent = e === 0 ? 'Ritmo igual do começo ao fim' : e > 0 ? `Guardar para o fim (split negativo, nível ${e})` : `Sair mais forte (split positivo, nível ${-e})`;
-  $('#simAdjTxt').textContent = a >= 95 ? 'Mesmo esforço: alivia nas subidas e acelera nas descidas' : a <= 5 ? 'Mesmo ritmo em tudo: subidas custam mais esforço' : `Meio-termo: ${a}% do ajuste pelo terreno`;
+  $('#simAdjTxt').textContent = a >= 95 ? 'Esforço constante: mais lento na subida, recupera na descida' : a <= 5 ? 'Pace igual em tudo: a subida exige mais força' : a >= 50 ? 'Poupa um pouco nas subidas' : 'Força um pouco nas subidas';
   $('#simMetades').innerHTML = `<div><span>1ª METADE</span><b>${fmt(r.metade[0])}</b></div><div><span>2ª METADE</span><b>${fmt(r.metade[1])}</b></div><div><span>DIFERENÇA</span><b>${Math.abs(r.metade[1] - r.metade[0]) < 0.5 ? '0:00' : (r.metade[1] - r.metade[0] > 0 ? '+' : '−') + fmt(Math.abs(r.metade[1] - r.metade[0]), true)}</b></div><div><span>RITMO PLANO</span><b>${fmt(r.plano)}</b></div>`;
 }
 document.addEventListener('input', (e) => {
@@ -860,7 +860,7 @@ function mostrarCorrida(slug, percIdx = 0) {
           <div class="sim-ctrl-pontas"><span>Sair forte</span><span>Igual</span><span>Guardar pro fim</span></div></div>
         <div class="sim-ctrl"><div class="sim-ctrl-top"><span>Nas subidas</span><b id="simAdjTxt"></b></div>
           <input type="range" id="simAdj" min="0" max="100" step="5" value="100" aria-describedby="simAdjTxt" aria-label="Ajuste pelo terreno">
-          <div class="sim-ctrl-pontas"><span>Mesmo ritmo</span><span>Mesmo esforço</span></div></div>
+          <div class="sim-ctrl-pontas"><span>Forçar nas subidas</span><span>Poupar nas subidas</span></div></div>
         <div class="sim-ctrl-linha"><label class="campo">Parciais<select id="simPasso"><option value="1">A cada 1 km</option><option value="0.5">A cada 500 m</option></select></label>
           <button type="button" class="sim-reset" id="simReset">Voltar ao padrão</button></div>
         <div class="sim-metades" id="simMetades"></div>
