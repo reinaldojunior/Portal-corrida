@@ -557,6 +557,20 @@ document.addEventListener('click', (e) => {
 });
 
 /* ================== Onde bater meu recorde ================== */
+/* Percursos: um principal (na corrida) e/ou um por distância */
+const temTrajeto = (o) => o && Array.isArray(o.percurso) && o.percurso.length > 1;
+function percursosDe(c) {
+  const lista = (c.corrida_distancias || []).filter(temTrajeto).slice().sort((a, b) => a.km - b.km)
+    .map((d) => ({ rotulo: d.rotulo, percurso: d.percurso, percurso_km: d.percurso_km, subida_m: d.subida_m, descida_m: d.descida_m }));
+  if (temTrajeto(c) && !lista.some((d) => Math.abs((d.percurso_km || 0) - (c.percurso_km || 0)) < 0.3)) lista.unshift({ rotulo: lista.length ? 'Principal' : 'Percurso', percurso: c.percurso, percurso_km: c.percurso_km, subida_m: c.subida_m, descida_m: c.descida_m });
+  return lista;
+}
+function comPercurso(c) {
+  if (temTrajeto(c)) return c;
+  const ps = percursosDe(c); if (!ps.length) return c;
+  const maior = ps.reduce((a, b) => ((b.percurso_km || 0) > (a.percurso_km || 0) ? b : a));
+  return { ...c, percurso: maior.percurso, percurso_km: maior.percurso_km, subida_m: maior.subida_m, descida_m: maior.descida_m };
+}
 let rkFiltro = 'todas', rkAberta = null;
 const notaPercurso = (c) => c.subida_m == null || !c.percurso_km ? null : Math.max(0, Math.min(100, Math.round(100 - 5 * (c.subida_m / c.percurso_km))));
 function notaClima(cl) { if (!cl) return null; let n = 100; if (cl.t > 15) n -= (cl.t - 15) * 5; if (cl.t < 10) n -= (10 - cl.t) * 3; if (cl.u > 70) n -= (cl.u - 70) * 0.5; return Math.max(0, Math.min(100, Math.round(n))); }
@@ -565,7 +579,7 @@ function grupoDist(c) { const ks = (c.corrida_distancias || []).map((d) => +d.km
 async function montarRanking() {
   const box = $('#rkLista'); if (!box) return;
   const limite = Date.now() + 120 * 864e5;
-  const cand = pertoLista().filter((c) => c.percurso && c.percurso.length > 1 && c.subida_m != null && new Date(c.data + 'T12:00:00-03:00') <= limite);
+  const cand = pertoLista().map(comPercurso).filter((c) => c.percurso && c.percurso.length > 1 && c.subida_m != null && new Date(c.data + 'T12:00:00-03:00') <= limite);
   $$('[data-rk]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.rk === rkFiltro));
   const lista = cand.filter((c) => rkFiltro === 'todas' || grupoDist(c)[rkFiltro]);
   if (!lista.length) { box.innerHTML = `<p class="vazio rk-vazio">${cand.length ? 'Nenhuma prova com essa distância nos próximos meses.' : 'Assim que as provas tiverem o percurso cadastrado, o ranking aparece aqui.'}</p>`; return; }
@@ -727,8 +741,11 @@ function buscar() {
 
 /* ================== Página da corrida ================== */
 let mapaCorrida;
-function mostrarCorrida(slug) {
-  const c = estado.corridas.find((x) => x.slug === slug && (x.status === 'publicado' || estado.admin));
+function mostrarCorrida(slug, percIdx = 0) {
+  const c0 = estado.corridas.find((x) => x.slug === slug && (x.status === 'publicado' || estado.admin));
+  const percs = c0 ? percursosDe(c0) : [];
+  const pSel = percs[Math.min(percIdx, Math.max(0, percs.length - 1))];
+  const c = c0 && pSel ? { ...c0, percurso: pSel.percurso, percurso_km: pSel.percurso_km, subida_m: pSel.subida_m, descida_m: pSel.descida_m } : c0;
   const v = $('#vCorrida');
   if (!c) { v.innerHTML = '<div class="wrap" style="padding:64px 0"><h1 class="display" style="font-size:56px">Corrida não encontrada</h1><p class="muted">Ela pode ter sido removida ou já aconteceu. <a href="#" style="color:var(--cone-txt);font-weight:600">Voltar para a agenda</a></p></div>'; return; }
   const dist = (c.corrida_distancias || []).slice().sort((a, b) => a.km - b.km);
@@ -739,7 +756,8 @@ function mostrarCorrida(slug) {
     <div class="principal">
       ${c.imagem_url ? `<div class="foto" style="height:360px"><img src="${esc(c.imagem_url)}" alt="${esc(c.nome)}"></div>` : ''}
       ${c.descricao ? `<div class="caixa"><h2 class="display">Sobre a corrida</h2><div class="texto-corrida">${textoRico(c.descricao)}</div></div>` : ''}
-      ${temPerc ? `<div class="caixa"><h2 class="display">Percurso</h2>
+      ${temPerc ? `<div class="caixa" id="caixaPerc"><h2 class="display">Percurso</h2>
+        ${percs.length > 1 ? `<div class="perc-abas" role="group" aria-label="Escolha o percurso">${percs.map((p, i) => `<button type="button" class="filtro" data-perc="${i}" aria-pressed="${p === pSel}">${esc(p.rotulo)}</button>`).join('')}</div>` : ''}
         <div class="perc-stats"><div><span>DISTÂNCIA</span><b>${String(c.percurso_km).replace('.', ',')} km</b></div><div><span>SUBIDA</span><b>${c.subida_m != null ? '+' + c.subida_m + ' m' : '—'}</b></div><div><span>DESCIDA</span><b>${c.descida_m != null ? '−' + c.descida_m + ' m' : '—'}</b></div><div><span>LARGADA</span><b style="font-size:15px;font-family:var(--texto)">${esc(c.local_largada || c.cidade)}</b></div></div>
         <div id="mapaCorrida" class="mapa-perc"></div>${svgAltimetria(comDistancia(c))}</div>
       ${mod('simulador') ? `<div class="caixa sim" id="simBox"><span class="rot">SIMULADOR DA PROVA</span><h2 class="display">Como vai ser a sua prova</h2>
@@ -763,6 +781,10 @@ function mostrarCorrida(slug) {
       </div>
       <a href="#mapa" class="btn btn-linha" data-mod="mapa">Ver corridas próximas no mapa</a>
     </div></div>`;
+  $$('[data-perc]', v).forEach((b) => b.addEventListener('click', () => {
+    const y = window.scrollY; mostrarCorrida(slug, Number(b.dataset.perc)); window.scrollTo(0, y);
+    setTimeout(() => $(`[data-perc="${b.dataset.perc}"]`)?.focus(), 60);
+  }));
   if (temPerc || c.lat != null) {
     setTimeout(() => {
       if (mapaCorrida) mapaCorrida.remove();
@@ -934,8 +956,13 @@ async function adminPendentes() {
   }));
 }
 
+const percDist = new WeakMap();
+const infoPerc = (p) => `${String(p.percurso_km).replace('.', ',')} km${p.subida_m != null ? `, +${p.subida_m} m` : ''}`;
 function linhaDist(d = {}) {
-  return `<div class="dist-form"><label class="campo">Nome<input name="rotulo" value="${esc(d.rotulo || '')}" placeholder="10K" required></label><label class="campo">Km<input name="km" type="number" step="0.001" min="0" value="${d.km ?? ''}" required></label><label class="campo">Preço (R$)<input name="preco" type="number" step="0.01" min="0" value="${d.preco ?? ''}"></label><button type="button" class="btn btn-linha" data-rm aria-label="Remover distância">×</button></div>`;
+  return `<div class="dist-form"><label class="campo">Nome<input name="rotulo" value="${esc(d.rotulo || '')}" placeholder="10K" required></label><label class="campo">Km<input name="km" type="number" step="0.001" min="0" value="${d.km ?? ''}" required></label><label class="campo">Preço (R$)<input name="preco" type="number" step="0.01" min="0" value="${d.preco ?? ''}"></label><button type="button" class="btn btn-linha" data-rm aria-label="Remover distância">×</button>
+    <div class="dist-gpx"><label class="btn btn-linha gpx-btn">GPX desta distância<input type="file" accept=".gpx,application/gpx+xml" data-gpx-dist hidden></label>
+    <small data-gpx-info>${temTrajeto(d) ? `Percurso salvo: ${infoPerc(d)}.` : 'Sem percurso próprio.'}</small>
+    ${temTrajeto(d) ? '<label class="check"><input type="checkbox" data-gpx-rm> Remover</label>' : ''}</div></div>`;
 }
 const coordValida = (la, lo) => isFinite(la) && isFinite(lo) && Math.abs(la) <= 90 && Math.abs(lo) <= 180 && !(la === 0 && lo === 0);
 function lerCoordenadas(txt) {
@@ -1045,7 +1072,7 @@ function formCorrida(c = {}, pendente = null) {
     <div class="campo inteiro">Posição no mapa <small>Ou clique no mapa para marcar o ponto da largada.</small><div id="mapaForm"></div>
       <small id="localInfo" role="status" style="display:block;margin-top:6px"></small>
       <div style="display:flex;gap:12px;margin-top:8px"><input name="lat" placeholder="Latitude" value="${c.lat ?? ''}" style="flex:1"><input name="lng" placeholder="Longitude" value="${c.lng ?? ''}" style="flex:1"></div></div>
-    <div class="campo inteiro">Percurso (arquivo GPX) <small>Exporte do Strava, do Garmin ou do site da prova. Com ele o site mostra o trajeto, a altimetria e o simulador.</small>
+    <div class="campo inteiro">Percurso principal (arquivo GPX) <small>Exporte do Strava, do Garmin ou do site da prova. Se cada distância tiver um trajeto diferente, envie o GPX de cada uma lá embaixo, em Distâncias; este campo pode ficar vazio.</small>
       <input type="file" id="gpxArquivo" accept=".gpx,application/gpx+xml" style="height:auto;padding:10px">
       <small id="gpxInfo">${c.percurso ? `Percurso salvo: ${String(c.percurso_km).replace('.', ',')} km${c.subida_m != null ? `, +${c.subida_m} m de subida` : ''}.` : 'Nenhum percurso enviado.'}</small>
       ${c.percurso ? '<label class="check"><input type="checkbox" name="remover_percurso"> Remover o percurso salvo</label>' : ''}</div>
@@ -1061,6 +1088,30 @@ function formCorrida(c = {}, pendente = null) {
   </form>`;
   const f = $('#fCorrida');
   ligarEditores(f);
+  $$('.dist-form', f).forEach((el, i) => { const d = (c.corrida_distancias || [])[i]; if (temTrajeto(d)) percDist.set(el, { percurso: d.percurso, percurso_km: d.percurso_km, subida_m: d.subida_m, descida_m: d.descida_m }); });
+  const linhasDist = new WeakMap();
+  const desenharDist = (el, p) => {
+    if (!mapaForm) return;
+    linhasDist.get(el)?.remove();
+    if (!p) return;
+    const ln = L.polyline(p.percurso.map((q) => [q[0], q[1]]), { color: '#1E6FD9', weight: 3, dashArray: '6 6' }).addTo(mapaForm);
+    linhasDist.set(el, ln); mapaForm.fitBounds(ln.getBounds().pad(0.1));
+  };
+  $('#distancias').addEventListener('change', async (e) => {
+    const el = e.target.closest('.dist-form'); if (!el) return;
+    if (e.target.matches('[data-gpx-rm]')) { $('[data-gpx-info]', el).textContent = e.target.checked ? 'O percurso desta distância será removido ao salvar.' : `Percurso salvo: ${infoPerc(percDist.get(el))}.`; return; }
+    if (!e.target.matches('[data-gpx-dist]')) return;
+    const arq = e.target.files[0]; if (!arq) return;
+    try {
+      const pts = lerGpx(await arq.text()); const p = prepararPercurso(pts);
+      percDist.set(el, p); el.dataset.gpxNovo = '1';
+      const rm = $('[data-gpx-rm]', el); if (rm) rm.checked = false;
+      $('[data-gpx-info]', el).textContent = `Percurso lido: ${infoPerc(p)}. É salvo junto com a corrida.`;
+      const km = $('[name=km]', el); if (!km.value) km.value = p.percurso_km;
+      if (!f.lat.value) { f.lat.value = pts[0][0].toFixed(6); f.lng.value = pts[0][1].toFixed(6); }
+      desenharDist(el, p);
+    } catch (err) { $('[data-gpx-info]', el).textContent = `${err.message} Confira se é um arquivo .gpx.`; }
+  });
   $('#addDist').addEventListener('click', () => $('#distancias').insertAdjacentHTML('beforeend', linhaDist()));
   $('#distancias').addEventListener('click', (e) => { if (e.target.closest('[data-rm]')) e.target.closest('.dist-form').remove(); });
   $('#cancelar').addEventListener('click', pendente ? adminPendentes : adminCorridas);
@@ -1143,7 +1194,11 @@ function formCorrida(c = {}, pendente = null) {
     const r = c.id ? await sb.from('corridas').update(dados).eq('id', c.id).select().single() : await sb.from('corridas').insert(dados).select().single();
     if (r.error) { msg.textContent = r.error.code === '23505' ? 'Já existe uma corrida com esse nome nessa data.' : 'Não foi possível salvar. Confira os campos e tente de novo.'; return; }
     const id = r.data.id;
-    const dists = $$('.dist-form', f).map((el) => ({ corrida_id: id, rotulo: $('[name=rotulo]', el).value.trim(), km: Number($('[name=km]', el).value), preco: $('[name=preco]', el).value ? Number($('[name=preco]', el).value) : null })).filter((d) => d.rotulo && d.km);
+    const dists = $$('.dist-form', f).map((el) => {
+      const p = $('[data-gpx-rm]', el)?.checked ? null : percDist.get(el);
+      return { corrida_id: id, rotulo: $('[name=rotulo]', el).value.trim(), km: Number($('[name=km]', el).value), preco: $('[name=preco]', el).value ? Number($('[name=preco]', el).value) : null,
+        percurso: p ? p.percurso : null, percurso_km: p ? p.percurso_km : null, subida_m: p ? p.subida_m : null, descida_m: p ? p.descida_m : null };
+    }).filter((d) => d.rotulo && d.km);
     await sb.from('corrida_distancias').delete().eq('corrida_id', id);
     if (dists.length) await sb.from('corrida_distancias').insert(dists);
     if (pendente) await sb.from('corridas_pendentes').update({ status: 'aprovada', corrida_id: id, revisado_em: new Date().toISOString() }).eq('id', pendente.id);
