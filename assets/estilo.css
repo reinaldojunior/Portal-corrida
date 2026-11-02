@@ -86,7 +86,8 @@ img{max-width:100%;display:block}
 .kit{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
 .kit li{padding:6px 12px;background:var(--concreto);border-radius:3px;font-size:15px;font-weight:500}
 #mapaCorrida{height:320px;border-radius:4px}
-.texto-corrida{font-size:18px;line-height:1.6;max-width:68ch;white-space:pre-line;margin:0}
+.texto-corrida{font-size:18px;line-height:1.6;max-width:68ch;margin:0}
+.texto-corrida p{margin:0 0 .8em}.texto-corrida p:last-child{margin-bottom:0}.texto-corrida h3{font-size:20px;margin:1.2em 0 .4em}.texto-corrida ul,.texto-corrida ol{margin:0 0 .8em;padding-left:1.3em}.texto-corrida li{margin:.2em 0}.texto-corrida a{color:var(--cone-txt,#FF4D00);font-weight:600}.texto-corrida blockquote{margin:0 0 .8em;padding-left:14px;border-left:3px solid currentColor;opacity:.85}
 
 /* Admin */
 .admin{padding-top:40px;padding-bottom:64px}
@@ -535,3 +536,12 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
   .pagina-corrida h1{font-size:44px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+
+/* editor de texto do admin */
+.editor{border:1px solid #D0D4D8;border-radius:10px;background:#fff;overflow:hidden}
+.editor-barra{display:flex;flex-wrap:wrap;gap:4px;padding:6px;border-bottom:1px solid #E3E6E9;background:#F6F7F8}
+.editor-barra button{font:inherit;font-size:13px;min-width:34px;height:30px;padding:0 10px;border:1px solid transparent;border-radius:6px;background:transparent;color:#1A1D21;cursor:pointer}
+.editor-barra button:hover,.editor-barra button:focus-visible{background:#fff;border-color:#D0D4D8;outline:none}
+.editor-area{padding:12px 14px;font-size:16px;line-height:1.55;color:#1A1D21;outline:none;overflow-y:auto;max-height:520px}
+.editor-area:focus{box-shadow:inset 0 0 0 2px #FF4D00}
+.editor-area p{margin:0 0 .7em}.editor-area h3{font-size:19px;margin:.8em 0 .3em}.editor-area ul,.editor-area ol{margin:0 0 .7em;padding-left:1.3em}.editor-area a{color:#C43C00}

@@ -738,7 +738,7 @@ function mostrarCorrida(slug) {
     <div class="cab">${bib(c.data)}<div><span class="editoria">${dataLonga(c.data)}${c.horario ? ', largada às ' + c.horario.slice(0, 5) : ''}</span><h1 class="display">${esc(c.nome)}</h1><span class="muted" style="font-size:18px">${esc(c.cidade)}, ${esc(c.estado)}${c.organizador ? ' · Organização: ' + esc(c.organizador) : ''}</span></div></div>
     <div class="principal">
       ${c.imagem_url ? `<div class="foto" style="height:360px"><img src="${esc(c.imagem_url)}" alt="${esc(c.nome)}"></div>` : ''}
-      ${c.descricao ? `<div class="caixa"><h2 class="display">Sobre a corrida</h2><p class="texto-corrida">${esc(c.descricao)}</p></div>` : ''}
+      ${c.descricao ? `<div class="caixa"><h2 class="display">Sobre a corrida</h2><div class="texto-corrida">${textoRico(c.descricao)}</div></div>` : ''}
       ${temPerc ? `<div class="caixa"><h2 class="display">Percurso</h2>
         <div class="perc-stats"><div><span>DISTÂNCIA</span><b>${String(c.percurso_km).replace('.', ',')} km</b></div><div><span>SUBIDA</span><b>${c.subida_m != null ? '+' + c.subida_m + ' m' : '—'}</b></div><div><span>DESCIDA</span><b>${c.descida_m != null ? '−' + c.descida_m + ' m' : '—'}</b></div><div><span>LARGADA</span><b style="font-size:15px;font-family:var(--texto)">${esc(c.local_largada || c.cidade)}</b></div></div>
         <div id="mapaCorrida" class="mapa-perc"></div>${svgAltimetria(comDistancia(c))}</div>
@@ -953,6 +953,83 @@ function lerCoordenadas(txt) {
   m = t.match(/(-?\d{1,3},\d+)\s*[;\s]\s*(-?\d{1,3},\d+)/); if (m) return ok(m[1].replace(',', '.'), m[2].replace(',', '.'));
   return null;
 }
+/* ===== Texto formatado (negrito, itálico, listas, links) ===== */
+const TAGS_OK = { P: 'p', BR: 'br', STRONG: 'strong', B: 'strong', EM: 'em', I: 'em', U: 'u', UL: 'ul', OL: 'ol', LI: 'li', A: 'a', H2: 'h3', H3: 'h3', H4: 'h3', BLOCKQUOTE: 'blockquote' };
+const BLOCOS = new Set(['DIV', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER', 'TABLE', 'TR', 'H1', 'H5', 'H6']);
+function limparHtml(html) {
+  const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
+  const fora = document.createElement('div');
+  const copiar = (orig, dest) => {
+    orig.childNodes.forEach((n) => {
+      if (n.nodeType === 3) { dest.appendChild(document.createTextNode(n.textContent.replace(/ /g, ' '))); return; }
+      if (n.nodeType !== 1) return;
+      const tag = n.tagName;
+      if (['SCRIPT', 'STYLE', 'META', 'LINK', 'TITLE', 'IFRAME', 'OBJECT', 'IMG', 'SVG'].includes(tag)) return;
+      const st = n.getAttribute('style') || '';
+      const peso = (st.match(/font-weight\s*:\s*(\w+)/i) || [])[1];
+      const negrito = peso && (peso === 'bold' || Number(peso) >= 600);
+      const italico = /font-style\s*:\s*italic/i.test(st);
+      let alvo = dest;
+      const nova = TAGS_OK[tag];
+      if (tag === 'B' && peso && !negrito) { /* Google Docs embrulha tudo num <b> normal */ }
+      else if (nova) {
+        const el = document.createElement(nova);
+        if (nova === 'a') {
+          const href = n.getAttribute('href') || '';
+          if (!/^(https?:|mailto:)/i.test(href)) { copiar(n, dest); return; }
+          el.href = href; el.target = '_blank'; el.rel = 'noopener';
+        }
+        dest.appendChild(el); alvo = el;
+      } else if (BLOCOS.has(tag)) { const el = document.createElement('p'); dest.appendChild(el); alvo = el; }
+      if (negrito && nova !== 'strong') { const b = document.createElement('strong'); alvo.appendChild(b); alvo = b; }
+      if (italico && nova !== 'em') { const i = document.createElement('em'); alvo.appendChild(i); alvo = i; }
+      copiar(n, alvo);
+    });
+  };
+  copiar(doc.body.firstChild, fora);
+  fora.querySelectorAll('p p').forEach((p) => p.replaceWith(...p.childNodes));
+  fora.querySelectorAll('p,li,strong,em,u,h3,blockquote').forEach((e) => { if (!e.textContent.trim() && !e.querySelector('br')) e.remove(); });
+  return fora.innerHTML.trim();
+}
+const ehHtml = (t) => /<\/?(p|br|strong|b|em|i|ul|ol|li|a|h3|u|blockquote)\b/i.test(t || '');
+function textoRico(t) {
+  if (!t) return '';
+  if (ehHtml(t)) return limparHtml(t);
+  return String(t).split(/\n{2,}/).map((par) => `<p>${esc(par).replace(/\n/g, '<br>')}</p>`).join('');
+}
+function editorRico(nome, valor, altura = 180) {
+  return `<div class="editor" data-editor="${nome}">
+    <div class="editor-barra" role="toolbar" aria-label="Formatação">
+      <button type="button" data-cmd="bold" title="Negrito"><b>N</b></button><button type="button" data-cmd="italic" title="Itálico"><i>I</i></button>
+      <button type="button" data-cmd="formatBlock" data-arg="h3" title="Subtítulo">T</button>
+      <button type="button" data-cmd="insertUnorderedList" title="Lista">• Lista</button><button type="button" data-cmd="insertOrderedList" title="Lista numerada">1. Lista</button>
+      <button type="button" data-cmd="createLink" title="Link">Link</button><button type="button" data-cmd="removeFormat" title="Limpar formatação">Limpar</button>
+    </div>
+    <div class="editor-area" contenteditable="true" style="min-height:${altura}px">${textoRico(valor)}</div>
+  </div>`;
+}
+function ligarEditores(raiz) {
+  $$('.editor', raiz).forEach((ed) => {
+    const area = $('.editor-area', ed);
+    ed.querySelector('.editor-barra').addEventListener('mousedown', (e) => e.preventDefault());
+    ed.querySelector('.editor-barra').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-cmd]'); if (!b) return;
+      area.focus();
+      if (b.dataset.cmd === 'createLink') { const u = prompt('Endereço do link (https://...)'); if (u && /^https?:\/\//i.test(u)) document.execCommand('createLink', false, u); return; }
+      if (b.dataset.cmd === 'formatBlock') { const atual = document.queryCommandValue('formatBlock'); document.execCommand('formatBlock', false, /h3/i.test(atual) ? 'p' : 'h3'); return; }
+      document.execCommand(b.dataset.cmd, false, b.dataset.arg || null);
+    });
+    area.addEventListener('paste', (e) => {
+      const cd = e.clipboardData; if (!cd) return;
+      e.preventDefault();
+      const html = cd.getData('text/html');
+      const limpo = html ? limparHtml(html) : textoRico(cd.getData('text/plain'));
+      document.execCommand('insertHTML', false, limpo);
+    });
+  });
+}
+const valorEditor = (raiz, nome) => { const a = $(`[data-editor="${nome}"] .editor-area`, raiz); const h = limparHtml(a.innerHTML); return a.textContent.trim() ? h : null; };
+
 function formCorrida(c = {}, pendente = null) {
   const box = $('#conteudoAdmin');
   box.innerHTML = `<form class="form" id="fCorrida">
@@ -973,7 +1050,7 @@ function formCorrida(c = {}, pendente = null) {
       <small id="gpxInfo">${c.percurso ? `Percurso salvo: ${String(c.percurso_km).replace('.', ',')} km${c.subida_m != null ? `, +${c.subida_m} m de subida` : ''}.` : 'Nenhum percurso enviado.'}</small>
       ${c.percurso ? '<label class="check"><input type="checkbox" name="remover_percurso"> Remover o percurso salvo</label>' : ''}</div>
     <div class="inteiro"><div class="campo" style="margin-bottom:8px">Distâncias</div><div id="distancias">${(c.corrida_distancias || [{}]).map(linhaDist).join('')}</div><button type="button" class="btn btn-linha" id="addDist">Adicionar distância</button></div>
-    <label class="campo inteiro">Descrição<textarea name="descricao">${esc(c.descricao || '')}</textarea></label>
+    <div class="campo inteiro">Descrição <small>Pode colar texto formatado: negrito, itálico, listas e links são mantidos.</small>${editorRico('descricao', c.descricao)}</div>
     <label class="campo">Organizador<input name="organizador" value="${esc(c.organizador || '')}"></label>
     <label class="campo">Link de inscrição<input name="link_inscricao" type="url" value="${esc(c.link_inscricao || '')}" placeholder="https://"></label>
     <label class="campo">Imagem (link)<input name="imagem_url" type="url" value="${esc(c.imagem_url || '')}" placeholder="https://"></label>
@@ -983,6 +1060,7 @@ function formCorrida(c = {}, pendente = null) {
     <div class="acoes-form"><span id="fMsg" role="status"></span><button type="button" class="btn btn-linha" id="cancelar">Cancelar</button><button class="btn btn-escuro" type="submit">Salvar corrida</button></div>
   </form>`;
   const f = $('#fCorrida');
+  ligarEditores(f);
   $('#addDist').addEventListener('click', () => $('#distancias').insertAdjacentHTML('beforeend', linhaDist()));
   $('#distancias').addEventListener('click', (e) => { if (e.target.closest('[data-rm]')) e.target.closest('.dist-form').remove(); });
   $('#cancelar').addEventListener('click', pendente ? adminPendentes : adminCorridas);
@@ -1053,7 +1131,7 @@ function formCorrida(c = {}, pendente = null) {
       nome: f.nome.value.trim(), cidade: f.cidade.value.trim(), estado: (f.estado.value || 'SP').toUpperCase(),
       data: f.data.value, horario: f.horario.value || null, local_largada: f.local_largada.value.trim() || null,
       lat: f.lat.value ? Number(f.lat.value) : null, lng: f.lng.value ? Number(f.lng.value) : null,
-      descricao: f.descricao.value.trim() || null, organizador: f.organizador.value.trim() || null,
+      descricao: valorEditor(f, 'descricao'), organizador: f.organizador.value.trim() || null,
       link_inscricao: f.link_inscricao.value.trim() || null, imagem_url: f.imagem_url.value.trim() || null,
       kit_inclui: f.kit.value.split(',').map((s) => s.trim()).filter(Boolean),
       inscricoes_abertas: f.inscricoes_abertas.checked, status: f.status.value
@@ -1102,7 +1180,7 @@ function formNoticia(n = {}) {
     <h2 class="display inteiro" style="font-size:40px">${n.id ? 'Editar notícia' : 'Nova notícia'}</h2>
     <label class="campo inteiro">Título<input name="titulo" required value="${esc(n.titulo || '')}"></label>
     <label class="campo inteiro">Resumo <small>Aparece embaixo da manchete</small><input name="resumo" value="${esc(n.resumo || '')}"></label>
-    <label class="campo inteiro">Texto<textarea name="conteudo" style="min-height:220px">${esc(n.conteudo || '')}</textarea></label>
+    <div class="campo inteiro">Texto${editorRico('conteudo', n.conteudo, 240)}</div>
     <label class="campo">Editoria<select name="editoria">${Object.entries(NOMES_ED).map(([k, v]) => `<option value="${k}" ${n.editoria === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
     <label class="campo">Imagem (link)<input name="imagem_url" type="url" value="${esc(n.imagem_url || '')}" placeholder="https://"></label>
     <label class="campo">Autor<input name="autor" value="${esc(n.autor || '')}"></label>
@@ -1114,10 +1192,11 @@ function formNoticia(n = {}) {
     <div class="acoes-form"><span id="nMsg" role="status"></span><button type="button" class="btn btn-linha" id="cancelarN">Cancelar</button><button class="btn btn-escuro" type="submit">Salvar notícia</button></div>
   </form>`;
   const f = $('#fNoticia');
+  ligarEditores(f);
   $('#cancelarN').addEventListener('click', adminNoticias);
   f.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const dados = { titulo: f.titulo.value.trim(), resumo: f.resumo.value.trim() || null, conteudo: f.conteudo.value.trim() || null, editoria: f.editoria.value, imagem_url: f.imagem_url.value.trim() || null, autor: f.autor.value.trim() || null, fonte_nome: f.fonte_nome.value.trim() || null, fonte_url: f.fonte_url.value.trim() || null, status: f.status.value, destaque: f.destaque.checked };
+    const dados = { titulo: f.titulo.value.trim(), resumo: f.resumo.value.trim() || null, conteudo: valorEditor(f, 'conteudo'), editoria: f.editoria.value, imagem_url: f.imagem_url.value.trim() || null, autor: f.autor.value.trim() || null, fonte_nome: f.fonte_nome.value.trim() || null, fonte_url: f.fonte_url.value.trim() || null, status: f.status.value, destaque: f.destaque.checked };
     if (dados.status === 'publicado' && n.origem === 'robo' && n.verificacao !== 'aprovada' && !confirm('Esta notícia ainda não foi aprovada na verificação de direitos. Publicar mesmo assim?')) return;
     if (dados.status === 'publicado' && !n.publicado_em) dados.publicado_em = new Date().toISOString();
     if (!n.id) dados.slug = slugify(dados.titulo) + '-' + Date.now().toString(36);
