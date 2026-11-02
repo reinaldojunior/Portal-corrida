@@ -937,6 +937,22 @@ async function adminPendentes() {
 function linhaDist(d = {}) {
   return `<div class="dist-form"><label class="campo">Nome<input name="rotulo" value="${esc(d.rotulo || '')}" placeholder="10K" required></label><label class="campo">Km<input name="km" type="number" step="0.001" min="0" value="${d.km ?? ''}" required></label><label class="campo">Preço (R$)<input name="preco" type="number" step="0.01" min="0" value="${d.preco ?? ''}"></label><button type="button" class="btn btn-linha" data-rm aria-label="Remover distância">×</button></div>`;
 }
+const coordValida = (la, lo) => isFinite(la) && isFinite(lo) && Math.abs(la) <= 90 && Math.abs(lo) <= 180 && !(la === 0 && lo === 0);
+function lerCoordenadas(txt) {
+  let t = String(txt); try { t = decodeURIComponent(t); } catch { /* segue */ }
+  const ok = (a, b) => { let la = parseFloat(a), lo = parseFloat(b); if (Math.abs(la) > 40 && Math.abs(lo) <= 40) [la, lo] = [lo, la]; return coordValida(la, lo) ? [la, lo] : null; };
+  let m = t.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/); if (m) return ok(m[1], m[2]);
+  m = t.match(/[?&](?:q|query|ll|destination|center)=(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/); if (m) return ok(m[1], m[2]);
+  m = t.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/); if (m) return ok(m[1], m[2]);
+  const dms = [...t.matchAll(/(\d{1,3})°\s*(\d{1,2})['′]\s*([\d.]+)["″]?\s*([NSLOEW])/gi)];
+  if (dms.length >= 2) {
+    const v = (d) => (Number(d[1]) + Number(d[2]) / 60 + Number(d[3]) / 3600) * (/[SOW]/i.test(d[4]) ? -1 : 1);
+    return ok(v(dms[0]), v(dms[1]));
+  }
+  m = t.match(/(-?\d{1,3}\.\d+)\s*[,;\s]\s*(-?\d{1,3}\.\d+)/); if (m) return ok(m[1], m[2]);
+  m = t.match(/(-?\d{1,3},\d+)\s*[;\s]\s*(-?\d{1,3},\d+)/); if (m) return ok(m[1].replace(',', '.'), m[2].replace(',', '.'));
+  return null;
+}
 function formCorrida(c = {}, pendente = null) {
   const box = $('#conteudoAdmin');
   box.innerHTML = `<form class="form" id="fCorrida">
@@ -948,7 +964,9 @@ function formCorrida(c = {}, pendente = null) {
     <label class="campo">Data<input name="data" type="date" required value="${esc(c.data || '')}"></label>
     <label class="campo">Horário da largada<input name="horario" type="time" value="${esc((c.horario || '').slice(0, 5))}"></label>
     <label class="campo inteiro">Local da largada<input name="local_largada" value="${esc(c.local_largada || '')}" placeholder="Ex.: Parque Ecológico, portão principal"></label>
-    <div class="campo inteiro">Posição no mapa <small>Clique no mapa para marcar o ponto da largada.</small><div id="mapaForm"></div>
+    <label class="campo inteiro">Colar localização <small>Link do Google Maps ou coordenadas (ex.: -23.1361259, -47.2153). O pino e o endereço são preenchidos sozinhos.</small><input id="colarLocal" placeholder="Cole aqui o link do Google Maps ou as coordenadas" autocomplete="off"></label>
+    <div class="campo inteiro">Posição no mapa <small>Ou clique no mapa para marcar o ponto da largada.</small><div id="mapaForm"></div>
+      <small id="localInfo" role="status" style="display:block;margin-top:6px"></small>
       <div style="display:flex;gap:12px;margin-top:8px"><input name="lat" placeholder="Latitude" value="${c.lat ?? ''}" style="flex:1"><input name="lng" placeholder="Longitude" value="${c.lng ?? ''}" style="flex:1"></div></div>
     <div class="campo inteiro">Percurso (arquivo GPX) <small>Exporte do Strava, do Garmin ou do site da prova. Com ele o site mostra o trajeto, a altimetria e o simulador.</small>
       <input type="file" id="gpxArquivo" accept=".gpx,application/gpx+xml" style="height:auto;padding:10px">
@@ -975,7 +993,44 @@ function formCorrida(c = {}, pendente = null) {
   camadas().mapa.addTo(mapaForm);
   let pino = c.lat != null ? L.marker(inicio, { icon: iconePino(true) }).addTo(mapaForm) : null;
   const marcar = (ll) => { if (pino) pino.setLatLng(ll); else pino = L.marker(ll, { icon: iconePino(true) }).addTo(mapaForm); };
-  mapaForm.on('click', (e) => { marcar(e.latlng); f.lat.value = e.latlng.lat.toFixed(6); f.lng.value = e.latlng.lng.toFixed(6); });
+  let autoLocal = '', autoCidade = '', timerGeo, nomeLink = '';
+  const aplicarPonto = (lat, lng, centralizar) => {
+    f.lat.value = lat.toFixed(7); f.lng.value = lng.toFixed(7);
+    marcar(L.latLng(lat, lng));
+    if (centralizar) mapaForm.setView([lat, lng], 16);
+    clearTimeout(timerGeo);
+    timerGeo = setTimeout(() => buscarEndereco(lat, lng), 700);
+  };
+  async function buscarEndereco(lat, lng) {
+    const info = $('#localInfo');
+    info.textContent = 'Buscando o endereço…';
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=pt-BR`);
+      if (!r.ok) throw new Error();
+      const j = await r.json(); const a = j.address || {};
+      const rua = [a.road || a.pedestrian || a.footway, a.house_number].filter(Boolean).join(', ');
+      const lugar = nomeLink || (j.name && j.name !== a.road ? j.name : '');
+      const bairro = a.suburb || a.neighbourhood || a.quarter || '';
+      const cidade = a.city || a.town || a.municipality || a.village || '';
+      const texto = [lugar, rua, bairro].filter(Boolean).join(' · ');
+      if (texto && (!f.local_largada.value.trim() || f.local_largada.value === autoLocal)) { f.local_largada.value = texto; autoLocal = texto; }
+      if (cidade && (!f.cidade.value.trim() || f.cidade.value === autoCidade)) { f.cidade.value = cidade; autoCidade = cidade; }
+      info.textContent = texto || cidade ? `Endereço encontrado: ${[texto, cidade].filter(Boolean).join(' – ')}. Confira e ajuste o nome do local se quiser.` : 'Ponto marcado. Não achei um endereço para este lugar; escreva o local da largada à mão.';
+    } catch { info.textContent = 'Ponto marcado. Não consegui buscar o endereço agora; escreva o local da largada à mão.'; }
+  }
+  $('#colarLocal').addEventListener('input', (e) => {
+    const t = e.target.value.trim(); if (!t) { $('#localInfo').textContent = ''; return; }
+    if (/goo\.gl|maps\.app/i.test(t) && !lerCoordenadas(t)) { $('#localInfo').textContent = 'Esse é um link curto do Google Maps, e ele não traz as coordenadas. Abra o link no navegador e copie o endereço completo da barra, ou toque e segure no ponto do mapa e copie os números que aparecem.'; return; }
+    const c = lerCoordenadas(t);
+    const mp = t.match(/\/place\/([^/@?]+)/); nomeLink = '';
+    if (mp) { try { nomeLink = decodeURIComponent(mp[1].replace(/\+/g, ' ')).trim(); } catch { nomeLink = mp[1].replace(/\+/g, ' '); } }
+    if (c) aplicarPonto(c[0], c[1], true);
+    else if (/^-?\d{1,2}[.,]\d+$/.test(t)) { f.lat.value = t.replace(',', '.'); $('#localInfo').textContent = 'Recebi só a latitude. Cole as duas juntas (latitude, longitude) ou preencha a longitude abaixo.'; }
+    else $('#localInfo').textContent = 'Não encontrei coordenadas aqui. Cole o link completo do Google Maps ou os números da latitude e longitude.';
+  });
+  const deCampos = () => { const la = parseFloat(String(f.lat.value).replace(',', '.')), lo = parseFloat(String(f.lng.value).replace(',', '.')); if (coordValida(la, lo)) aplicarPonto(la, lo, true); };
+  f.lat.addEventListener('change', deCampos); f.lng.addEventListener('change', deCampos);
+  mapaForm.on('click', (e) => { nomeLink = ''; aplicarPonto(e.latlng.lat, e.latlng.lng, false); });
   let gpxNovo = null, gpxLinha = c.percurso ? L.polyline(c.percurso.map((p) => [p[0], p[1]]), { color: '#FF4D00', weight: 3 }).addTo(mapaForm) : null;
   if (gpxLinha) mapaForm.fitBounds(gpxLinha.getBounds().pad(0.1));
   $('#gpxArquivo').addEventListener('change', async (e) => {
