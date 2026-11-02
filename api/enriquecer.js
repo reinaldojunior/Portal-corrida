@@ -26,7 +26,12 @@ module.exports = async (req, res) => {
   try {
     // ?so=pinos pula a leitura das páginas e usa o tempo todo para conferir pinos (e pôr o centro da cidade)
     const soPinos = req.query.so === 'pinos';
-    const fila = soPinos ? [] : (await rpc('robo_para_enriquecer', { p_token: token, p_limite: LIMITE })) || [];
+    // ?site=ticketsports processa só as provas daquele site (com menos acessos ao mesmo tempo)
+    const site = String(req.query.site || '').toLowerCase().replace(/[^a-z0-9.-]/g, '').slice(0, 40);
+    const fila = soPinos ? [] : (await (site
+      ? rpc('robo_para_enriquecer_site', { p_token: token, p_limite: LIMITE, p_site: site })
+      : rpc('robo_para_enriquecer', { p_token: token, p_limite: LIMITE }))) || [];
+    const paralelo = site ? 2 : PARALELO;
     const feitos = [];
     let i = 0, n = 0, falhas = 0;
     const comPrazo = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('demorou')), ms))]);
@@ -48,7 +53,7 @@ module.exports = async (req, res) => {
         await salvar([item]); // salva na hora: se a rodada cair, o que já foi feito fica gravado
       }
     };
-    await Promise.all(Array.from({ length: PARALELO }, trabalhador));
+    await Promise.all(Array.from({ length: paralelo }, trabalhador));
     // confere os pinos (os recém-achados e os antigos): longe da cidade => centro da cidade
     let conferidos = 0, corrigidos = 0;
     try {
