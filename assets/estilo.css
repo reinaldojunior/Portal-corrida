@@ -789,3 +789,8 @@ a.manchete-foto{display:block}
 
 .form-topo-acoes{display:flex;gap:10px;flex-wrap:wrap}
 .btn-olho{padding:0 12px}
+
+/* respiro embaixo do botão no balão do mapa */
+.pc-pop .leaflet-popup-content{margin:18px 18px 20px!important}
+.pop{padding-bottom:2px}
+.pop .btn{margin-top:12px;margin-bottom:0}
