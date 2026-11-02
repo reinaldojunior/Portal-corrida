@@ -118,6 +118,19 @@ async function coletar(estados, gravar) {
       relatorio.push({ uf, no_calendario: itens.length, novas: lote.length, gravadas: inseridas, exemplo: lote.slice(0, 3) });
     } catch (e) { relatorio.push({ uf, erro: e.message }); }
   }
+  // sobrou tempo/limite: completa provas antigas da fila que ficaram sem detalhes
+  if (gravar && detalhesUsados < MAX_DETALHES) {
+    try {
+      const faltam = await rpc('robo_sem_detalhe', { p_token: token, p_limite: MAX_DETALHES - detalhesUsados });
+      const completos = [];
+      for (const f of faltam || []) {
+        try { completos.push({ chave: f.chave, ...lerDetalhe((await baixar(f.fonte_url)).texto) }); } catch { /* segue */ }
+        await dormir(150);
+      }
+      const n = completos.length ? await rpc('robo_completar', { p_token: token, p_itens: completos }) : 0;
+      relatorio.push({ completadas: n });
+    } catch (e) { relatorio.push({ completar_erro: e.message }); }
+  }
   return relatorio;
 }
 

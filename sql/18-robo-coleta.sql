@@ -1,3 +1,4 @@
 -- Já aplicado pelo conector em 02/11/2026 (o hash da chave do robô não é guardado aqui).
 -- Schema robo, tabela robo.chave (hash sha256 da chave), funções public.robo_novos(token, itens)
 -- e public.robo_inserir_pendentes(token, itens), extensões unaccent e pg_trgm.
+-- Também: public.robo_sem_detalhe(token, limite) e public.robo_completar(token, itens) — completam só campos vazios.
