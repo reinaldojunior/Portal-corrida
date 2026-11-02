@@ -567,3 +567,22 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
 .sim-metades div{background:var(--noite);border-radius:8px;padding:10px 12px}
 .sim-metades span{display:block;font-size:11px;letter-spacing:.08em;color:#9AA0A6}
 .sim-metades b{font-family:var(--display);font-size:26px;line-height:1.1}
+
+/* percurso interativo: km, sentido, largada/chegada */
+.alt-inter{position:relative;touch-action:pan-y;cursor:crosshair;user-select:none;-webkit-user-select:none}
+.alt-inter .altimetria{margin-top:14px}
+.alt-kms{position:relative;height:16px;margin-top:2px;font-family:var(--mono);font-size:11px;color:var(--cinza)}
+.alt-kms span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
+.alt-kms span:first-child{transform:none}
+.alt-kms span.fim{transform:translateX(-100%);font-weight:600}
+.alt-inter{display:flex;flex-direction:column}.alt-inter .altimetria{order:1}.alt-inter .alt-kms{order:2}.alt-inter .alt-escala{order:3;margin-top:2px}
+.alt-dica{position:absolute;top:0;display:flex;gap:10px;align-items:baseline;padding:6px 10px;border-radius:6px;background:#1E2124;color:#fff;font-size:13px;white-space:nowrap;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.alt-dica b{font-family:var(--mono);font-weight:600}
+.alt-dica .sobe{color:#FF8A5B}.alt-dica .desce{color:#7FD1A8}
+.alt-ajuda{display:block;margin-top:8px;color:var(--cinza)}
+.seta-perc{width:16px;height:16px;display:grid;place-items:center}
+.seta-perc::before{content:"";width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:9px solid #FF4D00;filter:drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1px #fff)}
+.km-perc{width:22px;height:22px;border-radius:50%;background:#fff;border:2px solid #1E2124;display:grid;place-items:center;font:700 10px/1 var(--mono);color:#1E2124;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.etq-perc{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 4px;border-radius:999px;background:#fff;font:700 12px/1 var(--texto, sans-serif);color:#1E2124;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.35);transform:translate(-4px,-4px)}
+.etq-perc span{width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.2)}
+.etq-perc.ini span{background:#1D6B45}.etq-perc.fim span{background:#1E2124}

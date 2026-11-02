@@ -758,6 +758,68 @@ function buscar() {
 }
 
 /* ================== Página da corrida ================== */
+const passoKm = (tot) => tot <= 12 ? 1 : tot <= 25 ? 2 : 5;
+function marcasKm(tot) {
+  if (!tot) return '';
+  const st = passoKm(tot), ms = [];
+  for (let k = 0; k < tot - st * 0.35; k += st) ms.push(k);
+  return `<div class="alt-kms" aria-hidden="true">${ms.map((k) => `<span style="left:${(k / tot) * 100}%">${k}</span>`).join('')}<span class="fim" style="left:100%">${String(+tot.toFixed(1)).replace('.', ',')} km</span></div>`;
+}
+function rumo(a, b) {
+  const r = Math.PI / 180, y = Math.sin((b.lng - a.lng) * r) * Math.cos(b.lat * r);
+  const x = Math.cos(a.lat * r) * Math.sin(b.lat * r) - Math.sin(a.lat * r) * Math.cos(b.lat * r) * Math.cos((b.lng - a.lng) * r);
+  return (Math.atan2(y, x) / r + 360) % 360;
+}
+function enfeitarPercurso(mapa, pts) {
+  const tot = pts[pts.length - 1].km, st = passoKm(tot);
+  const camada = L.layerGroup().addTo(mapa);
+  // setas de sentido, a meio caminho entre as marcas de km
+  const passoSeta = Math.max(0.4, Math.min(st, tot / 8));
+  for (let k = passoSeta / 2; k < tot - 0.1; k += passoSeta) {
+    const a = noKm(pts, k), b = noKm(pts, Math.min(tot, k + 0.05));
+    if (!a || !b) continue;
+    L.marker([a.lat, a.lng], { icon: L.divIcon({ className: '', html: `<div class="seta-perc" style="transform:rotate(${rumo(a, b)}deg)"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] }), interactive: false, keyboard: false }).addTo(camada);
+  }
+  // marcas de km
+  for (let k = st; k < tot - 0.15; k += st) {
+    const a = noKm(pts, k);
+    L.marker([a.lat, a.lng], { icon: L.divIcon({ className: '', html: `<div class="km-perc">${k}</div>`, iconSize: [22, 22], iconAnchor: [11, 11] }), interactive: false, keyboard: false, title: `km ${k}` }).addTo(camada);
+  }
+  return camada;
+}
+function ligarAltimetria(pts, mapa) {
+  const box = $('#altInter'); if (!box) return;
+  const svg = $('svg', box), dica = $('#altDica'), cur = $('.alt-cursor', box);
+  const tot = pts[pts.length - 1].km;
+  const ponto = L.circleMarker([pts[0].lat, pts[0].lng], { radius: 8, color: '#fff', weight: 3, fillColor: '#1E2124', fillOpacity: 1, interactive: false });
+  const mostrar = (km) => {
+    km = Math.max(0, Math.min(tot, km));
+    const p = noKm(pts, km), q = noKm(pts, Math.min(tot, km + 0.1)), o = noKm(pts, Math.max(0, km - 0.1));
+    const inc = p.ele != null && q.ele != null && o.ele != null ? ((q.ele - o.ele) / (((q.km - o.km) * 1000) || 1)) * 100 : null;
+    if (!mapa.hasLayer(ponto)) ponto.addTo(mapa);
+    ponto.setLatLng([p.lat, p.lng]);
+    if (!mapa.getBounds().pad(-0.1).contains(ponto.getLatLng())) mapa.panTo(ponto.getLatLng(), { animate: true });
+    const x = (km / tot) * 1000; cur.setAttribute('x1', x); cur.setAttribute('x2', x); cur.style.display = '';
+    dica.hidden = false;
+    dica.innerHTML = `<b>km ${km.toFixed(2).replace('.', ',')}</b>${p.ele != null ? `<span>${Math.round(p.ele)} m</span>` : ''}${inc != null ? `<span class="${inc > 1 ? 'sobe' : inc < -1 ? 'desce' : ''}">${inc > 0 ? '+' : ''}${inc.toFixed(1).replace('.', ',')}%</span>` : ''}`;
+    const w = box.clientWidth, px = (km / tot) * w;
+    dica.style.left = Math.max(0, Math.min(w - dica.offsetWidth, px - dica.offsetWidth / 2)) + 'px';
+  };
+  const sair = () => { dica.hidden = true; ponto.remove(); if (simEstado && simEstado.r && $('#simKm')) moverFantasma(); else cur.style.display = 'none'; };
+  const kmDoEvento = (e) => { const r = svg.getBoundingClientRect(); return ((e.clientX - r.left) / r.width) * tot; };
+  box.addEventListener('pointerdown', (e) => { box.setPointerCapture(e.pointerId); mostrar(kmDoEvento(e)); });
+  box.addEventListener('pointermove', (e) => mostrar(kmDoEvento(e)));
+  box.addEventListener('pointerup', (e) => { if (e.pointerType !== 'mouse') setTimeout(sair, 1500); });
+  box.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') sair(); });
+  // passar o mouse sobre o trajeto no mapa também mostra o ponto
+  mapa.on('mousemove', (e) => {
+    let melhor = null, dm = Infinity;
+    const alvo = mapa.latLngToContainerPoint(e.latlng);
+    for (let i = 0; i < pts.length; i += 2) { const d = alvo.distanceTo(mapa.latLngToContainerPoint([pts[i].lat, pts[i].lng])); if (d < dm) { dm = d; melhor = pts[i]; } }
+    if (melhor && dm < 18) mostrar(melhor.km); else if (!dica.hidden && dm >= 30) sair();
+  });
+  mapa.on('mouseout', sair);
+}
 let mapaCorrida;
 function mostrarCorrida(slug, percIdx = 0) {
   const c0 = estado.corridas.find((x) => x.slug === slug && (x.status === 'publicado' || estado.admin));
@@ -777,7 +839,9 @@ function mostrarCorrida(slug, percIdx = 0) {
       ${temPerc ? `<div class="caixa" id="caixaPerc"><h2 class="display">Percurso</h2>
         ${percs.length > 1 ? `<div class="perc-abas" role="group" aria-label="Escolha o percurso">${percs.map((p, i) => `<button type="button" class="filtro" data-perc="${i}" aria-pressed="${p === pSel}">${esc(p.rotulo)}</button>`).join('')}</div>` : ''}
         <div class="perc-stats"><div><span>DISTÂNCIA</span><b>${String(c.percurso_km).replace('.', ',')} km</b></div><div><span>SUBIDA</span><b>${c.subida_m != null ? '+' + c.subida_m + ' m' : '—'}</b></div><div><span>DESCIDA</span><b>${c.descida_m != null ? '−' + c.descida_m + ' m' : '—'}</b></div><div><span>LARGADA</span><b style="font-size:15px;font-family:var(--texto)">${esc(c.local_largada || c.cidade)}</b></div></div>
-        <div id="mapaCorrida" class="mapa-perc"></div>${svgAltimetria(comDistancia(c))}</div>
+        <div id="mapaCorrida" class="mapa-perc"></div>
+        <div class="alt-inter" id="altInter">${svgAltimetria(comDistancia(c))}${marcasKm(c.percurso_km)}<div class="alt-dica" id="altDica" hidden></div></div>
+        <small class="alt-ajuda">Passe o dedo ou o mouse sobre a altimetria para ver cada ponto no mapa. As setas mostram o sentido da prova.</small></div>
       ${mod('simulador') ? `<div class="caixa sim" id="simBox"><span class="rot">SIMULADOR DA PROVA</span><h2 class="display">Como vai ser a sua prova</h2>
         <div class="sim-entrada"><label class="campo">Seu tempo alvo (h:mm:ss)<input id="simAlvo" inputmode="numeric"></label><button type="button" id="simClima" class="sim-clima" aria-pressed="true">Considerar o clima</button></div>
         <p class="sim-clima-info" id="simClimaInfo"></p>
@@ -824,8 +888,16 @@ function mostrarCorrida(slug, percIdx = 0) {
         const ic = (cls) => L.divIcon({ className: '', html: `<div class="${cls}"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] });
         L.polyline(ll, { color: '#1E2124', weight: 6, opacity: .35 }).addTo(mapaCorrida);
         simFeito = L.polyline([], { color: '#FF4D00', weight: 5 }).addTo(mapaCorrida);
-        L.marker(ll[0], { icon: ic('pino-ini'), title: 'Largada', alt: 'Largada' }).addTo(mapaCorrida);
-        L.marker(ll[ll.length - 1], { icon: ic('pino-fim'), title: 'Chegada', alt: 'Chegada' }).addTo(mapaCorrida);
+        const ptsP = comDistancia(c);
+        enfeitarPercurso(mapaCorrida, ptsP);
+        const circuito = metros(c.percurso[0], c.percurso[c.percurso.length - 1]) < 150;
+        const etiqueta = (cls, txt) => L.divIcon({ className: '', html: `<div class="etq-perc ${cls}"><span></span>${txt}</div>`, iconSize: null, iconAnchor: [8, 8] });
+        if (circuito) L.marker(ll[0], { icon: etiqueta('ini', 'Largada e chegada'), title: 'Largada e chegada', alt: 'Largada e chegada', zIndexOffset: 500 }).addTo(mapaCorrida);
+        else {
+          L.marker(ll[ll.length - 1], { icon: etiqueta('fim', 'Chegada'), title: 'Chegada', alt: 'Chegada', zIndexOffset: 400 }).addTo(mapaCorrida);
+          L.marker(ll[0], { icon: etiqueta('ini', 'Largada'), title: 'Largada', alt: 'Largada', zIndexOffset: 500 }).addTo(mapaCorrida);
+        }
+        ligarAltimetria(ptsP, mapaCorrida);
         simFantasma = L.marker(ll[0], { icon: L.divIcon({ className: '', html: '<div class="fantasma"></div>', iconSize: [18, 18], iconAnchor: [9, 9] }), keyboard: false, interactive: false }).addTo(mapaCorrida);
         mapaCorrida.fitBounds(L.latLngBounds(ll).pad(0.08));
         if (mod('simulador')) montarSimulador(c);
