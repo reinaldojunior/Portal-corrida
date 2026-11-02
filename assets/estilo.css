@@ -851,8 +851,13 @@ a.manchete-foto{display:block}
 .filtros-admin{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin:0 0 12px}
 .filtros-admin .campo{width:auto}
 .aviso-passada{margin:18px 0 0}
-.calendario-box{display:flex;flex-direction:column;gap:8px}
-.calendario-box .btn{width:100%;text-align:center}
+.calendario-box{display:flex;flex-direction:column;gap:12px}
+.calendario-box h2{margin:0}
+.cal-botoes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cal-btn{background:var(--papel);border:1.5px solid var(--chip);color:var(--asfalto);padding:0 10px;font-size:14px;white-space:nowrap}
+.cal-btn:hover{border-color:var(--asfalto);background:var(--concreto)}
+.cal-btn svg{flex-shrink:0}
+@media (max-width:380px){.cal-botoes{grid-template-columns:1fr}}
 .robo-cartoes{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:0 0 12px}
 .robo-cartao{display:flex;flex-direction:column;gap:6px;margin:0}
 .robo-cartao b{font-size:20px}

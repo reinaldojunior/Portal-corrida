@@ -1162,9 +1162,11 @@ function mostrarCorrida(slug, percIdx = 0) {
         ${c.inscricoes_abertas && c.data >= hojeISO() ? '' : `<p class="muted" style="margin:12px 0 0">${c.data < hojeISO() ? 'A corrida já aconteceu.' : 'Inscrições encerradas.'}</p>`}
       </div>
       ${c.data >= hojeISO() ? `<div class="caixa calendario-box"><h2 class="display">Na sua agenda</h2>
-        <a class="btn btn-linha" href="${esc(linkGoogleAgenda(c))}" target="_blank" rel="noopener">Google Agenda</a>
-        <button class="btn btn-linha" type="button" id="baixarIcs">iPhone, Outlook (.ics)</button>
-        <small class="muted">Com lembrete um dia antes, para não esquecer do kit.</small></div>` : ''}
+        <div class="cal-botoes">
+          <a class="btn cal-btn" href="${esc(linkGoogleAgenda(c))}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg>Google Agenda</a>
+          <button class="btn cal-btn" type="button" id="baixarIcs"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg>iPhone / Outlook</button>
+        </div>
+        <small class="muted">Com lembrete um dia antes, para não esquecer de retirar o kit.</small></div>` : ''}
       <a href="#mapa" class="btn btn-linha" data-mod="mapa">Ver corridas próximas no mapa</a>
     </div>${percHtml}${simHtml}</div>`;
   $('#baixarIcs', v)?.addEventListener('click', () => baixarIcs(c));
