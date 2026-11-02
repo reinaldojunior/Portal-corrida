@@ -784,3 +784,5 @@ a.manchete-foto{display:block}
 .busca-linha input{flex:1;min-width:220px}
 .busca-topo .btn-buscar{margin:0;height:44px;font-size:14px}
 #sugTopo .sug-img{margin-top:10px;background:#fff}
+
+.form-topo{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}

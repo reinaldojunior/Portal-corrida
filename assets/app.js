@@ -1117,7 +1117,7 @@ async function adminPendentes() {
 const percDist = new WeakMap();
 const infoPerc = (p) => `${String(p.percurso_km).replace('.', ',')} km${p.subida_m != null ? `, +${p.subida_m} m` : ''}`;
 function linhaDist(d = {}) {
-  return `<div class="dist-form"><label class="campo">Nome<input name="rotulo" value="${esc(d.rotulo || '')}" placeholder="10K" required></label><label class="campo">Km <small>ou vazio</small><input name="km" type="number" step="0.001" min="0" value="${d.km ?? ''}" placeholder="10"></label><label class="campo">Duração (h) <small>prova por tempo</small><input name="horas" type="number" step="0.5" min="0" value="${d.horas ?? ''}" placeholder="6"></label><label class="campo">Preço (R$)<input name="preco" type="number" step="0.01" min="0" value="${d.preco ?? ''}"></label><button type="button" class="btn btn-linha" data-rm aria-label="Remover distância">×</button>
+  return `<div class="dist-form"><label class="campo">Nome<input name="rotulo" value="${esc(d.rotulo || '')}" placeholder="10K" required></label><label class="campo">Km <small>ou vazio</small><input name="km" type="number" step="any" min="0" inputmode="decimal" value="${d.km ?? ''}" placeholder="10"></label><label class="campo">Duração (h) <small>prova por tempo</small><input name="horas" type="number" step="0.5" min="0" value="${d.horas ?? ''}" placeholder="6"></label><label class="campo">Preço (R$)<input name="preco" type="number" step="0.01" min="0" value="${d.preco ?? ''}"></label><button type="button" class="btn btn-linha" data-rm aria-label="Remover distância">×</button>
     <div class="dist-gpx"><label class="btn btn-linha gpx-btn">GPX desta distância<input type="file" accept=".gpx,application/gpx+xml" data-gpx-dist hidden></label>
     <small data-gpx-info>${temTrajeto(d) ? `Percurso salvo: ${infoPerc(d)}.` : 'Sem percurso próprio.'}</small>
     ${temTrajeto(d) ? '<label class="check"><input type="checkbox" data-gpx-rm> Remover</label>' : ''}</div></div>`;
@@ -1269,7 +1269,7 @@ function ligarFoto(f, pasta) {
 function formCorrida(c = {}, pendente = null) {
   const box = $('#conteudoAdmin');
   box.innerHTML = `<form class="form" id="fCorrida">
-    <h2 class="display inteiro" style="font-size:40px">${c.id ? 'Editar corrida' : 'Nova corrida'}</h2>
+    <div class="inteiro form-topo"><h2 class="display" style="font-size:40px;margin:0">${c.id ? 'Editar corrida' : 'Nova corrida'}</h2><button class="btn btn-escuro" type="submit">Salvar corrida</button></div>
     <div class="campo inteiro busca-topo">Link de inscrição <small>Cole o link da página de inscrição (Ticket Sports, Sympla…) e clique no botão para trazer a imagem e o local.</small>
       <div class="busca-linha"><input name="link_inscricao" type="url" value="${esc(c.link_inscricao || '')}" placeholder="https://"><button type="button" class="btn btn-cone btn-buscar" id="buscarInfo">Buscar imagem e local</button></div>
       <small id="buscarMsg" role="status"></small><div id="sugTopo"></div></div>
