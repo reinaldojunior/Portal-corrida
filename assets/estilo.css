@@ -764,3 +764,6 @@ a.manchete-foto{display:block}
 .foto-acoes{flex:1;min-width:220px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
 .foto-acoes input[type=url]{width:100%}
 .foto-acoes .btn{cursor:pointer}
+
+.tem-perc{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:999px;background:#E6F4EC;color:#1D6B45;font-weight:600}
+.tem-perc a{color:#1D6B45;text-decoration:underline}
