@@ -76,7 +76,9 @@ function lerDetalhe(html) {
   const local = pega('Largada');
   const org = pega('Organizador');
   // o "Clique Aqui" costuma ser um botão com o endereço no onclick (window.open / location), não um link comum
-  const trecho = (semScript.match(/Mais Informa[\s\S]{0,600}/i) || [''])[0];
+  // na prática o botão chama a função paraonde(), que fica num <script> da página com o endereço dentro
+  const fn = (html.match(/function\s+paraonde\s*\(\s*\)\s*\{([\s\S]{0,800}?)\}/i) || [])[1] || '';
+  const trecho = fn || (semScript.match(/Mais Informa[\s\S]{0,600}/i) || [''])[0];
   const mais = trecho.match(/(https?:\/\/[^'"\s)<>]+)/i) ? [null, trecho.match(/(https?:\/\/[^'"\s)<>]+)/i)[1]] : null;
   return {
     local_largada: local && local.length < 200 ? local : null,
@@ -116,11 +118,6 @@ module.exports = async (req, res) => {
   const enviada = (req.headers.authorization || '').replace(/^Bearer /, '') || String(req.query.chave || '');
   if (!segredo || enviada !== segredo) return res.status(401).json({ erro: 'não autorizado' });
   const estados = String(process.env.ESTADOS || 'SP').toUpperCase().split(/[,\s]+/).filter((x) => /^[A-Z]{2}$/.test(x));
-  if (req.query.ver) {
-    const pg = await baixar(`https://www.corridasbr.com.br/SP/mostracorrida.asp?escolha=${encodeURIComponent(req.query.ver)}`);
-    const i = pg.texto.search(/Mais Informa/i);
-    return res.status(200).json({ trecho: i < 0 ? null : pg.texto.slice(i, i + 900) });
-  }
   try {
     const relatorio = await coletar(estados, req.query.simular !== '1');
     res.status(200).json({ quando: new Date().toISOString(), relatorio });
