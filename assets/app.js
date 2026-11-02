@@ -1170,12 +1170,13 @@ async function abrirAdmin() {
   if (error || !ehAdmin) return telaLogin('Esta conta entrou, mas não é administradora. No Supabase, rode o comando de admin do final do script com este e-mail.');
   estado.admin = true;
   $('#btnEntrar').textContent = 'Admin';
-  pintarAdmin();
-  if (editarAoAbrirAdmin) {
-    const id = editarAoAbrirAdmin; editarAoAbrirAdmin = null;
-    const { data: c } = await sb.from('corridas').select('*, corrida_distancias(*)').eq('id', id).maybeSingle();
-    if (c) formCorrida(c);
-  }
+  if (!editarAoAbrirAdmin) return pintarAdmin();
+  // veio do botão "Editar" da página da corrida: abre direto o formulário (sem carregar a lista por cima)
+  const id = editarAoAbrirAdmin; editarAoAbrirAdmin = null;
+  pintarAdmin(true);
+  $('#conteudoAdmin').innerHTML = '<p class="muted">Carregando…</p>';
+  const { data: c } = await sb.from('corridas').select('*, corrida_distancias(*)').eq('id', id).maybeSingle();
+  if (c) formCorrida(c); else adminCorridas();
 }
 function telaLogin(erro) {
   $('#adminBox').innerHTML = `<form class="login" id="formLogin">
@@ -1194,7 +1195,7 @@ function telaLogin(erro) {
     abrirAdmin();
   });
 }
-function pintarAdmin() {
+function pintarAdmin(semConteudo) {
   const abas = [['corridas', 'Corridas'], ['pendentes', 'Pendentes'], ['noticias', 'Notícias'], ['modulos', 'Módulos'], ['inscritos', 'Inscritos']];
   $('#adminBox').innerHTML = `
     <div class="barra-admin"><h1 class="display" style="margin:0">Painel</h1><div style="display:flex;gap:10px"><a href="#" class="btn btn-linha">Ver o site</a><button class="btn btn-linha" id="btnSair">Sair</button></div></div>
@@ -1202,6 +1203,7 @@ function pintarAdmin() {
     <div id="conteudoAdmin"></div>`;
   $$('[data-aba]').forEach((b) => b.addEventListener('click', () => { abaAdmin = b.dataset.aba; pintarAdmin(); }));
   $('#btnSair').addEventListener('click', async () => { await sb.auth.signOut(); estado.admin = false; $('#btnEntrar').textContent = 'Entrar'; location.hash = ''; });
+  if (semConteudo) return;
   ({ corridas: adminCorridas, pendentes: adminPendentes, noticias: adminNoticias, modulos: adminModulos, inscritos: adminInscritos })[abaAdmin]();
 }
 async function recarregarCorridas() {
