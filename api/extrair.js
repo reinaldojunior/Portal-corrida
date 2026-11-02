@@ -100,10 +100,73 @@ const textoLimpo = (s) => String(s || '').replace(/<br\s*\/?>/gi, ', ').replace(
   .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/&([a-z]+);/gi, (m, n) => ENT[n.toLowerCase()] ?? m)
   .replace(/\s+/g, ' ').replace(/\s*,(\s*,)*\s*/g, ', ').replace(/^[\s,:-]+|[\s,:-]+$/g, '').trim();
 
+// Padrão por seletor ("seletor:img.ev-hero-img"): acha a tag pela classe/id, em qualquer ordem de atributos
+const attr = (tag, nome) => { const m = tag.match(new RegExp(`\\s${nome}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i')); return m ? (m[2] ?? m[3] ?? m[4] ?? '') : null; };
+function porSeletor(html, seletor) {
+  const m = String(seletor || '').trim().match(/^([a-z][a-z0-9]*)?((?:[.#][\w-]+)+)?$/i);
+  if (!m || (!m[1] && !m[2])) return null;
+  const tagNome = (m[1] || '[a-z][a-z0-9]*').toLowerCase();
+  const classes = (m[2] || '').match(/\.[\w-]+/g)?.map((c) => c.slice(1)) || [];
+  const id = ((m[2] || '').match(/#([\w-]+)/) || [])[1];
+  const re = new RegExp(`<(${tagNome})\\b[^>]*>`, 'gi');
+  let t;
+  while ((t = re.exec(html))) {
+    const tag = t[0];
+    const cls = (attr(tag, 'class') || '').split(/\s+/);
+    if (classes.some((c) => !cls.includes(c))) continue;
+    if (id && attr(tag, 'id') !== id) continue;
+    const fecha = html.indexOf(`</${t[1]}`, re.lastIndex);
+    const texto = fecha > 0 && fecha - re.lastIndex < 3000 ? html.slice(re.lastIndex, fecha) : '';
+    const estilo = (attr(tag, 'style') || '').match(/url\(\s*['"]?([^'")]+)/i);
+    return { src: attr(tag, 'data-src') || attr(tag, 'data-lazy-src') || attr(tag, 'src') || attr(tag, 'content') || (estilo && estilo[1]) || attr(tag, 'href'), onerror: attr(tag, 'onerror') || '', texto };
+  }
+  return null;
+}
+async function abreImagem(u) {
+  for (const method of ['HEAD', 'GET']) {
+    try {
+      const r = await fetch(u, { method, headers: { 'user-agent': UA, range: 'bytes=0-0' }, redirect: 'follow', signal: AbortSignal.timeout(5000) });
+      if (r.ok || r.status === 206) return true;
+      if (r.status !== 405 && r.status !== 403) return false;
+    } catch { /* tenta de novo */ }
+  }
+  return false;
+}
+// imagem pelo seletor; se não abrir, repete a troca que a própria página faz no onerror (.replace('a','b'))
+async function imagemPorSeletor(html, seletor, base) {
+  const el = porSeletor(html, seletor);
+  if (!el || !el.src) return null;
+  let u; try { u = new URL(el.src.trim(), base).toString(); } catch { return null; }
+  const troca = el.onerror.match(/replace\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)/);
+  if (troca && !(await abreImagem(u))) {
+    const alt = new URL(u.replace(troca[1], troca[2]), base).toString();
+    if (await abreImagem(alt)) return alt;
+  }
+  return u;
+}
+// elemento colado pelo admin (Inspecionar → Copiar elemento): monta o seletor pela tag + classe ou id
+function seletorDoElemento(el) {
+  const t = String(el || '').trim().match(/^<([a-z][a-z0-9]*)\b[^>]*>/i);
+  if (!t) return null;
+  const cls = (attr(t[0], 'class') || '').split(/\s+/).filter((c) => c && !/^(active|show|lazy|loaded|img-fluid|w-100|d-block)$/i.test(c));
+  const id = attr(t[0], 'id');
+  if (cls.length) return t[1].toLowerCase() + '.' + cls[0];
+  if (id) return t[1].toLowerCase() + '#' + id;
+  return null;
+}
+
 // Assistente: acha no código da página o exemplo que o admin copiou e sugere os marcadores
 function sugerirMarcadores(html, exemplo, tipo) {
   exemplo = String(exemplo || '').trim();
   if (!exemplo) return null;
+  if (exemplo.startsWith('<')) {
+    const sel = seletorDoElemento(exemplo);
+    const el = sel && porSeletor(html, sel);
+    if (el) return { achou: true, antes: 'seletor:' + sel, depois: '', valor: tipo === 'img' ? el.src : textoLimpo(el.texto) };
+    // sem classe/id que exista na página: tenta pelo endereço ou pelo texto do elemento
+    exemplo = tipo === 'img' ? (attr(exemplo.match(/^<[^>]*>/)[0], 'src') || '') : textoLimpo(exemplo);
+    if (!exemplo) return { achou: false };
+  }
   const candidatos = [exemplo];
   if (tipo === 'img') {
     try { const u = new URL(exemplo); candidatos.push(u.pathname + u.search, u.pathname, u.pathname.split('/').pop()); } catch { /* segue */ }
@@ -182,9 +245,9 @@ async function analisar(url, padraoTeste) {
   const padrao = padraoTeste !== undefined ? padraoTeste : padraoDoHost(await carregarPadroes(), hostDe(pg.url || url) || hostDe(url)) || padraoDoHost(await carregarPadroes(), hostDe(url));
   let localPadrao = null;
   if (padrao) {
-    const im = entreMarcadores(html, padrao.img_antes, padrao.img_depois);
+    const im = /^seletor:/i.test(padrao.img_antes || '') ? await imagemPorSeletor(html, padrao.img_antes.slice(8), pg.url || url) : entreMarcadores(html, padrao.img_antes, padrao.img_depois);
     if (im && im.trim()) imagem = im.trim().replace(/^url\(|\)$/g, '');
-    const lo = textoLimpo(entreMarcadores(html, padrao.local_antes, padrao.local_depois));
+    const lo = textoLimpo(/^seletor:/i.test(padrao.local_antes || '') ? (porSeletor(html, padrao.local_antes.slice(8)) || {}).texto : entreMarcadores(html, padrao.local_antes, padrao.local_depois));
     if (lo && lo.length >= 3) localPadrao = lo.slice(0, 200);
   }
   if (imagem && !/^https?:/i.test(imagem)) { try { imagem = new URL(imagem, pg.url || url).toString(); } catch { imagem = null; } }

@@ -1788,11 +1788,11 @@ function formPadrao(p, exemplo) {
     <div class="inteiro aviso"><b>Como ensinar:</b> 1) abra o link de exemplo no navegador; 2) clique com o botão direito na foto da corrida e escolha <i>Copiar endereço da imagem</i>; 3) copie o texto do local da largada como aparece na página; 4) cole abaixo e clique em <b>Descobrir padrão</b>; 5) teste com outro link do mesmo site antes de salvar.</div>
     <label class="campo inteiro">Link de uma corrida deste site<input name="url" type="url" value="${esc(exemplo || '')}" placeholder="https://" required>
       <small>${exemplo ? `<a href="${esc(exemplo)}" target="_blank" rel="noopener">Abrir o link em outra aba</a>` : 'Cole o link de inscrição de uma corrida.'}</small></label>
-    <label class="campo">Endereço da imagem (exemplo)<input name="ex_img" placeholder="https://…/banner.jpg"><small>Botão direito na foto → Copiar endereço da imagem</small></label>
-    <label class="campo">Local da largada (exemplo)<input name="ex_local" placeholder="Ex.: Praça da Matriz, Centro"><small>Copie o texto exatamente como aparece na página</small></label>
+    <label class="campo">Imagem (exemplo)<input name="ex_img" placeholder="endereço da imagem ou o elemento <img …>"><small>Melhor: botão direito na foto → Inspecionar → no código, botão direito → Copiar → Copiar elemento. Ou: Copiar endereço da imagem.</small></label>
+    <label class="campo">Local da largada (exemplo)<input name="ex_local" placeholder="texto do local ou o elemento <span …>"><small>Copie o texto como aparece na página, ou o elemento (Inspecionar → Copiar elemento)</small></label>
     <div class="inteiro" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><button type="button" class="btn btn-escuro" id="descobrir">Descobrir padrão</button><small id="msgPadrao" role="status"></small></div>
     <details class="inteiro" id="avancado"${p.img_antes || p.local_antes ? ' open' : ''}><summary style="cursor:pointer;font-weight:600">Marcadores (avançado)</summary>
-      <p class="muted" style="margin:8px 0"><small>O robô pega o que estiver no código da página <b>entre</b> o texto "antes" e o texto "depois". Pode ajustar à mão.</small></p>
+      <p class="muted" style="margin:8px 0"><small>O robô pega o que estiver no código da página <b>entre</b> o texto "antes" e o texto "depois". Ou, se "antes" começar com <b>seletor:</b> (ex.: <code>seletor:img.ev-hero-img</code>), pega a imagem ou o texto do elemento com essa classe, e o "depois" não é usado.</small></p>
       <div class="form" style="padding:0;background:none">
         <label class="campo">Site (domínio)<input name="dominio" value="${esc(p.dominio || '')}" placeholder="exemplo.com.br" required></label>
         <label class="campo">Observação<input name="observacao" value="${esc(p.observacao || '')}"></label>
