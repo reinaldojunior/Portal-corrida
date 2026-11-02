@@ -1288,7 +1288,8 @@ function formCorrida(c = {}, pendente = null) {
     <div class="inteiro"><div class="campo" style="margin-bottom:8px">Distâncias</div><div id="distancias">${(c.corrida_distancias || [{}]).map(linhaDist).join('')}</div><button type="button" class="btn btn-linha" id="addDist">Adicionar distância</button></div>
     <div class="campo inteiro">Descrição <small>Pode colar texto formatado: negrito, itálico, listas e links são mantidos.</small>${editorRico('descricao', c.descricao)}</div>
     <label class="campo">Organizador<input name="organizador" value="${esc(c.organizador || '')}"></label>
-    <label class="campo">Link de inscrição<input name="link_inscricao" type="url" value="${esc(c.link_inscricao || '')}" placeholder="https://"></label>
+    <div class="campo">Link de inscrição<input name="link_inscricao" type="url" value="${esc(c.link_inscricao || '')}" placeholder="https://">
+      <button type="button" class="btn btn-linha btn-buscar" id="buscarInfo">Buscar imagem e local nesse link</button><small id="buscarMsg" role="status"></small></div>
     ${campoFoto(c.imagem_url)}
     ${c.imagem_sugerida && !c.imagem_url ? `<div class="campo inteiro sug-img"><span>Imagem de divulgação encontrada pela busca</span>
       <div class="sug-linha"><img src="${esc(c.imagem_sugerida)}" alt="" loading="lazy"><div><small>É a arte do organizador e tem direitos autorais. Use só se o organizador permitir (muitos liberam para divulgação) e sempre com o crédito.</small>
@@ -1378,6 +1379,34 @@ function formCorrida(c = {}, pendente = null) {
   });
   const deCampos = () => { const la = parseFloat(String(f.lat.value).replace(',', '.')), lo = parseFloat(String(f.lng.value).replace(',', '.')); if (coordValida(la, lo)) aplicarPonto(la, lo, true); };
   f.lat.addEventListener('change', deCampos); f.lng.addEventListener('change', deCampos);
+  $('#buscarInfo').addEventListener('click', async () => {
+    const link = f.link_inscricao.value.trim(), msg = $('#buscarMsg');
+    if (!/^https?:\/\//i.test(link)) { msg.textContent = 'Cole primeiro o link da página de inscrição.'; return; }
+    msg.textContent = 'Lendo a página da inscrição…';
+    try {
+      const r = await fetch(`/api/extrair?url=${encodeURIComponent(link)}`);
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.erro || 'Não foi possível ler a página.');
+      const achou = [];
+      if (j.lat != null && j.lng != null) {
+        if (j.local) { nomeLink = j.local; if (!f.local_largada.value.trim()) { f.local_largada.value = j.local; autoLocal = j.local; } }
+        aplicarPonto(j.lat, j.lng, true); achou.push(j.aproximado ? 'local (aproximado, pelo endereço — confira o pino)' : 'local exato');
+      } else if (j.local && !f.local_largada.value.trim()) { f.local_largada.value = j.local; achou.push('endereço (sem coordenadas — marque o pino no mapa)'); }
+      if (j.imagem) {
+        $('.sug-img', f)?.remove();
+        $('.campo-foto', f).insertAdjacentHTML('afterend', `<div class="campo inteiro sug-img"><span>Imagem de divulgação encontrada na página</span>
+          <div class="sug-linha"><img src="${esc(j.imagem)}" alt="" onerror="this.closest('.sug-img').querySelector('small').textContent='Essa imagem não abriu.'"><div><small>É a arte do organizador e tem direitos autorais. Use só se o organizador permitir (muitos liberam para divulgação) e sempre com o crédito.</small>
+          <button type="button" class="btn btn-linha" data-usar-img>Usar esta imagem com crédito</button></div></div></div>`);
+        $('[data-usar-img]', f).addEventListener('click', () => {
+          f.imagem_url.value = j.imagem; f.imagem_url.dispatchEvent(new Event('change'));
+          if (!f.imagem_credito.value.trim()) f.imagem_credito.value = `Imagem: divulgação${f.organizador.value.trim() ? ' / ' + f.organizador.value.trim() : ''}`;
+          $('.sug-img', f)?.remove();
+        });
+        achou.push('imagem');
+      }
+      msg.textContent = achou.length ? `Encontrado: ${achou.join(', ')}.` : 'Não encontrei imagem nem local nessa página.';
+    } catch (e) { msg.textContent = e.message; }
+  });
   mapaForm.on('click', (e) => { nomeLink = ''; aplicarPonto(e.latlng.lat, e.latlng.lng, false); });
   let gpxNovo = null, gpxLinha = c.percurso ? L.polyline(c.percurso.map((p) => [p[0], p[1]]), { color: '#FF4D00', weight: 3 }).addTo(mapaForm) : null;
   if (gpxLinha) mapaForm.fitBounds(gpxLinha.getBounds().pad(0.1));
