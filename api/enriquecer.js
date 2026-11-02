@@ -4,7 +4,7 @@ const { analisar } = require('./extrair.js');
 
 const SUPABASE_URL = 'https://ssfsxdmzbubvygctdjgf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
-const LIMITE = 24, PARALELO = 4, PRAZO_MS = 50000;
+const LIMITE = 30, PARALELO = 5, PRAZO_MS = 38000;
 
 async function rpc(nome, corpo) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${nome}`, {
@@ -26,18 +26,22 @@ module.exports = async (req, res) => {
   try {
     const fila = (await rpc('robo_para_enriquecer', { p_token: token, p_limite: LIMITE })) || [];
     const feitos = [];
-    let i = 0;
+    let i = 0, n = 0;
+    const comPrazo = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('demorou')), ms))]);
+    const salvar = async (lote) => { if (lote.length) n += (await rpc('robo_enriquecer', { p_token: token, p_itens: lote })) || 0; };
     const trabalhador = async () => {
       while (i < fila.length && Date.now() - inicio < PRAZO_MS) {
         const f = fila[i++];
+        let item = { chave: f.chave };
         try {
-          const d = await analisar(f.link_inscricao);
-          feitos.push({ chave: f.chave, imagem: d.imagem || null, lat: d.lat ?? null, lng: d.lng ?? null, local: d.local || null });
-        } catch { feitos.push({ chave: f.chave }); } // marca como tentado mesmo sem achar nada
+          const d = await comPrazo(analisar(f.link_inscricao), 12000);
+          item = { chave: f.chave, imagem: d.imagem || null, lat: d.lat ?? null, lng: d.lng ?? null, local: d.local || null };
+        } catch { /* marca como tentado mesmo sem achar nada (ou se a página travou) */ }
+        feitos.push(item);
+        await salvar([item]); // salva na hora: se a rodada cair, o que já foi feito fica gravado
       }
     };
     await Promise.all(Array.from({ length: PARALELO }, trabalhador));
-    const n = feitos.length ? await rpc('robo_enriquecer', { p_token: token, p_itens: feitos }) : 0;
     res.status(200).json({ na_fila: fila.length, processadas: n, com_imagem: feitos.filter((x) => x.imagem).length, com_local: feitos.filter((x) => x.lat != null).length });
   } catch (e) { res.status(500).json({ erro: e.message }); }
 };

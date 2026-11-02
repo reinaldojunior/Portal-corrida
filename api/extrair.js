@@ -53,12 +53,12 @@ async function geocodificar(local, cidade) {
   ].filter(Boolean))];
   for (const q of tentativas) {
     try {
-      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(q)}`, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR', referer: 'https://paceclub-mu.vercel.app/' } });
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(q)}`, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR', referer: 'https://paceclub-mu.vercel.app/' }, signal: AbortSignal.timeout(5000) });
       const j = r.ok ? await r.json() : [];
       if (j[0]) return [+j[0].lat, +j[0].lon];
     } catch { /* segue */ }
     try {
-      const r = await fetch(`https://photon.komoot.io/api/?limit=1&lang=default&bbox=-74,-34,-34,6&q=${encodeURIComponent(q)}`, { headers: { 'user-agent': UA } });
+      const r = await fetch(`https://photon.komoot.io/api/?limit=1&lang=default&bbox=-74,-34,-34,6&q=${encodeURIComponent(q)}`, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(5000) });
       const j = r.ok ? await r.json() : null;
       const g = j && j.features && j.features[0];
       if (g) return [g.geometry.coordinates[1], g.geometry.coordinates[0]];
