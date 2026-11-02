@@ -67,8 +67,79 @@ async function geocodificar(local, cidade) {
   return null;
 }
 
+// ---------- Padrões por site (cadastrados no admin, tabela padroes_busca) ----------
+const SUPABASE_URL = 'https://ssfsxdmzbubvygctdjgf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
+let cachePadroes = null, cachePadroesEm = 0;
+async function carregarPadroes() {
+  if (cachePadroes && Date.now() - cachePadroesEm < 120000) return cachePadroes;
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/padroes_busca?select=*`, { headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${SUPABASE_KEY}` }, signal: AbortSignal.timeout(4000) });
+    cachePadroes = r.ok ? await r.json() : [];
+  } catch { cachePadroes = cachePadroes || []; }
+  cachePadroesEm = Date.now();
+  return cachePadroes;
+}
+const hostDe = (u) => { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch { return ''; } };
+function padraoDoHost(lista, host) {
+  return (lista || []).filter((p) => p && p.dominio && (host === p.dominio || host.endsWith('.' + p.dominio)))
+    .sort((a, b) => b.dominio.length - a.dominio.length)[0] || null;
+}
+// texto entre os marcadores "antes" e "depois" (o primeiro que aparecer na página)
+function entreMarcadores(html, antes, depois) {
+  if (!antes) return null;
+  const i = html.indexOf(antes);
+  if (i < 0) return null;
+  const ini = i + antes.length;
+  const fim = html.indexOf(depois || '"', ini);
+  if (fim < 0 || fim - ini > 2000) return null;
+  return html.slice(ini, fim);
+}
+const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', ordm: 'º', ordf: 'ª', ccedil: 'ç', atilde: 'ã', otilde: 'õ', aacute: 'á', eacute: 'é', iacute: 'í', oacute: 'ó', uacute: 'ú', acirc: 'â', ecirc: 'ê', ocirc: 'ô', agrave: 'à', ndash: '–', mdash: '—' };
+const textoLimpo = (s) => String(s || '').replace(/<br\s*\/?>/gi, ', ').replace(/<[^>]*>/g, ' ')
+  .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/&([a-z]+);/gi, (m, n) => ENT[n.toLowerCase()] ?? m)
+  .replace(/\s+/g, ' ').replace(/\s*,(\s*,)*\s*/g, ', ').replace(/^[\s,:-]+|[\s,:-]+$/g, '').trim();
+
+// Assistente: acha no código da página o exemplo que o admin copiou e sugere os marcadores
+function sugerirMarcadores(html, exemplo, tipo) {
+  exemplo = String(exemplo || '').trim();
+  if (!exemplo) return null;
+  const candidatos = [exemplo];
+  if (tipo === 'img') {
+    try { const u = new URL(exemplo); candidatos.push(u.pathname + u.search, u.pathname, u.pathname.split('/').pop()); } catch { /* segue */ }
+  } else {
+    candidatos.push(exemplo.split(',')[0].trim(), exemplo.replace(/&/g, '&amp;'));
+  }
+  let pos = -1, achado = '';
+  for (const c of candidatos) { if (c && c.length >= 4) { pos = html.indexOf(c); if (pos >= 0) { achado = c; break; } } }
+  if (pos < 0) return { achou: false };
+  // estende até as bordas do valor: aspas (atributo) ou tags (texto)
+  let ini = pos, fim = pos + achado.length;
+  if (tipo === 'img') {
+    while (ini > 0 && !`"'(`.includes(html[ini - 1]) && pos - ini < 600) ini--;
+    while (fim < html.length && !`"')`.includes(html[fim]) && fim - pos < 1200) fim++;
+  } else {
+    while (ini > 0 && html[ini - 1] !== '>' && pos - ini < 300) ini--;
+    // vai até a tag que fecha o bloco (pula <br>, <b> etc. no meio do endereço)
+    const fecha = html.indexOf('</', pos);
+    fim = fecha >= 0 && fecha - pos < 600 ? fecha : pos + achado.length;
+  }
+  let depois = html[fim] || '"';
+  if (tipo !== 'img' && html.startsWith('</', fim)) depois = html.slice(fim, html.indexOf('>', fim) + 1) || '<';
+  // marcador "antes": o menor trecho anterior que aponte para este lugar (primeira ocorrência na página)
+  let antes = '';
+  for (let n = 12; n <= 160; n += 4) {
+    antes = html.slice(Math.max(0, ini - n), ini);
+    if (html.indexOf(antes) === ini - antes.length) break;
+  }
+  // começa no início da tag, se estiver perto (fica mais fácil de ler e mais estável)
+  const lt = html.lastIndexOf('<', ini - antes.length);
+  if (lt >= 0 && ini - antes.length - lt <= 80 && !html.slice(lt, ini - antes.length).includes('\n')) antes = html.slice(lt, ini);
+  return { achou: true, antes, depois, valor: html.slice(ini, fim) };
+}
+
 module.exports = async (req, res) => {
-  res.setHeader('cache-control', 's-maxage=3600');
+  res.setHeader('cache-control', 'no-store');
   // modo só endereço: /api/extrair?endereco=...
   const endQ = String((req.query && req.query.endereco) || '').trim();
   if (endQ) {
@@ -78,12 +149,24 @@ module.exports = async (req, res) => {
   }
   const url = urlValida(String((req.query && req.query.url) || ''));
   if (!url) return res.status(400).json({ erro: 'Link inválido.' });
-  try { res.status(200).json(await analisar(url)); }
+  const q = req.query || {};
+  // assistente do admin: ?url=...&aprender=1&img=<endereço da imagem>&local=<texto do local>
+  if (q.aprender) {
+    try {
+      const pg = await baixar(url);
+      if (!pg.ok) throw new Error(`A página respondeu com erro ${pg.status}.`);
+      const html = desfazer(pg.texto);
+      return res.status(200).json({ img: sugerirMarcadores(html, q.img, 'img'), local: sugerirMarcadores(html, q.local, 'local'), tamanho: html.length });
+    } catch (e) { return res.status(502).json({ erro: e.message || 'Não consegui abrir a página da inscrição.' }); }
+  }
+  // teste de um padrão ainda não salvo: ?url=...&teste=1&img_antes=...&img_depois=...&local_antes=...&local_depois=...
+  const padrao = q.teste ? { dominio: hostDe(url), img_antes: q.img_antes || null, img_depois: q.img_depois || null, local_antes: q.local_antes || null, local_depois: q.local_depois || null } : undefined;
+  try { res.status(200).json(await analisar(url, padrao)); }
   catch (e) { res.status(502).json({ erro: e.message }); }
 };
 
 // Lê a página de inscrição e devolve imagem de divulgação e local (usado pelo botão do admin e pelo robô)
-async function analisar(url) {
+async function analisar(url, padraoTeste) {
   url = urlValida(url);
   if (!url) throw new Error('Link inválido.');
   let pg;
@@ -95,7 +178,16 @@ async function analisar(url) {
   const og = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]*content=["']([^"']+)["']/i)
     || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]*(?:property|name)=["'](?:og:image|twitter:image)["']/i);
   let imagem = og ? og[1] : null;
-  if (imagem && imagem.startsWith('/')) imagem = new URL(imagem, pg.url).toString();
+  // padrão cadastrado para este site (vale mais que a busca genérica)
+  const padrao = padraoTeste !== undefined ? padraoTeste : padraoDoHost(await carregarPadroes(), hostDe(pg.url || url) || hostDe(url)) || padraoDoHost(await carregarPadroes(), hostDe(url));
+  let localPadrao = null;
+  if (padrao) {
+    const im = entreMarcadores(html, padrao.img_antes, padrao.img_depois);
+    if (im && im.trim()) imagem = im.trim().replace(/^url\(|\)$/g, '');
+    const lo = textoLimpo(entreMarcadores(html, padrao.local_antes, padrao.local_depois));
+    if (lo && lo.length >= 3) localPadrao = lo.slice(0, 200);
+  }
+  if (imagem && !/^https?:/i.test(imagem)) { try { imagem = new URL(imagem, pg.url || url).toString(); } catch { imagem = null; } }
 
   // links de mapa na página (inclusive dentro de JSON)
   const links = [...new Set((html.match(/https?:\/\/(?:www\.)?(?:google\.[a-z.]+\/maps[^"'<>\s]*|maps\.google\.[a-z.]+[^"'<>\s]*|maps\.app\.goo\.gl\/[^"'<>\s]+|goo\.gl\/maps\/[^"'<>\s]+)/gi) || []))].slice(0, 6);
@@ -116,12 +208,13 @@ async function analisar(url) {
   const cidadeEv = plano.match(/"addressLocality"\s*:\s*"([^"]{2,80})"/);
   const endereco = (ender && ender[1]) || (lugar && lugar[1]) || null;
   if (!local && endereco) local = endereco.replace(/,\s*Brasil$/i, '').replace(/\s+/g, ' ').trim();
+  if (localPadrao) local = localPadrao;
 
   // sem coordenadas: procura o endereço no OpenStreetMap
   if (lat == null && local) { const g = await geocodificar(local, cidadeEv && cidadeEv[1]); if (g) [lat, lng] = g; }
   // a página monta o link do Maps na hora; montamos o mesmo link a partir do endereço
   if (!mapa && local) mapa = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(local)}`;
-  return { imagem, lat, lng, local, mapa, aproximado: lat != null && !coordsDoLink(mapa || '') };
+  return { imagem, lat, lng, local, mapa, aproximado: lat != null && !coordsDoLink(mapa || ''), padrao: padrao ? padrao.dominio : null };
 }
 module.exports.analisar = analisar;
 

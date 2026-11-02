@@ -1238,7 +1238,7 @@ function telaLogin(erro) {
   });
 }
 function pintarAdmin(semConteudo) {
-  const abas = [['corridas', 'Corridas'], ['pendentes', 'Pendentes'], ['noticias', 'Notícias'], ['modulos', 'Módulos'], ['inscritos', 'Inscritos']];
+  const abas = [['corridas', 'Corridas'], ['pendentes', 'Pendentes'], ['padroes', 'Padrões de busca'], ['noticias', 'Notícias'], ['modulos', 'Módulos'], ['inscritos', 'Inscritos']];
   $('#adminBox').innerHTML = `
     <div class="barra-admin"><h1 class="display" style="margin:0">Painel</h1><div style="display:flex;gap:10px"><a href="#" class="btn btn-linha">Ver o site</a><button class="btn btn-linha" id="btnSair">Sair</button></div></div>
     <div class="abas" role="tablist">${abas.map(([k, n]) => `<button role="tab" data-aba="${k}" aria-selected="${abaAdmin === k}">${n}</button>`).join('')}</div>
@@ -1246,7 +1246,7 @@ function pintarAdmin(semConteudo) {
   $$('[data-aba]').forEach((b) => b.addEventListener('click', () => { abaAdmin = b.dataset.aba; pintarAdmin(); }));
   $('#btnSair').addEventListener('click', async () => { await sb.auth.signOut(); estado.admin = false; $('#btnEntrar').textContent = 'Entrar'; location.hash = ''; });
   if (semConteudo) return;
-  ({ corridas: adminCorridas, pendentes: adminPendentes, noticias: adminNoticias, modulos: adminModulos, inscritos: adminInscritos })[abaAdmin]();
+  ({ corridas: adminCorridas, pendentes: adminPendentes, padroes: adminPadroes, noticias: adminNoticias, modulos: adminModulos, inscritos: adminInscritos })[abaAdmin]();
 }
 async function recarregarCorridas() {
   const { data } = await sb.from('corridas').select('*, corrida_distancias(*)').order('data', { ascending: false });
@@ -1741,6 +1741,136 @@ function formNoticia(n = {}) {
     const r = n.id ? await sb.from('noticias').update(dados).eq('id', n.id) : await sb.from('noticias').insert(dados);
     if (r.error) { $('#nMsg').textContent = 'Não foi possível salvar. Tente de novo.'; return; }
     toast('Notícia salva'); adminNoticias(); atualizarPublico();
+  });
+}
+
+/* ---------- Padrões de busca por site (onde ficam a imagem e o local em cada site de inscrição) ---------- */
+const dominioDe = (u) => { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch { return ''; } };
+async function adminPadroes() {
+  const box = $('#conteudoAdmin');
+  box.innerHTML = '<p class="muted">Carregando…</p>';
+  const pr = await sb.from('padroes_busca').select('*').order('dominio');
+  if (pr.error) { box.innerHTML = '<div class="aviso erro">A tabela de padrões ainda não existe no banco. Rode o script <b>sql/19-padroes-busca.sql</b> no Supabase.</div>'; return; }
+  const padroes = pr.data || [];
+  let pend = [];
+  for (let de = 0; ; de += 1000) {
+    const r = await sb.from('corridas_pendentes').select('link_inscricao, imagem_sugerida, lat, enriquecido_em, data').eq('status', 'pendente').not('link_inscricao', 'is', null).range(de, de + 999);
+    if (r.error || !r.data) break;
+    pend = pend.concat(r.data);
+    if (r.data.length < 1000) break;
+  }
+  const sites = {};
+  for (const p of pend) {
+    const d = dominioDe(p.link_inscricao); if (!d) continue;
+    const s = sites[d] || (sites[d] = { d, n: 0, lidas: 0, img: 0, pino: 0, exemplo: null });
+    s.n++; if (p.enriquecido_em) s.lidas++; if (p.imagem_sugerida) s.img++; if (p.lat != null) s.pino++;
+    if (!s.exemplo || (p.enriquecido_em && !p.imagem_sugerida)) s.exemplo = p.link_inscricao;
+  }
+  for (const p of padroes) if (!sites[p.dominio]) sites[p.dominio] = { d: p.dominio, n: 0, lidas: 0, img: 0, pino: 0, exemplo: null };
+  const lista = Object.values(sites).sort((a, b) => b.n - a.n);
+  const temPadrao = (d) => padroes.find((p) => p.dominio === d);
+  const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '—';
+  box.innerHTML = `<div class="barra-admin"><span class="muted">Cada site de inscrição mostra a imagem e o local de um jeito. Ensine o padrão de um site e o robô passa a usar em todas as provas dele.</span>
+    <button class="btn btn-cone" id="novoPadrao">Novo padrão</button></div>
+  <div class="tabela-wrap"><table class="tab"><thead><tr><th>Site</th><th>Pendentes</th><th>Com imagem</th><th>Com local</th><th>Padrão</th><th><span class="muted" style="font-weight:400">Ações</span></th></tr></thead><tbody>
+  ${lista.map((s) => `<tr><td><b>${esc(s.d)}</b></td><td>${s.n}</td><td>${s.lidas ? `${s.img} <small class="muted">(${pct(s.img, s.lidas)} das lidas)</small>` : '—'}</td><td>${s.lidas ? `${s.pino} <small class="muted">(${pct(s.pino, s.lidas)})</small>` : '—'}</td>
+    <td>${temPadrao(s.d) ? '<span class="status publicado">configurado</span>' : '<span class="muted">genérico</span>'}</td>
+    <td class="acoes"><button class="btn btn-linha" data-padrao="${esc(s.d)}" data-exemplo="${esc(s.exemplo || '')}">${temPadrao(s.d) ? 'Editar padrão' : 'Ensinar padrão'}</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">Nenhum site na fila.</td></tr>'}
+  </tbody></table></div>`;
+  $('#novoPadrao').addEventListener('click', () => formPadrao({}, ''));
+  $$('[data-padrao]', box).forEach((b) => b.addEventListener('click', () => formPadrao(temPadrao(b.dataset.padrao) || { dominio: b.dataset.padrao }, b.dataset.exemplo)));
+}
+
+function formPadrao(p, exemplo) {
+  const box = $('#conteudoAdmin');
+  box.innerHTML = `<form class="form" id="fPadrao">
+    <div class="inteiro form-topo"><h2 class="display" style="font-size:40px;margin:0">${p.dominio ? 'Padrão de ' + esc(p.dominio) : 'Novo padrão'}</h2></div>
+    <div class="inteiro aviso"><b>Como ensinar:</b> 1) abra o link de exemplo no navegador; 2) clique com o botão direito na foto da corrida e escolha <i>Copiar endereço da imagem</i>; 3) copie o texto do local da largada como aparece na página; 4) cole abaixo e clique em <b>Descobrir padrão</b>; 5) teste com outro link do mesmo site antes de salvar.</div>
+    <label class="campo inteiro">Link de uma corrida deste site<input name="url" type="url" value="${esc(exemplo || '')}" placeholder="https://" required>
+      <small>${exemplo ? `<a href="${esc(exemplo)}" target="_blank" rel="noopener">Abrir o link em outra aba</a>` : 'Cole o link de inscrição de uma corrida.'}</small></label>
+    <label class="campo">Endereço da imagem (exemplo)<input name="ex_img" placeholder="https://…/banner.jpg"><small>Botão direito na foto → Copiar endereço da imagem</small></label>
+    <label class="campo">Local da largada (exemplo)<input name="ex_local" placeholder="Ex.: Praça da Matriz, Centro"><small>Copie o texto exatamente como aparece na página</small></label>
+    <div class="inteiro" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><button type="button" class="btn btn-escuro" id="descobrir">Descobrir padrão</button><small id="msgPadrao" role="status"></small></div>
+    <details class="inteiro" id="avancado"${p.img_antes || p.local_antes ? ' open' : ''}><summary style="cursor:pointer;font-weight:600">Marcadores (avançado)</summary>
+      <p class="muted" style="margin:8px 0"><small>O robô pega o que estiver no código da página <b>entre</b> o texto "antes" e o texto "depois". Pode ajustar à mão.</small></p>
+      <div class="form" style="padding:0;background:none">
+        <label class="campo">Site (domínio)<input name="dominio" value="${esc(p.dominio || '')}" placeholder="exemplo.com.br" required></label>
+        <label class="campo">Observação<input name="observacao" value="${esc(p.observacao || '')}"></label>
+        <label class="campo">Imagem — antes<input name="img_antes" value="${esc(p.img_antes || '')}"></label>
+        <label class="campo">Imagem — depois<input name="img_depois" value="${esc(p.img_depois || '')}" placeholder='"'></label>
+        <label class="campo">Local — antes<input name="local_antes" value="${esc(p.local_antes || '')}"></label>
+        <label class="campo">Local — depois<input name="local_depois" value="${esc(p.local_depois || '')}" placeholder="</span>"></label>
+      </div></details>
+    <div class="inteiro" style="display:flex;gap:10px;flex-wrap:wrap"><button type="button" class="btn btn-linha" id="testarPadrao">Testar neste link</button></div>
+    <div class="inteiro" id="resultadoPadrao"></div>
+    <div class="inteiro" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between">
+      <span style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-escuro" type="submit">Salvar padrão</button><button class="btn btn-cone" type="button" id="salvarReproc">Salvar e reprocessar as pendentes do site</button></span>
+      <span style="display:flex;gap:10px">${p.dominio && p.atualizado_em ? '<button class="btn btn-perigo" type="button" id="excluirPadrao">Excluir padrão</button>' : ''}<button class="btn btn-linha" type="button" id="voltarPadroes">Voltar</button></span></div>
+  </form>`;
+  const f = $('#fPadrao'), msg = $('#msgPadrao');
+  f.url.addEventListener('change', () => { if (!f.dominio.value.trim()) f.dominio.value = dominioDe(f.url.value); });
+  if (!f.dominio.value && exemplo) f.dominio.value = dominioDe(exemplo);
+  $('#voltarPadroes').addEventListener('click', adminPadroes);
+  $('#descobrir').addEventListener('click', async () => {
+    const url = f.url.value.trim();
+    if (!/^https?:\/\//i.test(url)) return (msg.textContent = 'Cole primeiro o link de uma corrida do site.');
+    if (!f.ex_img.value.trim() && !f.ex_local.value.trim()) return (msg.textContent = 'Cole o endereço da imagem e/ou o texto do local.');
+    msg.textContent = 'Lendo a página…';
+    try {
+      const r = await fetch(`/api/extrair?aprender=1&url=${encodeURIComponent(url)}&img=${encodeURIComponent(f.ex_img.value.trim())}&local=${encodeURIComponent(f.ex_local.value.trim())}`);
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.erro || 'Não consegui ler a página.');
+      const avisos = [];
+      if (f.ex_img.value.trim()) {
+        if (j.img && j.img.achou) { f.img_antes.value = j.img.antes; f.img_depois.value = j.img.depois; avisos.push('imagem: padrão encontrado'); }
+        else avisos.push('imagem: não aparece no código da página (o site deve montar a página com JavaScript, aí o padrão não funciona)');
+      }
+      if (f.ex_local.value.trim()) {
+        if (j.local && j.local.achou) { f.local_antes.value = j.local.antes; f.local_depois.value = j.local.depois; avisos.push('local: padrão encontrado'); }
+        else avisos.push('local: não aparece no código da página (confira se copiou igual, ou o site monta com JavaScript)');
+      }
+      if (!f.dominio.value.trim()) f.dominio.value = dominioDe(url);
+      $('#avancado').open = true;
+      msg.textContent = avisos.join(' · ') + '. Agora teste.';
+    } catch (e) { msg.textContent = e.message; }
+  });
+  const marcadores = () => ({ img_antes: f.img_antes.value, img_depois: f.img_depois.value, local_antes: f.local_antes.value, local_depois: f.local_depois.value });
+  $('#testarPadrao').addEventListener('click', async () => {
+    const url = f.url.value.trim(), out = $('#resultadoPadrao');
+    if (!/^https?:\/\//i.test(url)) return (out.innerHTML = '<small>Cole um link para testar.</small>');
+    out.innerHTML = '<small>Testando…</small>';
+    try {
+      const qs = new URLSearchParams({ url, teste: '1', ...marcadores() });
+      const r = await fetch(`/api/extrair?${qs}`);
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.erro || 'Não consegui ler a página.');
+      out.innerHTML = `<div class="admin-busca" style="border:0;padding:0">
+        <div class="admin-busca-item">${j.imagem ? `<img src="${esc(j.imagem)}" alt="" onerror="this.replaceWith('(a imagem não abriu)')">` : ''}<span><b>Imagem</b><br><small>${j.imagem ? esc(j.imagem) : 'não encontrada'}</small></span></div>
+        <div class="admin-busca-item"><span><b>Local</b><br><small>${j.local ? esc(j.local) : 'não encontrado'}${j.lat != null ? ` · pino ${j.aproximado ? 'aproximado' : 'exato'} (${j.lat.toFixed(5)}, ${j.lng.toFixed(5)})` : ' · sem pino'}</small></span></div>
+        <small class="muted">Dica: troque o link acima por outra corrida do mesmo site e teste de novo, para ter certeza de que o padrão serve para todas.</small></div>`;
+    } catch (e) { out.innerHTML = `<small>${esc(e.message)}</small>`; }
+  });
+  const salvar = async () => {
+    const dominio = f.dominio.value.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
+    if (!dominio || !dominio.includes('.')) { toast('Informe o site (domínio)'); return null; }
+    const m = marcadores();
+    for (const k in m) m[k] = m[k] ? m[k] : null;
+    const dados = { dominio, ...m, observacao: f.observacao.value.trim() || null, atualizado_em: new Date().toISOString() };
+    if (p.dominio && p.atualizado_em && p.dominio !== dominio) await sb.from('padroes_busca').delete().eq('dominio', p.dominio);
+    const { error } = await sb.from('padroes_busca').upsert(dados);
+    if (error) { toast('Não foi possível salvar o padrão.'); return null; }
+    return dominio;
+  };
+  f.addEventListener('submit', async (e) => { e.preventDefault(); if (await salvar()) { toast('Padrão salvo'); adminPadroes(); } });
+  $('#salvarReproc').addEventListener('click', async () => {
+    const d = await salvar(); if (!d) return;
+    const { data: n, error } = await sb.rpc('admin_reprocessar_site', { p_site: d });
+    toast(error ? 'Padrão salvo, mas não consegui devolver as pendentes à fila.' : `Padrão salvo. ${n || 0} pendente(s) voltaram para a fila do robô.`);
+    adminPadroes();
+  });
+  $('#excluirPadrao')?.addEventListener('click', async () => {
+    if (!confirm(`Excluir o padrão de ${p.dominio}? O robô volta a usar a busca genérica para esse site.`)) return;
+    await sb.from('padroes_busca').delete().eq('dominio', p.dominio); toast('Padrão excluído'); adminPadroes();
   });
 }
 
