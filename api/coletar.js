@@ -152,12 +152,18 @@ module.exports = async (req, res) => {
   if (req.query.uf) estados = String(req.query.uf).toUpperCase().split(/[,\s]+/).filter((x) => todos.includes(x));
   else if (req.query.grupo === '1') estados = todos.slice(0, Math.ceil(todos.length / 2));
   else if (req.query.grupo === '2') estados = todos.slice(Math.ceil(todos.length / 2));
+  // registra a rodada (aba "Robô" do admin); se o registro falhar, a coleta segue
+  const token = process.env.ROBO_TOKEN;
+  const params = Object.entries(req.query || {}).filter(([k]) => k !== 'chave').map(([k, v]) => `${k}=${v}`).join(' ') || 'padrão';
+  const logId = await rpc('robo_log_inicio', { p_token: token, p_rota: 'coletar', p_parametros: params, p_origem: 'agendado' }).catch(() => null);
+  const logFim = (ok, resultado, erro) => logId ? rpc('robo_log_fim', { p_token: token, p_id: logId, p_ok: ok, p_resultado: resultado, p_erro: erro || null }).catch(() => null) : null;
   try {
     // ?detalhes=N (até 200) completa mais provas da fila numa só execução (carga inicial)
     const maxDet = Math.min(200, Math.max(1, parseInt(req.query.detalhes, 10) || MAX_DETALHES));
     const relatorio = await coletar(estados, req.query.simular !== '1', maxDet);
+    await logFim(true, { relatorio: relatorio.map(({ exemplo, ...x }) => x) }, null);
     res.status(200).json({ quando: new Date().toISOString(), relatorio });
-  } catch (e) { res.status(500).json({ erro: e.message }); }
+  } catch (e) { await logFim(false, null, e.message); res.status(500).json({ erro: e.message }); }
 };
 module.exports.lerCalendario = lerCalendario;
 module.exports.lerDetalhe = lerDetalhe;

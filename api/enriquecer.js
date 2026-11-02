@@ -32,6 +32,10 @@ module.exports = async (req, res) => {
   if (!(segredo && enviada === segredo) && !peloAdmin) return res.status(401).json({ erro: 'não autorizado' });
   const token = process.env.ROBO_TOKEN;
   const inicio = Date.now();
+  // registra a rodada (aba "Robô" do admin); se o registro falhar, o robô segue
+  const params = Object.entries(req.query || {}).filter(([k]) => k !== 'chave').map(([k, v]) => `${k}=${v}`).join(' ') || 'padrão';
+  const logId = await rpc('robo_log_inicio', { p_token: token, p_rota: 'enriquecer', p_parametros: params, p_origem: peloAdmin ? 'admin' : 'agendado' }).catch(() => null);
+  const logFim = (ok, resultado, erro) => logId ? rpc('robo_log_fim', { p_token: token, p_id: logId, p_ok: ok, p_resultado: resultado, p_erro: erro || null }).catch(() => null) : null;
   try {
     // ?so=pinos pula a leitura das páginas e usa o tempo todo para conferir pinos (e pôr o centro da cidade)
     const soPinos = req.query.so === 'pinos';
@@ -80,6 +84,11 @@ module.exports = async (req, res) => {
     // publica sozinho as completas (data futura, link, distâncias, imagem e pino)
     let publicadas = 0;
     try { publicadas = await rpc('robo_publicar_completas', { p_token: token }); } catch { /* segue */ }
-    res.status(200).json({ na_fila: fila.length, processadas: n, falhas, publicadas, conferidos, corrigidos, com_imagem: feitos.filter((x) => x.imagem).length, com_local: feitos.filter((x) => x.lat != null).length });
-  } catch (e) { res.status(500).json({ erro: e.message }); }
+    // corridas que já passaram: pendentes vencidas saem da fila e as inscrições fecham
+    let limpeza = null;
+    if (!peloAdmin) try { limpeza = await rpc('robo_limpar_passadas', { p_token: token }); } catch { /* segue */ }
+    const resultado = { na_fila: fila.length, processadas: n, falhas, publicadas, conferidos, corrigidos, com_imagem: feitos.filter((x) => x.imagem).length, com_local: feitos.filter((x) => x.lat != null).length, ...(limpeza || {}) };
+    await logFim(true, resultado, null);
+    res.status(200).json(resultado);
+  } catch (e) { await logFim(false, null, e.message); res.status(500).json({ erro: e.message }); }
 };

@@ -850,3 +850,9 @@ a.manchete-foto{display:block}
 .cont-aba{margin-left:4px;font-size:.8em;color:var(--cone-txt)}
 .filtros-admin{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin:0 0 12px}
 .filtros-admin .campo{width:auto}
+.aviso-passada{margin:18px 0 0}
+.calendario-box{display:flex;flex-direction:column;gap:8px}
+.calendario-box .btn{width:100%;text-align:center}
+.robo-cartoes{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:0 0 12px}
+.robo-cartao{display:flex;flex-direction:column;gap:6px;margin:0}
+.robo-cartao b{font-size:20px}

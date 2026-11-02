@@ -53,7 +53,7 @@ function passaFiltro(c) {
   return (c.corrida_distancias || []).some((d) => d.km != null && +d.km >= alvo[0] && +d.km <= alvo[1]);
 }
 function linkCorrida(c) {
-  if (mod('pagina_corrida')) return { href: `#corrida/${encodeURIComponent(c.slug)}`, ext: false };
+  if (mod('pagina_corrida')) return { href: `/corrida/${encodeURIComponent(c.slug)}`, ext: false };
   if (c.link_inscricao) return { href: c.link_inscricao, ext: true };
   return null;
 }
@@ -1058,16 +1058,60 @@ function barraAdminCorrida(v, c) {
     if (error) return toast('Não foi possível excluir.');
     toast('Corrida excluída');
     estado.corridas = estado.corridas.filter((x) => x.id !== c.id);
-    location.hash = ''; atualizarPublico();
+    irInicio(); atualizarPublico();
   });
 }
+/* ---------- Adicionar ao calendário ---------- */
+function eventoCalendario(c) {
+  const [a, m, d] = c.data.split('-').map(Number);
+  const [hh, mm] = (c.horario || '07:00').split(':').map(Number);
+  // horário de Brasília (UTC-3) convertido para UTC
+  const ini = new Date(Date.UTC(a, m - 1, d, hh + 3, mm));
+  const fim = new Date(ini.getTime() + 3 * 3600e3);
+  const fmt = (x) => x.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const pagina = `${location.origin}/corrida/${encodeURIComponent(c.slug)}`;
+  const local = [c.local_largada, c.cidade && `${c.cidade}${c.estado ? ' - ' + c.estado : ''}`].filter(Boolean).join(', ');
+  const dists = rotulos(c).join(', ');
+  const texto = [dists && `Distâncias: ${dists}`, c.horario ? '' : 'Horário da largada a confirmar.', c.link_inscricao && `Inscrição: ${c.link_inscricao}`, `Mais informações: ${pagina}`].filter(Boolean).join('\n');
+  return { titulo: c.nome, ini: fmt(ini), fim: fmt(fim), local, texto, pagina };
+}
+function linkGoogleAgenda(c) {
+  const e = eventoCalendario(c);
+  return `https://calendar.google.com/calendar/render?${new URLSearchParams({ action: 'TEMPLATE', text: e.titulo, dates: `${e.ini}/${e.fim}`, location: e.local, details: e.texto })}`;
+}
+function baixarIcs(c) {
+  const e = eventoCalendario(c);
+  const q = (t) => String(t || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/([,;])/g, '\\$1');
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//PaceClub//Corridas//PT-BR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
+    `UID:${c.id || c.slug}@paceclub`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
+    `DTSTART:${e.ini}`, `DTEND:${e.fim}`, `SUMMARY:${q(e.titulo)}`, `LOCATION:${q(e.local)}`, `DESCRIPTION:${q(e.texto)}`, `URL:${e.pagina}`,
+    'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${q('Amanhã: ' + e.titulo + ' (retire o kit!)')}`, 'TRIGGER:-P1D', 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: `${c.slug}.ics` });
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+// corridas que já aconteceram não vêm na carga inicial: busca no banco quando alguém abre a página
+const passadasBuscadas = new Set();
 function mostrarCorrida(slug, percIdx = 0) {
-  const c0 = estado.corridas.find((x) => x.slug === slug && (x.status === 'publicado' || estado.admin));
+  const c0 = [...estado.corridas, ...(estado.passadas || [])].find((x) => x.slug === slug && (x.status === 'publicado' || estado.admin));
+  if (!c0 && sb && !estado.demo && !passadasBuscadas.has(slug)) {
+    passadasBuscadas.add(slug);
+    $('#vCorrida').innerHTML = '<div class="wrap" style="padding:64px 0"><p class="muted">Carregando…</p></div>';
+    sb.from('corridas').select('*, corrida_distancias(*)').eq('slug', slug).maybeSingle().then(({ data }) => {
+      if (data) (estado.passadas = estado.passadas || []).push(data);
+      if (rotaAtual().slice(9) === slug) mostrarCorrida(slug, percIdx);
+    });
+    return;
+  }
   const percs = c0 ? percursosDe(c0) : [];
   const pSel = percs[Math.min(percIdx, Math.max(0, percs.length - 1))];
   const c = c0 && pSel ? { ...c0, percurso: pSel.percurso, percurso_km: pSel.percurso_km, subida_m: pSel.subida_m, descida_m: pSel.descida_m, km_oficial: pSel.km && Math.abs(pSel.km - pSel.percurso_km) / pSel.km <= 0.15 ? pSel.km : null } : c0;
   const v = $('#vCorrida');
   if (!c) { v.innerHTML = '<div class="wrap" style="padding:64px 0"><h1 class="display" style="font-size:56px">Corrida não encontrada</h1><p class="muted">Ela pode ter sido removida ou já aconteceu. <a href="#" style="color:var(--cone-txt);font-weight:600">Voltar para a agenda</a></p></div>'; return; }
+  document.title = `${c.nome} · ${c.cidade} · PaceClub`;
   const dist = (c.corrida_distancias || []).slice().sort(porDist);
   const temPerc = Array.isArray(c.percurso) && c.percurso.length > 1;
   const brl = (v) => v == null ? 'Preço a confirmar' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -1103,6 +1147,7 @@ function mostrarCorrida(slug, percIdx = 0) {
 ` : '';
   const semTexto = !c.imagem_url && !c.descricao && !(c.kit_inclui || []).length && (temPerc || c.lat == null);
   v.innerHTML = `<div class="wrap pagina-corrida${semTexto ? ' sem-texto' : ''}">
+    ${c.data < hojeISO() ? `<div class="aviso aviso-passada"><b>Esta corrida já aconteceu</b> em ${dataLonga(c.data)}. <a href="#" data-ir="quadro">Ver as próximas corridas</a></div>` : ''}
     <div class="cab">${bib(c.data)}<div><span class="editoria">${dataLonga(c.data)}${c.horario ? ', largada às ' + c.horario.slice(0, 5) : ''}</span><h1 class="display">${esc(c.nome)}</h1><span class="muted" style="font-size:18px">${esc(c.cidade)}, ${esc(c.estado)}${c.organizador ? ' · Organização: ' + esc(c.organizador) : ''}</span></div></div>
     <div class="principal">
       ${c.imagem_url ? `<figure class="foto-cred"><div class="foto" style="height:360px"><img src="${esc(c.imagem_url)}" alt="${esc(c.nome)}"></div>${c.imagem_credito ? `<figcaption>${esc(c.imagem_credito)}</figcaption>` : ''}</figure>` : ''}
@@ -1114,10 +1159,15 @@ function mostrarCorrida(slug, percIdx = 0) {
     <div class="lado">
       <div class="caixa"><h2 class="display">Distâncias</h2>${dist.length ? dist.map((d) => `<div class="dist-linha"><b>${esc(d.rotulo)}</b><span>${brl(d.preco)}</span></div>`).join('') : '<p class="muted" style="margin:0">Distâncias a confirmar.</p>'}
         ${c.link_inscricao ? `<a class="btn btn-cone" style="width:100%;margin-top:16px" href="${esc(c.link_inscricao)}" target="_blank" rel="noopener">${c.inscricoes_abertas ? 'Fazer inscrição' : 'Ver site da prova'}</a>` : ''}
-        ${c.inscricoes_abertas ? '' : '<p class="muted" style="margin:12px 0 0">Inscrições encerradas.</p>'}
+        ${c.inscricoes_abertas && c.data >= hojeISO() ? '' : `<p class="muted" style="margin:12px 0 0">${c.data < hojeISO() ? 'A corrida já aconteceu.' : 'Inscrições encerradas.'}</p>`}
       </div>
+      ${c.data >= hojeISO() ? `<div class="caixa calendario-box"><h2 class="display">Na sua agenda</h2>
+        <a class="btn btn-linha" href="${esc(linkGoogleAgenda(c))}" target="_blank" rel="noopener">Google Agenda</a>
+        <button class="btn btn-linha" type="button" id="baixarIcs">iPhone, Outlook (.ics)</button>
+        <small class="muted">Com lembrete um dia antes, para não esquecer do kit.</small></div>` : ''}
       <a href="#mapa" class="btn btn-linha" data-mod="mapa">Ver corridas próximas no mapa</a>
     </div>${percHtml}${simHtml}</div>`;
+  $('#baixarIcs', v)?.addEventListener('click', () => baixarIcs(c));
   $$('[data-perc]', v).forEach((b) => b.addEventListener('click', () => {
     const y = window.scrollY; mostrarCorrida(slug, Number(b.dataset.perc)); window.scrollTo(0, y);
     setTimeout(() => $(`[data-perc="${b.dataset.perc}"]`)?.focus(), 60);
@@ -1173,15 +1223,21 @@ $('#formAviso').addEventListener('submit', async (e) => {
 });
 
 /* ================== Rotas ================== */
-const TITULO_SITE = document.title;
+// título padrão (as páginas /corrida/... chegam com o título da prova, vindo do servidor)
+const TITULO_SITE = document.querySelector('meta[name="pc-titulo"]')?.content || document.title;
+// endereço de verdade da corrida (/corrida/nome-da-prova), usado pelo Google e no compartilhamento
+function rotaCorridaPeloCaminho() { const m = location.pathname.match(/^\/corrida\/([^/]+)\/?$/); return m ? decodeURIComponent(m[1]) : ''; }
+function rotaAtual() { return decodeURIComponent(location.hash) || (rotaCorridaPeloCaminho() ? '#corrida/' + rotaCorridaPeloCaminho() : ''); }
+// volta para a página inicial sem recarregar (também a partir de /corrida/...)
+function irInicio() { history.pushState('', '', '/'); rotear(); }
 function rotear() {
-  const h = decodeURIComponent(location.hash);
+  const h = rotaAtual();
   const eMapa = h === '#mapa', eAdmin = h === '#admin', eCorrida = h.startsWith('#corrida/'), eNoticia = h.startsWith('#noticia/'), eZonas = h === '#zonas' && mod('zonas_fc');
   $('#vMapa').hidden = !(eMapa && mod('mapa'));
   document.body.style.overflow = eMapa ? 'hidden' : '';
   $('#vHome').hidden = eAdmin || eCorrida || eNoticia;
   $('#vNoticia').hidden = !eNoticia;
-  if (!eNoticia) document.title = TITULO_SITE;
+  if (!eNoticia && !eCorrida) document.title = TITULO_SITE;
   $('#vAdmin').hidden = !eAdmin;
   $('#vCorrida').hidden = !eCorrida;
   $('#navApp').hidden = eAdmin || eMapa;
@@ -1194,10 +1250,11 @@ function rotear() {
   if (!eMapa && !eAdmin && !eCorrida && !eNoticia && mapaCompacto) setTimeout(() => mapaCompacto.invalidateSize(), 50);
 }
 window.addEventListener('hashchange', rotear);
+window.addEventListener('popstate', () => { if (!location.hash) rotear(); });
 document.addEventListener('click', (e) => {
   const a = e.target.closest('[data-ir]'); if (!a) return;
   e.preventDefault();
-  if (location.hash) history.pushState('', '', location.pathname), rotear();
+  if (location.hash || rotaCorridaPeloCaminho()) irInicio();
   setTimeout(() => $('#' + a.dataset.ir)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && location.hash === '#mapa') location.hash = ''; });
@@ -1277,8 +1334,64 @@ const dominioLink = (u) => { try { return new URL(u).hostname.replace(/^www\./, 
 const opcoesSel = (pares, atual) => pares.map(([v, t]) => `<option value="${esc(v)}"${v === atual ? ' selected' : ''}>${t}</option>`).join('');
 const ORDENS_DATA = { proximas: (a, b) => a.data.localeCompare(b.data), distantes: (a, b) => b.data.localeCompare(a.data), recentes: (a, b) => String(b.criado_em || '').localeCompare(String(a.criado_em || '')) };
 
+/* ---------- Saúde do robô ---------- */
+const NAO_TERMINOU_MIN = 3;
+const situacaoExec = (e) => e.fim ? (e.ok ? 'ok' : 'falhou') : (Date.now() - new Date(e.inicio) > NAO_TERMINOU_MIN * 60e3 ? 'nao_terminou' : 'rodando');
+function problemasRobo(execs) {
+  const avisos = [];
+  const agendadas = execs.filter((e) => e.origem !== 'admin');
+  if (!agendadas.length) return ['Nenhuma rodada do robô registrada ainda. O registro começou agora; a próxima rodada agendada vai aparecer aqui.'];
+  const horas = (Date.now() - new Date(agendadas[0].inicio)) / 3600e3;
+  if (horas > 26) avisos.push(`O robô não roda há ${Math.round(horas)} horas. Confira os agendamentos (cron) na Vercel.`);
+  for (const rota of ['enriquecer', 'coletar']) {
+    const ult = agendadas.filter((e) => e.rota === rota && situacaoExec(e) !== 'rodando').slice(0, 2);
+    if (ult.length === 2 && ult.every((e) => situacaoExec(e) !== 'ok')) avisos.push(`As 2 últimas rodadas de "${rota}" falharam ou não terminaram.`);
+  }
+  return avisos;
+}
+async function verificarRobo() {
+  const { data } = await sb.from('robo_execucoes').select('rota, origem, inicio, fim, ok').order('inicio', { ascending: false }).limit(30);
+  const tem = data && problemasRobo(data).length && data.length;
+  const aba = $('[data-aba="robo"] span');
+  if (aba) aba.textContent = tem ? 'Robô ⚠' : 'Robô';
+}
+async function adminRobo() {
+  const box = $('#conteudoAdmin');
+  box.innerHTML = '<p class="muted">Carregando…</p>';
+  const { data, error } = await sb.from('robo_execucoes').select('*').order('inicio', { ascending: false }).limit(150);
+  if (error) { box.innerHTML = '<div class="aviso erro">A tabela de execuções ainda não existe. Rode o script <b>sql/21-robo-log-e-passadas.sql</b> no Supabase.</div>'; return; }
+  const execs = data || [];
+  const avisos = problemasRobo(execs);
+  const quando = (t) => new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const dur = (e) => e.fim ? `${Math.round((new Date(e.fim) - new Date(e.inicio)) / 1000)} s` : '—';
+  const ROT = { ok: ['publicado', 'ok'], falhou: ['', 'falhou'], nao_terminou: ['', 'não terminou'], rodando: ['rascunho', 'rodando…'] };
+  const resumo = (e) => {
+    const r = e.resultado || {};
+    if (e.erro) return `<small class="pend-urgente">${esc(e.erro)}</small>`;
+    if (e.rota === 'enriquecer') return `<small>${[r.processadas != null && `${r.processadas} lidas`, r.com_imagem && `${r.com_imagem} com imagem`, r.com_local && `${r.com_local} com local`, r.falhas && `${r.falhas} falhas`, r.conferidos && `${r.conferidos} pinos conferidos`, r.corrigidos && `${r.corrigidos} corrigidos`, r.publicadas && `<b>${r.publicadas} publicadas</b>`, r.pendentes_expiradas && `${r.pendentes_expiradas} pendentes vencidas`].filter(Boolean).join(' · ') || 'nada a fazer'}</small>`;
+    if (e.rota === 'coletar' && Array.isArray(r.relatorio)) {
+      const t = r.relatorio.reduce((a, x) => { for (const k of ['no_calendario', 'novas', 'gravadas', 'completadas']) if (typeof x[k] === 'number') a[k] = (a[k] || 0) + x[k]; if (x.erro || x.completar_erro) a.erros = (a.erros || 0) + 1; return a; }, {});
+      const NOMES = { no_calendario: 'no calendário', novas: 'novas', gravadas: 'gravadas na fila', completadas: 'detalhes completados', erros: 'erro(s)' };
+      const txt = Object.entries(t).map(([k, v]) => `${v} ${NOMES[k]}`).join(' · ');
+      return `<small>${txt || `${r.relatorio.length} estado(s)`}</small>`;
+    }
+    return '';
+  };
+  const ult = (rota) => execs.find((e) => e.rota === rota && e.origem !== 'admin');
+  const cartao = (rota, nome) => { const e = ult(rota); const st = e ? situacaoExec(e) : null;
+    return `<div class="caixa robo-cartao"><span class="muted">${nome}</span><b>${e ? quando(e.inicio) : 'sem registro'}</b>${e ? `<span class="status ${ROT[st][0]}">${ROT[st][1]}</span>` : ''}</div>`; };
+  const publicadas7 = execs.filter((e) => Date.now() - new Date(e.inicio) < 7 * 864e5).reduce((a, e) => a + ((e.resultado || {}).publicadas || 0), 0);
+  box.innerHTML = `${avisos.map((a) => `<div class="aviso erro" role="alert">${esc(a)}</div>`).join('')}
+  <div class="robo-cartoes">${cartao('coletar', 'Última coleta')}${cartao('enriquecer', 'Último enriquecimento')}
+    <div class="caixa robo-cartao"><span class="muted">Publicadas pelo robô (7 dias)</span><b>${publicadas7}</b></div></div>
+  <p class="muted"><small>Cada rodada do robô fica registrada aqui por 60 dias. "Não terminou" quase sempre é a Vercel encerrando a rodada por tempo (limite de 60 s).</small></p>
+  <div class="tabela-wrap"><table class="tab"><thead><tr><th>Quando</th><th>Rotina</th><th>Situação</th><th>Duração</th><th>Resultado</th></tr></thead><tbody>
+  ${execs.map((e) => { const st = situacaoExec(e); return `<tr><td>${quando(e.inicio)}${e.origem === 'admin' ? '<br><small class="muted">pelo admin</small>' : ''}</td><td><b>${esc(e.rota)}</b><br><small class="muted">${esc(e.parametros || '')}</small></td><td><span class="status ${ROT[st][0]}">${ROT[st][1]}</span></td><td>${dur(e)}</td><td>${resumo(e)}</td></tr>`; }).join('') || '<tr><td colspan="5" class="muted">Nenhuma rodada registrada ainda.</td></tr>'}
+  </tbody></table></div>`;
+}
+
 function pintarAdmin(semConteudo) {
-  const abas = [['corridas', 'Corridas'], ['pendentes', 'Pendentes'], ['padroes', 'Padrões de busca'], ['noticias', 'Notícias'], ['modulos', 'Módulos'], ['inscritos', 'Inscritos']];
+  const abas = [['corridas', 'Corridas'], ['pendentes', 'Pendentes'], ['padroes', 'Padrões de busca'], ['robo', 'Robô'], ['noticias', 'Notícias'], ['modulos', 'Módulos'], ['inscritos', 'Inscritos']];
   $('#adminBox').innerHTML = `
     <div class="barra-admin"><h1 class="display" style="margin:0">Painel</h1><div style="display:flex;gap:10px"><a href="#" class="btn btn-linha">Ver o site</a><button class="btn btn-linha" id="btnSair">Sair</button></div></div>
     <div class="busca-admin"><input type="search" class="campo-busca" id="buscaAdmin" placeholder="Localizar corrida em todo o painel: nome, cidade, local ou organizador…" value="${esc(buscaAdmin)}" aria-label="Localizar corrida"><span class="muted" id="buscaAdminInfo"></span></div>
@@ -1295,10 +1408,11 @@ function pintarAdmin(semConteudo) {
     }, 250);
   });
   $$('[data-aba]').forEach((b) => b.addEventListener('click', () => { abaAdmin = b.dataset.aba; pintarAdmin(); }));
-  $('#btnSair').addEventListener('click', async () => { await sb.auth.signOut(); estado.admin = false; $('#btnEntrar').textContent = 'Entrar'; location.hash = ''; });
+  $('#btnSair').addEventListener('click', async () => { await sb.auth.signOut(); estado.admin = false; $('#btnEntrar').textContent = 'Entrar'; irInicio(); });
+  verificarRobo();
   if (semConteudo) return;
   if (buscaAdmin.trim()) prepararBusca();
-  ({ corridas: adminCorridas, pendentes: adminPendentes, padroes: adminPadroes, noticias: adminNoticias, modulos: adminModulos, inscritos: adminInscritos })[abaAdmin]();
+  ({ corridas: adminCorridas, pendentes: adminPendentes, padroes: adminPadroes, robo: adminRobo, noticias: adminNoticias, modulos: adminModulos, inscritos: adminInscritos })[abaAdmin]();
 }
 async function recarregarCorridas() {
   const { data } = await sb.from('corridas').select('*, corrida_distancias(*)').order('data', { ascending: false });
@@ -2039,7 +2153,7 @@ async function atualizarPublico() {
   if (data) estado.corridas = data;
   const n = await sb.from('noticias').select('*').eq('status', 'publicado').order('publicado_em', { ascending: false }).limit(20);
   if (!n.error) estado.noticias = n.data;
-  montarHome(); $('#vHome').hidden = location.hash === '#admin' || location.hash.startsWith('#corrida/');
+  montarHome(); $('#vHome').hidden = rotaAtual() === '#admin' || rotaAtual().startsWith('#corrida/');
 }
 
 // se quem abriu o site é admin, libera os atalhos de editar/excluir nas páginas das corridas
@@ -2049,7 +2163,7 @@ if (sb) sb.auth.getSession().then(async ({ data }) => {
   const { data: ehAdmin } = await sb.rpc('is_admin');
   if (!ehAdmin) return;
   estado.admin = true;
-  const h = decodeURIComponent(location.hash);
+  const h = rotaAtual();
   if (h.startsWith('#corrida/') && !$('#vCorrida .admin-corrida')) mostrarCorrida(h.slice(9));
 }).catch(() => {});
 carregar();

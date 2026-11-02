@@ -1,1 +1,76 @@
-{"functions":{"api/coletar.js":{"maxDuration":60},"api/enriquecer.js":{"maxDuration":60},"api/extrair.js":{"maxDuration":30}},"crons":[{"path":"/api/coletar?grupo=1","schedule":"0 9 * * *"},{"path":"/api/coletar?grupo=2","schedule":"30 9 * * *"},{"path":"/api/enriquecer","schedule":"0 10 * * *"},{"path":"/api/enriquecer?r=2","schedule":"0 12 * * *"},{"path":"/api/enriquecer?r=3","schedule":"0 14 * * *"},{"path":"/api/enriquecer?r=4","schedule":"0 16 * * *"},{"path":"/api/enriquecer?r=5","schedule":"0 18 * * *"},{"path":"/api/enriquecer?r=6","schedule":"0 20 * * *"},{"path":"/api/coletar?grupo=1&r=2","schedule":"0 22 * * *"},{"path":"/api/coletar?grupo=2&r=2","schedule":"30 22 * * *"},{"path":"/api/enriquecer?so=pinos","schedule":"30 23 * * *"}]}
+{
+  "functions": {
+    "api/coletar.js": {
+      "maxDuration": 60
+    },
+    "api/enriquecer.js": {
+      "maxDuration": 60
+    },
+    "api/extrair.js": {
+      "maxDuration": 30
+    },
+    "api/corrida.js": {
+      "maxDuration": 10,
+      "includeFiles": "index.html"
+    },
+    "api/sitemap.js": {
+      "maxDuration": 20
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/coletar?grupo=1",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/coletar?grupo=2",
+      "schedule": "30 9 * * *"
+    },
+    {
+      "path": "/api/enriquecer",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/enriquecer?r=2",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/enriquecer?r=3",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/enriquecer?r=4",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/enriquecer?r=5",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/enriquecer?r=6",
+      "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/coletar?grupo=1&r=2",
+      "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/coletar?grupo=2&r=2",
+      "schedule": "30 22 * * *"
+    },
+    {
+      "path": "/api/enriquecer?so=pinos",
+      "schedule": "30 23 * * *"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/corrida/:slug",
+      "destination": "/api/corrida?slug=:slug"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap"
+    }
+  ]
+}
