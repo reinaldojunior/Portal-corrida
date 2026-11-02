@@ -410,7 +410,11 @@ function prepararPercurso(pts) {
 // Distância acumulada (km) de cada ponto salvo
 function comDistancia(c) {
   const p = c.percurso || []; let d = 0;
-  return p.map((x, i) => { if (i) d += metros(p[i - 1], x) / 1000; return { lat: x[0], lng: x[1], ele: x[2], km: d }; });
+  const pts = p.map((x, i) => { if (i) d += metros(p[i - 1], x) / 1000; return { lat: x[0], lng: x[1], ele: x[2], km: d }; });
+  // GPX costuma medir um pouco diferente da distância oficial (4,98 em vez de 5): ajusta proporcionalmente
+  const of = +c.km_oficial;
+  if (of && d && Math.abs(of - d) / of <= 0.15) { const f = of / d; pts.forEach((q) => { q.km *= f; }); }
+  return pts;
 }
 function noKm(pts, km) {
   if (!pts.length) return null;
@@ -583,10 +587,17 @@ document.addEventListener('click', (e) => {
 /* ================== Onde bater meu recorde ================== */
 /* Percursos: um principal (na corrida) e/ou um por distância */
 const temTrajeto = (o) => o && Array.isArray(o.percurso) && o.percurso.length > 1;
+// Distância oficial que corresponde ao GPX principal: a distância cadastrada mais próxima (até 15% de diferença)
+function kmOficialDe(c) {
+  const g = +c.percurso_km; if (!g) return null;
+  const ks = (c.corrida_distancias || []).map((d) => +d.km).filter((k) => k > 0);
+  const k = ks.sort((a, b) => Math.abs(a - g) - Math.abs(b - g))[0];
+  return k && Math.abs(k - g) / k <= 0.15 ? k : null;
+}
 function percursosDe(c) {
   const lista = (c.corrida_distancias || []).filter(temTrajeto).slice().sort((a, b) => a.km - b.km)
-    .map((d) => ({ rotulo: d.rotulo, percurso: d.percurso, percurso_km: d.percurso_km, subida_m: d.subida_m, descida_m: d.descida_m }));
-  if (temTrajeto(c) && !lista.some((d) => Math.abs((d.percurso_km || 0) - (c.percurso_km || 0)) < 0.3)) lista.unshift({ rotulo: lista.length ? 'Principal' : 'Percurso', percurso: c.percurso, percurso_km: c.percurso_km, subida_m: c.subida_m, descida_m: c.descida_m });
+    .map((d) => ({ rotulo: d.rotulo, km: +d.km, percurso: d.percurso, percurso_km: d.percurso_km, subida_m: d.subida_m, descida_m: d.descida_m }));
+  if (temTrajeto(c) && !lista.some((d) => Math.abs((d.percurso_km || 0) - (c.percurso_km || 0)) < 0.3)) lista.unshift({ rotulo: lista.length ? 'Principal' : 'Percurso', km: kmOficialDe(c), percurso: c.percurso, percurso_km: c.percurso_km, subida_m: c.subida_m, descida_m: c.descida_m });
   return lista;
 }
 function comPercurso(c) {
@@ -833,7 +844,7 @@ function mostrarCorrida(slug, percIdx = 0) {
   const c0 = estado.corridas.find((x) => x.slug === slug && (x.status === 'publicado' || estado.admin));
   const percs = c0 ? percursosDe(c0) : [];
   const pSel = percs[Math.min(percIdx, Math.max(0, percs.length - 1))];
-  const c = c0 && pSel ? { ...c0, percurso: pSel.percurso, percurso_km: pSel.percurso_km, subida_m: pSel.subida_m, descida_m: pSel.descida_m } : c0;
+  const c = c0 && pSel ? { ...c0, percurso: pSel.percurso, percurso_km: pSel.percurso_km, subida_m: pSel.subida_m, descida_m: pSel.descida_m, km_oficial: pSel.km && Math.abs(pSel.km - pSel.percurso_km) / pSel.km <= 0.15 ? pSel.km : null } : c0;
   const v = $('#vCorrida');
   if (!c) { v.innerHTML = '<div class="wrap" style="padding:64px 0"><h1 class="display" style="font-size:56px">Corrida não encontrada</h1><p class="muted">Ela pode ter sido removida ou já aconteceu. <a href="#" style="color:var(--cone-txt);font-weight:600">Voltar para a agenda</a></p></div>'; return; }
   const dist = (c.corrida_distancias || []).slice().sort((a, b) => a.km - b.km);
@@ -864,9 +875,9 @@ function mostrarCorrida(slug, percIdx = 0) {
     </div></section>` : '';
   const percHtml = temPerc ? `<div class="caixa bloco-perc${simHtml ? ' com-sim' : ''}" id="caixaPerc"><div class="perc-topo"><h2 class="display">Percurso</h2>
         ${percs.length > 1 ? `<div class="perc-abas" role="group" aria-label="Escolha o percurso">${percs.map((p, i) => `<button type="button" class="filtro" data-perc="${i}" aria-pressed="${p === pSel}">${esc(p.rotulo)}</button>`).join('')}</div>` : ''}
-        <div class="perc-stats"><div><span>DISTÂNCIA</span><b>${String(c.percurso_km).replace('.', ',')} km</b></div><div><span>SUBIDA</span><b>${c.subida_m != null ? '+' + c.subida_m + ' m' : '—'}</b></div><div><span>DESCIDA</span><b>${c.descida_m != null ? '−' + c.descida_m + ' m' : '—'}</b></div></div></div>
+        <div class="perc-stats"><div${c.km_oficial && Math.abs(c.km_oficial - c.percurso_km) >= 0.005 ? ` title="O GPX mediu ${String(c.percurso_km).replace('.', ',')} km. O site ajusta para a distância oficial."` : ''}><span>DISTÂNCIA</span><b>${String(+(c.km_oficial || c.percurso_km).toFixed(2)).replace('.', ',')} km</b></div><div><span>SUBIDA</span><b>${c.subida_m != null ? '+' + c.subida_m + ' m' : '—'}</b></div><div><span>DESCIDA</span><b>${c.descida_m != null ? '−' + c.descida_m + ' m' : '—'}</b></div></div></div>
         <div id="mapaCorrida" class="mapa-perc"></div>
-        <div class="alt-inter" id="altInter">${svgAltimetria(comDistancia(c))}${marcasKm(c.percurso_km)}<div class="alt-dica" id="altDica" hidden></div></div>
+        <div class="alt-inter" id="altInter">${svgAltimetria(comDistancia(c))}${marcasKm(c.km_oficial || c.percurso_km)}<div class="alt-dica" id="altDica" hidden></div></div>
         <small class="alt-ajuda">Passe o dedo ou o mouse sobre a altimetria para ver cada ponto no mapa. As setas mostram o sentido da prova.</small></div>
 ` : '';
   const semTexto = !c.imagem_url && !c.descricao && !(c.kit_inclui || []).length && (temPerc || c.lat == null);
