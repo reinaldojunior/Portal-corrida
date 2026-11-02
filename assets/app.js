@@ -1082,18 +1082,31 @@ const COORD_CIDADES = {
   'rafard': [-23.0106, -47.5317], 'jundiai': [-23.1857, -46.8978], 'itupeva': [-23.1526, -47.0578], 'porto feliz': [-23.2153, -47.5236]
 };
 const semAcento = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+let filtroUfPend = '';
 async function adminPendentes() {
   const box = $('#conteudoAdmin');
   box.innerHTML = '<p class="muted">Carregando…</p>';
-  const { data, error } = await sb.from('corridas_pendentes').select('*').eq('status', 'pendente').order('data');
+  // o banco devolve no máximo 1000 linhas por vez: busca em páginas até acabar
+  let data = [], error = null;
+  for (let de = 0; ; de += 1000) {
+    const r = await sb.from('corridas_pendentes').select('*').eq('status', 'pendente').order('data').order('id').range(de, de + 999);
+    if (r.error) { error = r.error; break; }
+    data = data.concat(r.data || []);
+    if (!r.data || r.data.length < 1000) break;
+  }
   if (error) { box.innerHTML = '<div class="aviso erro">Não foi possível carregar a fila. Confira se a tabela de pendentes existe no banco.</div>'; return; }
-  const lista = data || [];
-  box.innerHTML = `<div class="barra-admin"><span class="muted">${lista.length ? `${lista.length} corrida(s) encontrada(s) pela busca automática esperando revisão` : 'Nenhuma corrida esperando revisão. A busca automática roda todo dia de manhã.'}</span></div>
+  const ufs = [...new Set(data.map((p) => p.estado).filter(Boolean))].sort();
+  if (!ufs.includes(filtroUfPend)) filtroUfPend = '';
+  const lista = filtroUfPend ? data.filter((p) => p.estado === filtroUfPend) : data;
+  box.innerHTML = `<div class="barra-admin"><span class="muted">${data.length ? `${lista.length} de ${data.length} corrida(s) encontrada(s) pela busca automática esperando revisão` : 'Nenhuma corrida esperando revisão. A busca automática roda todo dia de manhã.'}</span>
+  ${ufs.length > 1 ? `<select class="campo" id="filtroUfPend" style="width:auto;margin-left:auto"><option value="">Todos os estados</option>${ufs.map((u) => `<option${u === filtroUfPend ? ' selected' : ''}>${u}</option>`).join('')}</select>` : ''}</div>
   <div class="tabela-wrap"><table class="tab"><thead><tr><th>Data</th><th>Corrida</th><th>Cidade</th><th>Distâncias</th><th>Fonte</th><th><span class="muted" style="font-weight:400">Ações</span></th></tr></thead><tbody>
   ${lista.map((p) => { const [a, m, d] = p.data.split('-'); return `<tr><td>${d}/${m}/${a}</td><td>${p.imagem_sugerida ? `<img class="pend-mini" src="${esc(p.imagem_sugerida)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<b>${esc(p.nome)}</b>${p.descricao ? `<br><small>${esc(p.descricao.length > 140 ? p.descricao.slice(0, 140) + '…' : p.descricao)}</small>` : ''}${p.observacao ? `<br><small class="muted">${esc(p.observacao)}</small>` : ''}${p.lat != null ? '<br><small class="muted">Local exato encontrado' + (p.local_largada ? ': ' + esc(p.local_largada) : '') + '</small>' : ''}${p.percurso_url || p.percurso_info ? `<br><small class="tem-perc">Tem percurso${p.percurso_info ? ': ' + esc(p.percurso_info) : ''}${p.percurso_url ? ` · <a href="${esc(p.percurso_url)}" target="_blank" rel="noopener">abrir</a>` : ''}</small>` : ''}</td><td>${esc(p.cidade)}</td><td>${esc(p.distancias || '—')}</td>
     <td>${p.fonte_url ? `<a href="${esc(p.fonte_url)}" target="_blank" rel="noopener" style="color:var(--cone-txt);font-weight:600">${esc(p.fonte || 'ver fonte')}</a>` : esc(p.fonte || '—')}</td>
     <td class="acoes"><button class="btn btn-escuro" data-revisar="${p.id}">Revisar e aprovar</button> <button class="btn btn-perigo" data-recusar="${p.id}">Recusar</button></td></tr>`; }).join('') || '<tr><td colspan="6" class="muted">Tudo revisado por aqui.</td></tr>'}
   </tbody></table></div>`;
+  const selUf = $('#filtroUfPend', box);
+  if (selUf) selUf.addEventListener('change', () => { filtroUfPend = selUf.value; adminPendentes(); });
   $$('[data-recusar]', box).forEach((b) => b.addEventListener('click', async () => {
     await sb.from('corridas_pendentes').update({ status: 'recusada', revisado_em: new Date().toISOString() }).eq('id', b.dataset.recusar);
     toast('Corrida recusada'); adminPendentes();
