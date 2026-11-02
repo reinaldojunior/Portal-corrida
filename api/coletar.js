@@ -139,7 +139,12 @@ module.exports = async (req, res) => {
   const segredo = process.env.CRON_SECRET;
   const enviada = (req.headers.authorization || '').replace(/^Bearer /, '') || String(req.query.chave || '');
   if (!segredo || enviada !== segredo) return res.status(401).json({ erro: 'não autorizado' });
-  const estados = String(process.env.ESTADOS || 'SP').toUpperCase().split(/[,\s]+/).filter((x) => /^[A-Z]{2}$/.test(x));
+  const todos = String(process.env.ESTADOS || 'SP').toUpperCase().split(/[,\s]+/).filter((x) => /^[A-Z]{2}$/.test(x));
+  // ?uf=BA,SE roda só esses; ?grupo=1|2 divide a lista em duas metades (para caber no tempo da Vercel)
+  let estados = todos;
+  if (req.query.uf) estados = String(req.query.uf).toUpperCase().split(/[,\s]+/).filter((x) => todos.includes(x));
+  else if (req.query.grupo === '1') estados = todos.slice(0, Math.ceil(todos.length / 2));
+  else if (req.query.grupo === '2') estados = todos.slice(Math.ceil(todos.length / 2));
   try {
     const relatorio = await coletar(estados, req.query.simular !== '1');
     res.status(200).json({ quando: new Date().toISOString(), relatorio });
