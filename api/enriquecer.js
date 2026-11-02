@@ -4,7 +4,7 @@ const { analisar, conferirPino } = require('./extrair.js');
 
 const SUPABASE_URL = 'https://ssfsxdmzbubvygctdjgf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
-const LIMITE = 30, PARALELO = 5, PRAZO_MS = 30000;
+const LIMITE = 25, PARALELO = 3, PRAZO_MS = 32000;
 
 async function rpc(nome, corpo) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${nome}`, {
