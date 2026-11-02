@@ -17,10 +17,19 @@ async function rpc(nome, corpo) {
   return j;
 }
 
+async function ehAdmin(jwt) {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/is_admin`, { method: 'POST', headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${jwt}`, 'content-type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(5000) });
+    return r.ok && (await r.json()) === true;
+  } catch { return false; }
+}
+
 module.exports = async (req, res) => {
   const segredo = process.env.CRON_SECRET;
   const enviada = (req.headers.authorization || '').replace(/^Bearer /, '') || String(req.query.chave || '');
-  if (!segredo || enviada !== segredo) return res.status(401).json({ erro: 'não autorizado' });
+  // quem chama: o agendamento (CRON_SECRET) ou o admin logado no site (token de login do Supabase)
+  const peloAdmin = !(segredo && enviada === segredo) && enviada.split('.').length === 3 && await ehAdmin(enviada);
+  if (!(segredo && enviada === segredo) && !peloAdmin) return res.status(401).json({ erro: 'não autorizado' });
   const token = process.env.ROBO_TOKEN;
   const inicio = Date.now();
   try {
@@ -56,7 +65,7 @@ module.exports = async (req, res) => {
     await Promise.all(Array.from({ length: paralelo }, trabalhador));
     // confere os pinos (os recém-achados e os antigos): longe da cidade => centro da cidade
     let conferidos = 0, corrigidos = 0;
-    try {
+    if (!peloAdmin) try {
       const lista = (await rpc('robo_pinos_para_conferir', { p_token: token, p_limite: soPinos ? 120 : 40 })) || [];
       const res = [];
       for (const p of lista) {

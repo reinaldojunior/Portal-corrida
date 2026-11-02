@@ -1775,10 +1775,34 @@ async function adminPadroes() {
   <div class="tabela-wrap"><table class="tab"><thead><tr><th>Site</th><th>Pendentes</th><th>Com imagem</th><th>Com local</th><th>Padrão</th><th><span class="muted" style="font-weight:400">Ações</span></th></tr></thead><tbody>
   ${lista.map((s) => `<tr><td><b>${esc(s.d)}</b></td><td>${s.n}</td><td>${s.lidas ? `${s.img} <small class="muted">(${pct(s.img, s.lidas)} das lidas)</small>` : '—'}</td><td>${s.lidas ? `${s.pino} <small class="muted">(${pct(s.pino, s.lidas)})</small>` : '—'}</td>
     <td>${temPadrao(s.d) ? '<span class="status publicado">configurado</span>' : '<span class="muted">genérico</span>'}</td>
-    <td class="acoes"><button class="btn btn-linha" data-padrao="${esc(s.d)}" data-exemplo="${esc(s.exemplo || '')}">${temPadrao(s.d) ? 'Editar padrão' : 'Ensinar padrão'}</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">Nenhum site na fila.</td></tr>'}
+    <td class="acoes">${temPadrao(s.d) ? `<button class="btn btn-cone" data-reproc="${esc(s.d)}">Reprocessar agora</button> ` : ''}<button class="btn btn-linha" data-padrao="${esc(s.d)}" data-exemplo="${esc(s.exemplo || '')}">${temPadrao(s.d) ? 'Editar padrão' : 'Ensinar padrão'}</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">Nenhum site na fila.</td></tr>'}
   </tbody></table></div>`;
   $('#novoPadrao').addEventListener('click', () => formPadrao({}, ''));
+  $$('[data-reproc]', box).forEach((b) => b.addEventListener('click', () => reprocessarAgora(b.dataset.reproc, b)));
   $$('[data-padrao]', box).forEach((b) => b.addEventListener('click', () => formPadrao(temPadrao(b.dataset.padrao) || { dominio: b.dataset.padrao }, b.dataset.exemplo)));
+}
+
+// Roda o robô na hora só para um site (em rodadas de ~40 s até acabar a fila do site)
+async function reprocessarAgora(dominio, botao) {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return toast('Entre de novo no admin.');
+  await sb.rpc('admin_reprocessar_site', { p_site: dominio });
+  const rotulo = botao ? botao.textContent : '';
+  const tot = { processadas: 0, com_imagem: 0, com_local: 0, publicadas: 0, falhas: 0 };
+  if (botao) botao.disabled = true;
+  try {
+    for (let rodada = 1; rodada <= 8; rodada++) {
+      if (botao) botao.textContent = `Rodada ${rodada}… (${tot.processadas} lidas)`;
+      const r = await fetch(`/api/enriquecer?site=${encodeURIComponent(dominio)}`, { headers: { authorization: `Bearer ${session.access_token}` } });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.erro || `erro ${r.status}`);
+      for (const k in tot) tot[k] += j[k] || 0;
+      if (!j.na_fila || !j.processadas) break;
+    }
+    toast(`${dominio}: ${tot.processadas} lida(s), ${tot.com_imagem} com imagem, ${tot.com_local} com local${tot.publicadas ? `, ${tot.publicadas} publicada(s)` : ''}${tot.falhas ? `, ${tot.falhas} falha(s)` : ''}.`);
+  } catch (e) { toast('Não foi possível reprocessar: ' + e.message); }
+  if (botao) { botao.disabled = false; botao.textContent = rotulo; }
+  if (abaAdmin === 'padroes' && $('#novoPadrao')) adminPadroes();
 }
 
 function formPadrao(p, exemplo) {
@@ -1864,9 +1888,9 @@ function formPadrao(p, exemplo) {
   f.addEventListener('submit', async (e) => { e.preventDefault(); if (await salvar()) { toast('Padrão salvo'); adminPadroes(); } });
   $('#salvarReproc').addEventListener('click', async () => {
     const d = await salvar(); if (!d) return;
-    const { data: n, error } = await sb.rpc('admin_reprocessar_site', { p_site: d });
-    toast(error ? 'Padrão salvo, mas não consegui devolver as pendentes à fila.' : `Padrão salvo. ${n || 0} pendente(s) voltaram para a fila do robô.`);
-    adminPadroes();
+    toast('Padrão salvo. Reprocessando as pendentes do site…');
+    await adminPadroes();
+    reprocessarAgora(d, $(`[data-reproc="${CSS.escape(d)}"]`));
   });
   $('#excluirPadrao')?.addEventListener('click', async () => {
     if (!confirm(`Excluir o padrão de ${p.dominio}? O robô volta a usar a busca genérica para esse site.`)) return;
