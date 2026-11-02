@@ -57,7 +57,6 @@ function montar(html, c, base) {
   };
   const tituloOriginal = (html.match(/<title>([^<]*)<\/title>/) || [])[1] || 'PaceClub';
   const cabeca = [
-    '<base href="/">',
     `<meta name="pc-titulo" content="${esc(tituloOriginal)}">`,
     `<link rel="canonical" href="${esc(url)}">`,
     `<meta property="og:type" content="website">`, `<meta property="og:site_name" content="PaceClub">`, `<meta property="og:locale" content="pt_BR">`,
@@ -77,6 +76,7 @@ ${resumo ? `<p>${esc(resumo.slice(0, 600))}</p>` : ''}${c.link_inscricao ? `<p><
   return html
     .replace(/<title>[^<]*<\/title>/, `<title>${esc(titulo)}</title>`)
     .replace(/<meta name="description"[^>]*>/, `<meta name="description" content="${esc(descricao)}">`)
+    .replace('<head>', '<head>\n<base href="/">')
     .replace('</head>', `${cabeca}\n</head>`)
     .replace('<main id="vHome">', '<main id="vHome" hidden>')
     .replace('<main id="vCorrida" hidden></main>', `<main id="vCorrida">${corpo}</main>`);
@@ -93,7 +93,7 @@ module.exports = async (req, res) => {
     const c = slug ? await buscarCorrida(slug) : null;
     if (!c) {
       res.statusCode = 404;
-      return res.end(html.replace('</head>', '<base href="/">\n<meta name="robots" content="noindex">\n</head>'));
+      return res.end(html.replace('<head>', '<head>\n<base href="/">').replace('</head>', '<meta name="robots" content="noindex">\n</head>'));
     }
     res.setHeader('cache-control', 'public, s-maxage=600, stale-while-revalidate=86400');
     res.statusCode = 200;
@@ -102,6 +102,6 @@ module.exports = async (req, res) => {
     // banco fora do ar: entrega o app normal, que tenta carregar sozinho
     res.statusCode = 200;
     res.setHeader('cache-control', 'no-store');
-    return res.end(html.replace('</head>', '<base href="/">\n</head>'));
+    return res.end(html.replace('<head>', '<head>\n<base href="/">'));
   }
 };
