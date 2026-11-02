@@ -1018,11 +1018,11 @@ async function buscarFotoLocal(barra, c) {
   } catch (e) { caixa.innerHTML = `<small>${esc(e.message || 'Não foi possível ler a página.')}</small>`; return; }
   const temImg = !!j.imagem, temPonto = j.lat != null && j.lng != null;
   if (!temImg && !temPonto && !j.local) { caixa.innerHTML = '<small>Não encontrei imagem nem local na página da inscrição. Use "Editar" para colocar à mão.</small>'; return; }
-  caixa.innerHTML = `${temImg ? `<label class="admin-busca-item"><input type="checkbox" data-usar="img"${c.imagem_url ? '' : ' checked'}>
+  caixa.innerHTML = `${temImg ? `<label class="admin-busca-item"><input type="checkbox" data-usar="img" checked>
       <img src="${esc(j.imagem)}" alt="" onerror="this.closest('label').querySelector('small').textContent='Essa imagem não abriu.'">
-      <span><b>Imagem de divulgação</b><br><small>${c.imagem_url ? 'A corrida já tem imagem; marque para trocar. ' : ''}É a arte do organizador: use só com permissão e com o crédito.</small></span></label>` : '<small>Nenhuma imagem encontrada.</small>'}
-    ${temPonto || j.local ? `<label class="admin-busca-item"><input type="checkbox" data-usar="local"${temPonto && c.lat == null ? ' checked' : ''}>
-      <span><b>Local da largada</b><br><small>${esc(j.local || 'sem nome')}${temPonto ? (j.aproximado ? ' · aproximado, pelo endereço (confira no mapa depois)' : ' · local exato') : ' · sem coordenadas'}${c.lat != null ? ' · a corrida já tem pino; marque para trocar' : ''}</small></span></label>` : '<small>Nenhum local encontrado.</small>'}
+      <span><b>Imagem de divulgação</b><br><small>${c.imagem_url ? 'Vai trocar a imagem atual. ' : ''}É a arte do organizador: use só com permissão e com o crédito.</small></span></label>` : '<small>Nenhuma imagem encontrada.</small>'}
+    ${temPonto || j.local ? `<label class="admin-busca-item"><input type="checkbox" data-usar="local" checked>
+      <span><b>Local da largada</b><br><small>${esc(j.local || 'sem nome')}${temPonto ? (j.aproximado ? ' · aproximado, pelo endereço (confira no mapa depois)' : ' · local exato') : ' · sem coordenadas'}${c.lat != null ? ' · vai trocar o pino atual (desmarque para manter)' : ''}</small></span></label>` : '<small>Nenhum local encontrado.</small>'}
     <div><button class="btn btn-escuro" type="button" data-acao="salvar-busca">Salvar o que estiver marcado</button></div>`;
   $('[data-acao="salvar-busca"]', caixa).addEventListener('click', async () => {
     const dados = {};
