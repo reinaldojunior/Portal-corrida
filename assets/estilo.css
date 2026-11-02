@@ -625,3 +625,35 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
   .sim .sim-clima-info{text-align:left}
 }
 
+
+/* percurso e simulador lado a lado */
+.pagina-corrida .bloco-perc{grid-column:span 8}
+.pagina-corrida .bloco-perc.com-sim{grid-column:span 7}
+.pagina-corrida .sim.sim-lado{grid-column:span 5;padding:22px 22px}
+.sim-lado .sim-cab{flex-direction:column;align-items:stretch;gap:12px}
+.sim-lado .sim-cab h2{font-size:30px}
+.sim-lado .sim-entrada{grid-template-columns:1fr auto}
+.sim-lado .sim-clima-info{text-align:left}
+.sim-lado .sim-grade{grid-template-columns:1fr;gap:14px;margin-top:12px}
+.sim-lado .sim-col{gap:12px}
+.sim-lado .pulseira{max-height:210px}
+.sim-lado .sim-metades b{font-size:20px}
+.sim-lado .sim-resultado p{display:none}
+.sim-lado .sim-ctrl-top b{flex-basis:100%;text-align:left}
+@media (max-width:1100px){
+  .pagina-corrida .bloco-perc.com-sim,.pagina-corrida .sim.sim-lado{grid-column:span 12}
+  .sim-lado .sim-grade{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:24px}
+  .sim-lado .sim-cab{flex-direction:row;align-items:flex-end}
+}
+@media (max-width:860px){
+  .pagina-corrida .bloco-perc{grid-column:span 12}
+  .sim-lado .sim-grade{grid-template-columns:1fr}
+  .sim-lado .sim-cab{flex-direction:column;align-items:stretch}
+}
+
+.pagina-corrida.sem-texto .principal{display:none}
+.pagina-corrida.sem-texto .cab{grid-column:span 8}
+.pagina-corrida .bloco-perc.com-sim{display:flex;flex-direction:column}
+.pagina-corrida .bloco-perc.com-sim .mapa-perc{flex:1 1 auto;min-height:320px}
+@media (max-width:1100px){.pagina-corrida .bloco-perc.com-sim .mapa-perc{flex:none}}
+@media (max-width:860px){.pagina-corrida.sem-texto .cab{grid-column:span 12}}

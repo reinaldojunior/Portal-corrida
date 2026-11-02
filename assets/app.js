@@ -833,7 +833,7 @@ function mostrarCorrida(slug, percIdx = 0) {
   const dist = (c.corrida_distancias || []).slice().sort((a, b) => a.km - b.km);
   const temPerc = Array.isArray(c.percurso) && c.percurso.length > 1;
   const brl = (v) => v == null ? 'Preço a confirmar' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  const simHtml = temPerc && mod('simulador') ? `<section class="caixa sim" id="simBox" aria-labelledby="simTit">
+  const simHtml = temPerc && mod('simulador') ? `<section class="caixa sim sim-lado" id="simBox" aria-labelledby="simTit">
     <div class="sim-cab"><div><span class="rot">SIMULADOR DA PROVA</span><h2 class="display" id="simTit">Monte a sua estratégia</h2></div>
       <div class="sim-entrada"><label class="campo">Tempo alvo<input id="simAlvo" inputmode="numeric" aria-describedby="simClimaInfo"></label><button type="button" id="simClima" class="sim-clima" aria-pressed="true">Clima</button></div></div>
     <p class="sim-clima-info" id="simClimaInfo"></p>
@@ -857,18 +857,20 @@ function mostrarCorrida(slug, percIdx = 0) {
           <small class="nota">Estimativa pela altimetria e pelo clima do horário da largada. Passe o dedo na altimetria acima para ver a passagem em cada ponto.</small></div>
       </div>
     </div></section>` : '';
-  v.innerHTML = `<div class="wrap pagina-corrida">
-    <div class="cab">${bib(c.data)}<div><span class="editoria">${dataLonga(c.data)}${c.horario ? ', largada às ' + c.horario.slice(0, 5) : ''}</span><h1 class="display">${esc(c.nome)}</h1><span class="muted" style="font-size:18px">${esc(c.cidade)}, ${esc(c.estado)}${c.organizador ? ' · Organização: ' + esc(c.organizador) : ''}</span></div></div>
-    <div class="principal">
-      ${c.imagem_url ? `<div class="foto" style="height:360px"><img src="${esc(c.imagem_url)}" alt="${esc(c.nome)}"></div>` : ''}
-      ${c.descricao ? `<div class="caixa"><h2 class="display">Sobre a corrida</h2><div class="texto-corrida">${textoRico(c.descricao)}</div></div>` : ''}
-      ${temPerc ? `<div class="caixa" id="caixaPerc"><h2 class="display">Percurso</h2>
+  const percHtml = temPerc ? `<div class="caixa bloco-perc${simHtml ? ' com-sim' : ''}" id="caixaPerc"><h2 class="display">Percurso</h2>
         ${percs.length > 1 ? `<div class="perc-abas" role="group" aria-label="Escolha o percurso">${percs.map((p, i) => `<button type="button" class="filtro" data-perc="${i}" aria-pressed="${p === pSel}">${esc(p.rotulo)}</button>`).join('')}</div>` : ''}
         <div class="perc-stats"><div><span>DISTÂNCIA</span><b>${String(c.percurso_km).replace('.', ',')} km</b></div><div><span>SUBIDA</span><b>${c.subida_m != null ? '+' + c.subida_m + ' m' : '—'}</b></div><div><span>DESCIDA</span><b>${c.descida_m != null ? '−' + c.descida_m + ' m' : '—'}</b></div><div><span>LARGADA</span><b style="font-size:15px;font-family:var(--texto)">${esc(c.local_largada || c.cidade)}</b></div></div>
         <div id="mapaCorrida" class="mapa-perc"></div>
         <div class="alt-inter" id="altInter">${svgAltimetria(comDistancia(c))}${marcasKm(c.percurso_km)}<div class="alt-dica" id="altDica" hidden></div></div>
         <small class="alt-ajuda">Passe o dedo ou o mouse sobre a altimetria para ver cada ponto no mapa. As setas mostram o sentido da prova.</small></div>
-` :
+` : '';
+  const semTexto = !c.imagem_url && !c.descricao && !(c.kit_inclui || []).length && (temPerc || c.lat == null);
+  v.innerHTML = `<div class="wrap pagina-corrida${semTexto ? ' sem-texto' : ''}">
+    <div class="cab">${bib(c.data)}<div><span class="editoria">${dataLonga(c.data)}${c.horario ? ', largada às ' + c.horario.slice(0, 5) : ''}</span><h1 class="display">${esc(c.nome)}</h1><span class="muted" style="font-size:18px">${esc(c.cidade)}, ${esc(c.estado)}${c.organizador ? ' · Organização: ' + esc(c.organizador) : ''}</span></div></div>
+    <div class="principal">
+      ${c.imagem_url ? `<div class="foto" style="height:360px"><img src="${esc(c.imagem_url)}" alt="${esc(c.nome)}"></div>` : ''}
+      ${c.descricao ? `<div class="caixa"><h2 class="display">Sobre a corrida</h2><div class="texto-corrida">${textoRico(c.descricao)}</div></div>` : ''}
+      ${temPerc ? '' :
       c.lat != null ? `<div class="caixa"><h2 class="display">Largada</h2><p style="margin:0 0 14px">${esc(c.local_largada || c.cidade)}</p><div id="mapaCorrida"></div></div>` : ''}
       ${(c.kit_inclui || []).length ? `<div class="caixa"><h2 class="display">O que vem no kit</h2><ul class="kit">${c.kit_inclui.map((k) => `<li>${esc(k)}</li>`).join('')}</ul></div>` : ''}
     </div>
@@ -878,7 +880,7 @@ function mostrarCorrida(slug, percIdx = 0) {
         ${c.inscricoes_abertas ? '' : '<p class="muted" style="margin:12px 0 0">Inscrições encerradas.</p>'}
       </div>
       <a href="#mapa" class="btn btn-linha" data-mod="mapa">Ver corridas próximas no mapa</a>
-    </div>${simHtml}</div>`;
+    </div>${percHtml}${simHtml}</div>`;
   $$('[data-perc]', v).forEach((b) => b.addEventListener('click', () => {
     const y = window.scrollY; mostrarCorrida(slug, Number(b.dataset.perc)); window.scrollTo(0, y);
     setTimeout(() => $(`[data-perc="${b.dataset.perc}"]`)?.focus(), 60);
