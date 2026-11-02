@@ -247,14 +247,20 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
       <input id="buscaMapa" type="search" placeholder="Buscar cidade ou corrida" aria-label="Buscar cidade ou corrida">
     </label>
-    <div class="filtros" id="filtrosMapa"></div>
     <div class="spacer"></div>
     <a href="#" class="btn btn-linha">Fechar mapa</a>
+  </div>
+  <div class="barra-chips">
+    <select class="sel-cidade" id="cidadeMapa" aria-label="Filtrar por cidade"><option value="">Todas as cidades</option></select>
+    <span class="sep" aria-hidden="true"></span>
+    <div class="filtros" id="filtrosMapa"></div>
+    <span class="sep" aria-hidden="true"></span>
+    <div class="filtros" id="extrasMapa"></div>
   </div>
   <div class="corpo">
     <aside>
       <h1 class="display" id="mapaTit">Corridas nesta área</h1>
-      <p class="muted" style="margin:0 0 12px">A lista acompanha o que aparece no mapa.</p>
+      <p class="muted" style="margin:0 0 16px">A lista acompanha o que aparece no mapa.</p>
       <div id="listaMapa"></div>
     </aside>
     <div class="area-mapa">

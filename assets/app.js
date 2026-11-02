@@ -701,6 +701,8 @@ function montarMapaCompacto() {
 let mapaGrande, grupoGrande, camadasGrande, marcadores = new Map();
 function montarMapaGrande() {
   desenharFiltros($('#filtrosMapa'));
+  desenharExtras();
+  desenharCidades();
   if (!mapaGrande) {
     mapaGrande = L.map('mapaGrande', { zoomControl: false }).setView(CENTRO, 10);
     L.control.zoom({ position: 'bottomright', zoomInTitle: 'Aproximar', zoomOutTitle: 'Afastar' }).addTo(mapaGrande);
@@ -739,7 +741,7 @@ function atualizarMarcadores() {
   if (grupoGrande) {
     grupoGrande.clearLayers(); marcadores.clear();
     Object.keys(usados).forEach((k) => delete usados[k]);
-    lista.forEach((c) => {
+    lista.filter(passaExtras).forEach((c) => {
       const mk = L.marker(pos(c), { icon: iconePino(false, c.inscricoes_abertas), title: c.nome, alt: c.nome }).bindPopup(popupHtml(c), { className: 'pc-pop', maxWidth: 290 });
       mk.on('popupopen', () => { mk.setIcon(iconePino(true)); destacarItem(c.id, true); });
       mk.on('popupclose', () => { mk.setIcon(iconePino(false, c.inscricoes_abertas)); destacarItem(c.id, false); });
@@ -753,15 +755,106 @@ function listarMapa() {
   if (!mapaGrande) return;
   const b = mapaGrande.getBounds();
   const termo = $('#buscaMapa').value.trim().toLowerCase();
-  const lista = comCoords().filter(passaFiltro).filter((c) => b.contains([c.lat, c.lng]))
+  const lista = comCoords().filter(passaFiltro).filter(passaExtras).filter((c) => b.contains([c.lat, c.lng]))
     .filter((c) => !termo || (c.nome + ' ' + c.cidade).toLowerCase().includes(termo));
-  $('#mapaTit').textContent = lista.length === 1 ? '1 corrida nesta área' : `${lista.length} corridas nesta área`;
-  $('#listaMapa').innerHTML = lista.length ? lista.map((c) => `<button type="button" class="corrida-item" data-id="${c.id}">${bib(c.data, true)}<div class="corrida-info"><span class="nome">${esc(c.nome)}</span><span class="cid">${esc(c.cidade)}${rotulos(c).length ? ', ' + esc(rotulos(c).join(', ')) : ''}</span></div></button>`).join('') :
-    '<p class="vazio">Nenhuma corrida nesta área. Afaste o mapa ou arraste para outra região.</p>';
+  const n = lista.length;
+  $('#mapaTit').textContent = n === 0 ? 'Nenhuma corrida nesta área' : n === 1 ? '1 corrida nesta área' : n > 1000 ? 'Mais de mil corridas' : `${n} corridas nesta área`;
+  // desenha em partes para não travar quando a área tem centenas de provas
+  mapaMostradas = 40;
+  mapaListaAtual = lista;
+  desenharListaMapa();
 }
-function destacarItem(id, on) { const el = $(`#listaMapa [data-id="${id}"]`); if (el) el.classList.toggle('ativo', on); }
+let mapaMostradas = 40, mapaListaAtual = [];
+function cartaoMapa(c) {
+  const p = partes(c.data);
+  const dists = rotulos(c);
+  return `<article class="cartao-mapa" data-id="${c.id}">
+    <button type="button" class="cm-foto" data-ir="${c.id}" aria-label="Mostrar ${esc(c.nome)} no mapa">${c.imagem_url ? `<img src="${esc(c.imagem_url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span class="cm-sem">${p.dia} ${p.mes}</span>${c.inscricoes_abertas ? '<span class="cm-selo">Inscrições abertas</span>' : ''}</button>
+    <div class="cm-info"><span class="cm-cid">${esc(c.cidade)}${c.estado ? ' · ' + esc(c.estado) : ''}</span><span class="cm-data">${p.sem}, ${p.d} ${p.mes.toLowerCase()}</span></div>
+    <span class="cm-nome">${esc(c.nome)}</span>
+    ${dists.length ? `<div class="chips">${dists.map((r) => `<span class="chip">${esc(r)}</span>`).join('')}</div>` : ''}
+    ${(() => { const l = linkCorrida(c); return l ? `<a class="cm-link" href="${esc(l.href)}"${l.ext ? ' target="_blank" rel="noopener"' : ''}>${l.ext ? 'Ir para a inscrição' : 'Ver corrida'} →</a>` : ''; })()}
+  </article>`;
+}
+function desenharListaMapa() {
+  const lista = mapaListaAtual;
+  $('#listaMapa').innerHTML = lista.length ? `<div class="grade-mapa">${lista.slice(0, mapaMostradas).map(cartaoMapa).join('')}</div>` +
+    (lista.length > mapaMostradas ? `<button type="button" class="btn btn-linha mais-mapa" id="maisMapa">Mostrar mais (${lista.length - mapaMostradas})</button>` : '') :
+    '<p class="vazio">Nenhuma corrida nesta área com esses filtros. Afaste o mapa, arraste para outra região ou tire algum filtro.</p>';
+}
+
+/* Filtros extras do mapa (estilo Airbnb) e filtro por cidade */
+const EXTRAS = [
+  ['abertas', 'Inscrições abertas'], ['fds', 'Este fim de semana'], ['30d', 'Próximos 30 dias'],
+  ['noite', 'Noturnas'], ['curta', 'Até 5K'], ['longa', 'Acima de 42K']
+];
+estado.extras = new Set();
+estado.cidade = '';
+function fimDeSemana() {
+  const h = new Date(); h.setHours(0, 0, 0, 0);
+  const dow = h.getDay(); // 0 dom, 6 sáb
+  const sab = new Date(h); sab.setDate(h.getDate() + (dow === 0 ? -1 : 6 - dow));
+  const dom = new Date(sab); dom.setDate(sab.getDate() + 1);
+  const iso = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  return [iso(sab), iso(dom)];
+}
+function passaExtras(c) {
+  if (estado.cidade && `${c.cidade}|${c.estado || ''}` !== estado.cidade) return false;
+  const ds = c.corrida_distancias || [];
+  for (const x of estado.extras) {
+    if (x === 'abertas' && !c.inscricoes_abertas) return false;
+    if (x === 'fds') { const [s, d] = fimDeSemana(); if (c.data < s || c.data > d) return false; }
+    if (x === '30d') { const lim = new Date(); lim.setDate(lim.getDate() + 30); if (c.data > lim.toISOString().slice(0, 10)) return false; }
+    if (x === 'noite' && !(c.horario && c.horario.slice(0, 5) >= '17:00')) return false;
+    if (x === 'curta' && !ds.some((d) => d.km != null && +d.km > 0 && +d.km <= 5.5)) return false;
+    if (x === 'longa' && !ds.some((d) => (d.km != null && +d.km > 42.3) || d.horas)) return false;
+  }
+  return true;
+}
+function desenharExtras() {
+  $('#extrasMapa').innerHTML = EXTRAS.map(([k, t]) => `<button type="button" class="filtro" data-extra="${k}" aria-pressed="${estado.extras.has(k)}">${t}</button>`).join('');
+}
+function desenharCidades() {
+  const sel = $('#cidadeMapa');
+  const cont = new Map();
+  comCoords().forEach((c) => { const k = `${c.cidade}|${c.estado || ''}`; cont.set(k, (cont.get(k) || 0) + 1); });
+  const ops = [...cont.entries()].sort((a, b) => a[0].localeCompare(b[0], 'pt'));
+  sel.innerHTML = '<option value="">Todas as cidades</option>' + ops.map(([k, n]) => { const [cid, uf] = k.split('|'); return `<option value="${esc(k)}"${k === estado.cidade ? ' selected' : ''}>${esc(cid)}${uf ? ' - ' + esc(uf) : ''} (${n})</option>`; }).join('');
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-extra]');
+  if (!b) return;
+  const k = b.dataset.extra;
+  if (estado.extras.has(k)) estado.extras.delete(k); else estado.extras.add(k);
+  if (k === 'fds' && estado.extras.has('fds')) estado.extras.delete('30d');
+  if (k === '30d' && estado.extras.has('30d')) estado.extras.delete('fds');
+  desenharExtras();
+  atualizarMarcadores();
+});
+$('#cidadeMapa').addEventListener('change', (e) => {
+  estado.cidade = e.target.value;
+  atualizarMarcadores();
+  if (estado.cidade) {
+    const achadas = comCoords().filter(passaFiltro).filter(passaExtras);
+    if (achadas.length) mapaGrande.fitBounds(L.latLngBounds(achadas.map((c) => [c.lat, c.lng])).pad(0.3), { maxZoom: 13 });
+  }
+});
 $('#listaMapa').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-id]'); if (!b) return;
+  if (e.target.id === 'maisMapa') { mapaMostradas += 40; desenharListaMapa(); }
+});
+$('#listaMapa').addEventListener('mouseover', (e) => {
+  const a = e.target.closest('.cartao-mapa'); if (!a) return;
+  const mk = marcadores.get(a.dataset.id); if (mk) mk.setIcon(iconePino(true));
+});
+$('#listaMapa').addEventListener('mouseout', (e) => {
+  const a = e.target.closest('.cartao-mapa'); if (!a || a.contains(e.relatedTarget)) return;
+  const mk = marcadores.get(a.dataset.id); const c = estado.corridas.find((x) => String(x.id) === a.dataset.id);
+  if (mk && !mk.isPopupOpen()) mk.setIcon(iconePino(false, c && c.inscricoes_abertas));
+});
+function destacarItem(id, on) { const el = $(`#listaMapa [data-id="${id}"]`); if (el) { el.classList.toggle('ativo', on); if (on) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } }
+$('#listaMapa').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-ir]'); if (!b) return;
+  b.dataset.id = b.dataset.ir;
   const mk = marcadores.get(b.dataset.id); if (!mk) return;
   mapaGrande.flyTo(mk.getLatLng(), Math.max(mapaGrande.getZoom(), 12), { duration: .6 });
   mapaGrande.once('moveend', () => mk.openPopup());
