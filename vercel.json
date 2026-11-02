@@ -72,5 +72,11 @@
       "source": "/sitemap.xml",
       "destination": "/api/sitemap"
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "claude/*": false
+    }
+  }
 }
