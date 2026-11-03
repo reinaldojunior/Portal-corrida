@@ -1226,13 +1226,42 @@ function calcular() {
 $('#calcDist').addEventListener('change', calcular);
 $('#calcTempo').addEventListener('input', calcular);
 ['change', 'input'].forEach((ev) => $(ev === 'change' ? '#calcDist' : '#calcTempo').addEventListener(ev, () => { if (mod('zonas_fc')) montarZonas(); }));
+// cidades conhecidas (das corridas carregadas) para o campo de cidade do aviso
+function cidadesAviso() {
+  const m = new Map();
+  for (const c of estado.corridas) {
+    if (!c.cidade || c.lat == null) continue;
+    const k = `${c.cidade}|${c.estado || ''}`;
+    const v = m.get(k) || { cidade: c.cidade, uf: c.estado || '', lat: 0, lng: 0, n: 0 };
+    v.lat += +c.lat; v.lng += +c.lng; v.n++; m.set(k, v);
+  }
+  return [...m.values()].map((v) => ({ ...v, lat: v.lat / v.n, lng: v.lng / v.n })).sort((x, y) => x.cidade.localeCompare(y.cidade, 'pt-BR'));
+}
+$('#avisoCidade')?.addEventListener('focus', () => {
+  const dl = $('#avisoCidades'); if (!dl || dl.childElementCount) return;
+  dl.innerHTML = cidadesAviso().map((c) => `<option value="${esc(c.cidade)}${c.uf ? ' - ' + esc(c.uf) : ''}">`).join('');
+});
 $('#formAviso').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const email = $('#avisoEmail').value.trim().toLowerCase(), msg = $('#avisoMsg');
-  const { error } = await sb.from('inscritos_avisos').insert({ email });
-  if (error && error.code !== '23505') { msg.className = 'msg erro'; msg.textContent = 'Não deu para cadastrar agora. Tente de novo em alguns minutos.'; return; }
-  msg.className = 'msg ok'; msg.textContent = 'Pronto. Você vai receber um e-mail quando abrir inscrição para uma nova corrida.';
-  e.target.reset();
+  const msg = $('#avisoMsg'), btn = $('button[type="submit"]', e.target);
+  const email = $('#avisoEmail').value.trim().toLowerCase();
+  const [nomeCid, ufCid] = $('#avisoCidade').value.trim().split(/\s+-\s+/);
+  const conhecida = cidadesAviso().find((c) => semAcento(c.cidade) === semAcento(nomeCid) && (!ufCid || c.uf === ufCid.toUpperCase()));
+  const distancias = $$('.av-dist input:checked', e.target).map((x) => x.value);
+  if (!distancias.length) { msg.className = 'msg erro'; msg.textContent = 'Marque pelo menos uma distância.'; return; }
+  btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Enviando…';
+  try {
+    const r = await fetch('/api/avisos', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email, cidade: conhecida ? conhecida.cidade : nomeCid, uf: conhecida ? conhecida.uf : (ufCid || 'SP'), lat: conhecida?.lat, lng: conhecida?.lng, raio: +$('#avisoRaio').value, distancias }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.erro || 'Não deu para cadastrar agora. Tente de novo em alguns minutos.');
+    msg.className = 'msg ok';
+    msg.textContent = j.ja_confirmado ? 'Preferências atualizadas. Você continua recebendo os avisos.'
+      : j.confirmacao_enviada ? 'Quase lá! Enviamos um e-mail para você confirmar a inscrição.'
+      : 'Inscrição recebida! Assim que os avisos começarem, você recebe um e-mail para confirmar.';
+    e.target.reset();
+  } catch (err) { msg.className = 'msg erro'; msg.textContent = err.message; }
+  btn.disabled = false;
 });
 
 /* ================== Rotas ================== */
@@ -1336,7 +1365,8 @@ async function carregarPendentes() {
   // o banco devolve no máximo 1000 linhas por vez: busca em páginas até acabar
   let data = [];
   for (let de = 0; ; de += 1000) {
-    const r = await sb.from('corridas_pendentes').select('*').eq('status', 'pendente').order('data').order('id').range(de, de + 999);
+    let r = await sb.from('corridas_pendentes').select('*, nota_pendente').eq('status', 'pendente').order('data').order('id').range(de, de + 999);
+    if (r.error) r = await sb.from('corridas_pendentes').select('*').eq('status', 'pendente').order('data').order('id').range(de, de + 999);
     if (r.error) return null;
     data = data.concat(r.data || []);
     if (!r.data || r.data.length < 1000) break;
@@ -1382,6 +1412,7 @@ async function adminRobo() {
     const r = e.resultado || {};
     if (e.erro) return `<small class="pend-urgente">${esc(e.erro)}</small>`;
     if (e.rota === 'enriquecer') return `<small>${[r.processadas != null && `${r.processadas} lidas`, r.com_imagem && `${r.com_imagem} com imagem`, r.com_local && `${r.com_local} com local`, r.falhas && `${r.falhas} falhas`, r.conferidos && `${r.conferidos} pinos conferidos`, r.corrigidos && `${r.corrigidos} corrigidos`, r.publicadas && `<b>${r.publicadas} publicadas</b>`, r.pendentes_expiradas && `${r.pendentes_expiradas} pendentes vencidas`].filter(Boolean).join(' · ') || 'nada a fazer'}</small>`;
+    if (e.rota === 'avisos') return `<small>${r.servico_configurado === false ? 'serviço de e-mail não configurado · ' : ''}${[r.enviados && `<b>${r.enviados} resumos enviados</b>`, r.simulados && `${r.simulados} simulados`, r.sem_novidade && `${r.sem_novidade} sem corrida nova`, r.confirmacoes && `${r.confirmacoes} confirmações`, r.falhas && `${r.falhas} falhas`].filter(Boolean).join(' · ') || `${r.inscritos || 0} inscritos para enviar`}</small>`;
     if (e.rota === 'coletar' && Array.isArray(r.relatorio)) {
       const t = r.relatorio.reduce((a, x) => { for (const k of ['no_calendario', 'novas', 'gravadas', 'completadas']) if (typeof x[k] === 'number') a[k] = (a[k] || 0) + x[k]; if (x.erro || x.completar_erro) a.erros = (a.erros || 0) + 1; return a; }, {});
       const NOMES = { no_calendario: 'no calendário', novas: 'novas', gravadas: 'gravadas na fila', completadas: 'detalhes completados', erros: 'erro(s)' };
@@ -1483,8 +1514,31 @@ const COORD_CIDADES = {
   'rafard': [-23.0106, -47.5317], 'jundiai': [-23.1857, -46.8978], 'itupeva': [-23.1526, -47.0578], 'porto feliz': [-23.2153, -47.5236]
 };
 const semAcento = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+// Nota de confiança (calculada no banco, 0 a 100): o robô publica sozinho a partir de 90
+const NOTA_PUBLICA = 90;
+function detalheNota(p) {
+  const falta = [];
+  if (!p.imagem_sugerida) falta.push('imagem');
+  if (p.lat == null) falta.push('pino');
+  else {
+    if (!p.pino_conferido_em) falta.push('pino ainda não conferido');
+    const semLocal = 20 + (p.imagem_sugerida ? 20 : 0) + 10 + (p.pino_conferido_em ? 10 : 0) + (p.distancias ? 15 : 0) + (p.horario ? 5 : 0) + (p.descricao ? 5 : 0);
+    if (p.nota_pendente != null && p.nota_pendente < semLocal + 15) falta.push('local é só a cidade');
+  }
+  if (!p.distancias) falta.push('distâncias');
+  if (!p.horario) falta.push('horário');
+  if (!p.descricao) falta.push('descrição');
+  return falta;
+}
+function seloNota(p) {
+  if (p.nota_pendente == null) return '';
+  const n = p.nota_pendente, falta = detalheNota(p);
+  const cls = n >= NOTA_PUBLICA ? 'alta' : n >= 70 ? 'media' : 'baixa';
+  const dica = n >= NOTA_PUBLICA ? 'O robô publica sozinha na próxima rodada.' : `Falta: ${falta.join(', ') || '—'}.`;
+  return `<span class="selo-nota ${cls}" title="Nota de confiança ${n}/100. ${esc(dica)}">${n}</span>`;
+}
 let filtroUfPend = '', ordemPend = 'proximas', prazoPend = '', situacaoPend = '', sitePend = '';
-const SITUACOES_PEND = { prontas: (p) => p.imagem_sugerida && p.lat != null, sem_img: (p) => !p.imagem_sugerida, sem_local: (p) => p.lat == null };
+const SITUACOES_PEND = { prontas: (p) => p.imagem_sugerida && p.lat != null, auto: (p) => (p.nota_pendente || 0) >= NOTA_PUBLICA, quase: (p) => (p.nota_pendente || 0) >= 70 && (p.nota_pendente || 0) < NOTA_PUBLICA, sem_img: (p) => !p.imagem_sugerida, sem_local: (p) => p.lat == null };
 const diasAte = (iso) => { const [a, m, d] = iso.split('-').map(Number); const h = new Date(); return Math.round((new Date(a, m - 1, d) - new Date(h.getFullYear(), h.getMonth(), h.getDate())) / 864e5); };
 async function adminPendentes(recarregar = true) {
   const box = $('#conteudoAdmin');
@@ -1502,12 +1556,13 @@ async function adminPendentes(recarregar = true) {
   const lista = filtrarBusca(data).filter((p) => (!filtroUfPend || p.estado === filtroUfPend) && (!prazoPend || diasAte(p.data) <= Number(prazoPend))
     && (!situacaoPend || SITUACOES_PEND[situacaoPend](p)) && (!sitePend || domPend(p) === sitePend));
   const ordens = { proximas: (a, b) => a.data.localeCompare(b.data), distantes: (a, b) => b.data.localeCompare(a.data), recentes: (a, b) => String(b.criado_em || '').localeCompare(String(a.criado_em || '')) };
+  ordens.nota = (a, b) => (b.nota_pendente || 0) - (a.nota_pendente || 0) || a.data.localeCompare(b.data);
   lista.sort(ordens[ordemPend] || ordens.proximas);
   const opc = (pares, atual) => pares.map(([v, t]) => `<option value="${v}"${v === atual ? ' selected' : ''}>${t}</option>`).join('');
   box.innerHTML = `<div class="barra-admin" style="flex-wrap:wrap;gap:8px"><span class="muted">${data.length ? `${lista.length} de ${data.length} corrida(s) encontrada(s) pela busca automática esperando revisão` : 'Nenhuma corrida esperando revisão. A busca automática roda todo dia de manhã.'}</span>
   <span style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto">
-  <select class="campo" id="ordemPend" style="width:auto" title="Ordenar">${opc([['proximas', 'Data mais próxima primeiro'], ['distantes', 'Data mais distante primeiro'], ['recentes', 'Encontradas mais recentemente']], ordemPend)}</select>
-  <select class="campo" id="situacaoPend" style="width:auto" title="Situação">${opc([['', 'Qualquer situação'], ['prontas', `Prontas: com imagem e local (${prontas})`], ['sem_img', 'Falta imagem'], ['sem_local', 'Falta local']], situacaoPend)}</select>
+  <select class="campo" id="ordemPend" style="width:auto" title="Ordenar">${opc([['proximas', 'Data mais próxima primeiro'], ['distantes', 'Data mais distante primeiro'], ['recentes', 'Encontradas mais recentemente'], ['nota', 'Maior nota primeiro']], ordemPend)}</select>
+  <select class="campo" id="situacaoPend" style="width:auto" title="Situação">${opc([['', 'Qualquer situação'], ['prontas', `Prontas: com imagem e local (${prontas})`], ['quase', `Nota 70 a 89: quase prontas (${data.filter(SITUACOES_PEND.quase).length})`], ['auto', `Nota 90+: o robô publica (${data.filter(SITUACOES_PEND.auto).length})`], ['sem_img', 'Falta imagem'], ['sem_local', 'Falta local']], situacaoPend)}</select>
   <select class="campo" id="sitePend" style="width:auto" title="Site de inscrição"><option value="">Todos os sites</option>${sitesPend.map((d) => `<option value="${esc(d)}"${d === sitePend ? ' selected' : ''}>${esc(d)} (${contSites[d]})</option>`).join('')}</select>
   <select class="campo" id="prazoPend" style="width:auto" title="Período">${opc([['', 'Qualquer data'], ['7', 'Próximos 7 dias'], ['15', 'Próximos 15 dias'], ['30', 'Próximos 30 dias'], ['60', 'Próximos 60 dias']], prazoPend)}</select>
   ${ufs.length > 1 ? `<select class="campo" id="filtroUfPend" style="width:auto"><option value="">Todos os estados</option>${ufs.map((u) => `<option${u === filtroUfPend ? ' selected' : ''}>${u}</option>`).join('')}</select>` : ''}</span></div>
@@ -1516,7 +1571,7 @@ async function adminPendentes(recarregar = true) {
     <button class="btn btn-escuro" type="button" id="publicarSelPend" disabled>Publicar selecionadas</button>
     <button class="btn btn-perigo" type="button" id="recusarSelPend" disabled>Recusar selecionadas</button></div>
   <div class="tabela-wrap"><table class="tab"><thead><tr><th style="width:28px"></th><th>Data</th><th>Corrida</th><th>Cidade</th><th>Distâncias</th><th>Fonte</th><th><span class="muted" style="font-weight:400">Ações</span></th></tr></thead><tbody>
-  ${lista.map((p) => { const [a, m, d] = p.data.split('-'); const fd = diasAte(p.data); return `<tr><td><input type="checkbox" class="sel-pend" value="${p.id}" aria-label="Selecionar ${esc(p.nome)}"></td><td>${d}/${m}/${a}<br><small class="${fd <= 7 ? 'pend-urgente' : 'muted'}">${fd <= 0 ? 'hoje' : fd === 1 ? 'amanhã' : `em ${fd} dias`}</small></td><td>${p.imagem_sugerida ? `<img class="pend-mini" src="${esc(p.imagem_sugerida)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<b>${esc(p.nome)}</b> <span class="selos-pend"><span class="selo-pend ${p.imagem_sugerida ? 'ok' : ''}">${p.imagem_sugerida ? '✓' : '✗'} imagem</span><span class="selo-pend ${p.lat != null ? 'ok' : ''}">${p.lat != null ? '✓' : '✗'} local</span></span>${p.descricao ? `<br><small>${esc(p.descricao.length > 140 ? p.descricao.slice(0, 140) + '…' : p.descricao)}</small>` : ''}${p.observacao ? `<br><small class="muted">${esc(p.observacao)}</small>` : ''}${p.lat != null ? '<br><small class="muted">Local exato encontrado' + (p.local_largada ? ': ' + esc(p.local_largada) : '') + '</small>' : ''}${p.percurso_url || p.percurso_info ? `<br><small class="tem-perc">Tem percurso${p.percurso_info ? ': ' + esc(p.percurso_info) : ''}${p.percurso_url ? ` · <a href="${esc(p.percurso_url)}" target="_blank" rel="noopener">abrir</a>` : ''}</small>` : ''}</td><td>${esc(p.cidade)}</td><td>${esc(p.distancias || '—')}</td>
+  ${lista.map((p) => { const [a, m, d] = p.data.split('-'); const fd = diasAte(p.data); return `<tr><td><input type="checkbox" class="sel-pend" value="${p.id}" aria-label="Selecionar ${esc(p.nome)}"></td><td>${d}/${m}/${a}<br><small class="${fd <= 7 ? 'pend-urgente' : 'muted'}">${fd <= 0 ? 'hoje' : fd === 1 ? 'amanhã' : `em ${fd} dias`}</small></td><td>${p.imagem_sugerida ? `<img class="pend-mini" src="${esc(p.imagem_sugerida)}" alt="" loading="lazy" onerror="this.remove()">` : ''}${seloNota(p)}<b>${esc(p.nome)}</b> <span class="selos-pend"><span class="selo-pend ${p.imagem_sugerida ? 'ok' : ''}">${p.imagem_sugerida ? '✓' : '✗'} imagem</span><span class="selo-pend ${p.lat != null ? 'ok' : ''}">${p.lat != null ? '✓' : '✗'} local</span></span>${p.descricao ? `<br><small>${esc(p.descricao.length > 140 ? p.descricao.slice(0, 140) + '…' : p.descricao)}</small>` : ''}${p.observacao ? `<br><small class="muted">${esc(p.observacao)}</small>` : ''}${p.lat != null ? '<br><small class="muted">Local exato encontrado' + (p.local_largada ? ': ' + esc(p.local_largada) : '') + '</small>' : ''}${p.percurso_url || p.percurso_info ? `<br><small class="tem-perc">Tem percurso${p.percurso_info ? ': ' + esc(p.percurso_info) : ''}${p.percurso_url ? ` · <a href="${esc(p.percurso_url)}" target="_blank" rel="noopener">abrir</a>` : ''}</small>` : ''}</td><td>${esc(p.cidade)}</td><td>${esc(p.distancias || '—')}</td>
     <td>${p.fonte_url ? `<a href="${esc(p.fonte_url)}" target="_blank" rel="noopener" style="color:var(--cone-txt);font-weight:600">${esc(p.fonte || 'ver fonte')}</a>` : esc(p.fonte || '—')}</td>
     <td class="acoes"><button class="btn btn-escuro" data-revisar="${p.id}">Revisar e aprovar</button> <button class="btn btn-perigo" data-recusar="${p.id}">Recusar</button></td></tr>`; }).join('') || '<tr><td colspan="7" class="muted">Tudo revisado por aqui.</td></tr>'}
   </tbody></table></div>`;
@@ -2153,12 +2208,31 @@ function adminModulos() {
 
 async function adminInscritos() {
   const box = $('#conteudoAdmin');
-  const { data = [] } = await sb.from('inscritos_avisos').select('*').order('criado_em', { ascending: false });
-  box.innerHTML = `<div class="barra-admin"><span class="muted">${(data || []).length} pessoa(s) querem receber aviso de novas provas</span>${(data || []).length ? '<button class="btn btn-linha" id="copiar">Copiar e-mails</button>' : ''}</div>
-  <div class="tabela-wrap"><table class="tab"><thead><tr><th>E-mail</th><th>Desde</th></tr></thead><tbody>
-  ${(data || []).map((i) => `<tr><td>${esc(i.email)}</td><td>${new Date(i.criado_em).toLocaleDateString('pt-BR')}</td></tr>`).join('') || '<tr><td colspan="2" class="muted">Ninguém se inscreveu ainda.</td></tr>'}
+  box.innerHTML = '<p class="muted">Carregando…</p>';
+  const { data } = await sb.from('inscritos_avisos').select('*').order('criado_em', { ascending: false });
+  const lista = data || [];
+  const conf = lista.filter((i) => i.confirmado && i.ativo).length, saiu = lista.filter((i) => !i.ativo).length;
+  box.innerHTML = `<div class="barra-admin" style="flex-wrap:wrap;gap:8px"><span class="muted">${lista.length} inscrição(ões) · <b>${conf} confirmada(s) e ativa(s)</b> · ${lista.length - conf - saiu} aguardando confirmação · ${saiu} saíram</span>
+    <span style="display:flex;gap:8px;margin-left:auto">${conf ? '<button class="btn btn-linha" id="copiar">Copiar e-mails confirmados</button>' : ''}<button class="btn btn-escuro" id="enviarResumo">Enviar resumo agora</button></span></div>
+  <p class="muted"><small>O resumo sai sozinho todo dia às 9h para quem está há 7 dias sem receber e tem corrida nova no raio escolhido. O envio usa o serviço Resend; sem ele configurado na Vercel, nada é enviado (só simula).</small></p>
+  <div class="tabela-wrap"><table class="tab"><thead><tr><th>E-mail</th><th>Cidade e raio</th><th>Distâncias</th><th>Situação</th><th>Último resumo</th><th>Desde</th></tr></thead><tbody>
+  ${lista.map((i) => `<tr><td>${esc(i.email)}</td><td>${esc(i.cidade || '—')}${i.raio_km ? ` <small class="muted">até ${i.raio_km} km</small>` : ''}</td><td>${esc((i.distancias || []).join(', ') || 'todas')}</td>
+    <td><span class="status ${!i.ativo ? '' : i.confirmado ? 'publicado' : 'rascunho'}">${!i.ativo ? 'saiu' : i.confirmado ? 'confirmado' : 'aguardando'}</span></td>
+    <td>${i.ultimo_envio ? new Date(i.ultimo_envio).toLocaleDateString('pt-BR') : '—'}</td><td>${new Date(i.criado_em).toLocaleDateString('pt-BR')}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">Ninguém se inscreveu ainda.</td></tr>'}
   </tbody></table></div>`;
-  $('#copiar')?.addEventListener('click', () => { navigator.clipboard.writeText(data.map((i) => i.email).join(', ')); toast('E-mails copiados'); });
+  $('#copiar')?.addEventListener('click', () => { navigator.clipboard.writeText(lista.filter((i) => i.confirmado && i.ativo).map((i) => i.email).join(', ')); toast('E-mails copiados'); });
+  $('#enviarResumo').addEventListener('click', async (e) => {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return toast('Entre de novo no admin.');
+    e.target.disabled = true; e.target.textContent = 'Enviando…';
+    try {
+      const r = await fetch('/api/avisos?acao=enviar', { headers: { authorization: `Bearer ${session.access_token}` } });
+      const k = await r.json();
+      if (!r.ok) throw new Error(k.erro || r.status);
+      toast(k.servico_configurado ? `${k.enviados} resumo(s) enviado(s), ${k.sem_novidade} sem corrida nova${k.falhas ? `, ${k.falhas} falha(s)` : ''}.` : `Serviço de e-mail não configurado: ${k.simulados} resumo(s) seriam enviados.`);
+    } catch (err) { toast('Não foi possível enviar: ' + err.message); }
+    adminInscritos();
+  });
 }
 
 async function atualizarPublico() {

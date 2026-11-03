@@ -15,6 +15,9 @@
     },
     "api/sitemap.js": {
       "maxDuration": 20
+    },
+    "api/avisos.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -61,6 +64,10 @@
     {
       "path": "/api/enriquecer?so=pinos",
       "schedule": "30 23 * * *"
+    },
+    {
+      "path": "/api/avisos?acao=enviar",
+      "schedule": "0 12 * * *"
     }
   ],
   "rewrites": [

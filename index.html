@@ -207,9 +207,14 @@
     <div class="ferr ferr-aviso" data-mod="aviso_provas">
       <span class="rot">AVISO</span>
       <h2 class="display">Aviso de novas provas</h2>
-      <p>Receba um e-mail quando abrir inscrição para uma corrida na região.</p>
+      <p>Escolha a cidade, a distância e o tamanho do trecho. Toda semana com corrida nova perto de você, chega um resumo no seu e-mail.</p>
       <form id="formAviso">
-        <label>E-mail<input type="email" id="avisoEmail" required placeholder="voce@email.com"></label>
+        <label class="av-email">E-mail<input type="email" id="avisoEmail" required placeholder="voce@email.com" autocomplete="email"></label>
+        <label>Cidade<input id="avisoCidade" required list="avisoCidades" placeholder="Ex.: Indaiatuba" autocomplete="address-level2"><datalist id="avisoCidades"></datalist></label>
+        <label>Até<select id="avisoRaio"><option value="25">25 km</option><option value="50" selected>50 km</option><option value="100">100 km</option><option value="200">200 km</option></select></label>
+        <fieldset class="av-dist"><legend>Distâncias</legend>
+          <label><input type="checkbox" value="5K" checked>5K</label><label><input type="checkbox" value="10K" checked>10K</label><label><input type="checkbox" value="21K" checked>21K</label><label><input type="checkbox" value="42K" checked>42K</label>
+        </fieldset>
         <button class="btn btn-cone" type="submit">Quero receber</button>
       </form>
       <p class="msg" id="avisoMsg" role="status"></p>

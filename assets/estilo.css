@@ -887,3 +887,16 @@ a.manchete-foto{display:block}
   .pagina-corrida .cab{order:-2}
   .pagina-corrida .aviso-passada{order:-3;grid-column:span 12}
 }
+.selo-nota{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:22px;padding:0 6px;margin-right:6px;border-radius:6px;font-family:var(--mono,monospace);font-size:12px;font-weight:700;vertical-align:1px;cursor:help}
+.selo-nota.alta{background:#1D6B45;color:#fff}
+.selo-nota.media{background:#FFE7C2;color:#8A5300}
+.selo-nota.baixa{background:var(--concreto);color:var(--cinza)}
+/* formulário de avisos por e-mail */
+.ferr-aviso form{display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:end}
+.ferr-aviso form .av-email,.ferr-aviso form .av-dist,.ferr-aviso form .btn{grid-column:1/-1}
+.ferr-aviso select{height:44px;padding:0 10px;border:1px solid var(--chip);border-radius:6px;font-size:16px;background:#fff}
+.av-dist{border:0;padding:0;margin:0;display:flex;gap:8px;flex-wrap:wrap}
+.av-dist legend{font-size:13px;font-weight:600;color:var(--cinza);margin-bottom:6px;padding:0}
+.ferr-aviso .av-dist label{flex:0 0 auto;min-width:0;flex-direction:row;align-items:center;gap:6px;height:36px;padding:0 12px;border:1px solid var(--chip);border-radius:999px;color:var(--asfalto);font-size:14px;cursor:pointer}
+.ferr-aviso .av-dist label:has(input:checked){border-color:var(--asfalto);background:var(--concreto)}
+.ferr-aviso .av-dist input{height:auto;width:16px;margin:0}

@@ -313,3 +313,4 @@ async function conferirPino(lat, lng, cidade, uf) {
   return { lat, lng, ok: true };
 }
 module.exports.conferirPino = conferirPino;
+module.exports.centroCidade = centroCidade;
