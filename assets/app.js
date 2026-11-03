@@ -203,7 +203,7 @@ function cartao(c) {
   const [abre, fecha] = abreLink(c, 'cartao');
   const chips = rotulos(c).map((r) => `<span class="chip">${esc(r)}</span>`).join('');
   return `${abre}<span class="cartao-faixa"><span>${p.sem.toUpperCase()}</span><span>${esc(c.cidade.toUpperCase())}</span></span>` +
-    `<span class="cartao-corpo"><span class="cartao-dia">${p.dia}</span><span class="cartao-info"><span class="cartao-mes">${p.mesL.toUpperCase()}</span>` +
+    `<span class="cartao-corpo"><span class="cartao-dia">${p.dia}</span><span class="cartao-info"><span class="cartao-mes">${p.mesL.charAt(0).toUpperCase() + p.mesL.slice(1)}</span>` +
     `<span class="cartao-nome">${esc(c.nome)}</span>${chips ? `<span class="chips">${chips}</span>` : ''}</span></span>` +
     `${c.inscricoes_abertas ? '' : '<span class="cartao-enc">Inscrições encerradas</span>'}${fecha}`;
 }
@@ -229,7 +229,7 @@ function montarNoticias() {
   $('#noticiasConta').textContent = ns.length === 1 ? '1 matéria' : `${ns.length} matérias`;
   $('#noticiasConteudo').innerHTML = `
     <article class="manchete">
-      <a class="manchete-foto" href="#noticia/${esc(principal.slug)}" tabindex="-1" aria-hidden="true">${principal.imagem_url ? `<img src="${esc(principal.imagem_url)}" alt="" loading="lazy">` : ''}<span class="selo">${esc((NOMES_ED[principal.editoria] || '').toUpperCase())}</span></a>${principal.imagem_url && principal.imagem_credito ? `<small class="cred-foto">${esc(principal.imagem_credito)}</small>` : ''}
+      <a class="manchete-foto" href="#noticia/${esc(principal.slug)}" tabindex="-1" aria-hidden="true">${principal.imagem_url ? `<img src="${esc(principal.imagem_url)}" alt="" loading="lazy">` : ''}<span class="selo">${esc(NOMES_ED[principal.editoria] || '')}</span></a>${principal.imagem_url && principal.imagem_credito ? `<small class="cred-foto">${esc(principal.imagem_credito)}</small>` : ''}
       <h3 class="display"><a class="link-noticia" href="#noticia/${esc(principal.slug)}">${esc(principal.titulo)}</a></h3>
       ${principal.resumo ? `<p>${esc(principal.resumo)}</p>` : ''}${principal.fonte_nome ? `<p class="credito" style="font-size:12px;opacity:.7;margin-top:4px">Com informações de ${principal.fonte_url ? `<a href="${esc(principal.fonte_url)}" target="_blank" rel="noopener">${esc(principal.fonte_nome)}</a>` : esc(principal.fonte_nome)}</p>` : ''}
     </article>
@@ -287,16 +287,16 @@ function montarZonas() {
   $('#zRepWrap').hidden = !kv;
   $$('[data-metodo]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.metodo === zst.metodo));
   $('#zResumo').innerHTML =
-    `<div><span>MÁXIMA</span><b>${max}</b><small>${usaMax ? 'informada' : 'estimada pela idade'}</small></div>` +
-    `<div><span>REPOUSO</span><b>${kv ? rep : '—'}</b><small>bpm</small></div>` +
-    `<div><span>RESERVA</span><b>${kv ? max - rep : '—'}</b><small>bpm</small></div>`;
+    `<div><span>Máxima</span><b>${max}</b><small>${usaMax ? 'informada' : 'estimada pela idade'}</small></div>` +
+    `<div><span>Repouso</span><b>${kv ? rep : '—'}</b><small>bpm</small></div>` +
+    `<div><span>Reserva</span><b>${kv ? max - rep : '—'}</b><small>bpm</small></div>`;
   $('#zBarra').innerHTML = ZONAS.map((z) => `<span style="background:${z.cor}"></span>`).join('');
   $('#zEscala').innerHTML = `<span>${bpm(.5)} bpm</span><span>${max} bpm</span>`;
   $('#zCompacto').innerHTML = ZONAS.map((z) =>
     `<li><span class="ponto" style="background:${z.cor}"></span><span class="nm">${z.nome}</span><span class="bp" style="color:${z.cor}">${bpm(z.de)}–${bpm(z.ate)}</span></li>`).join('');
   $('#zLista').innerHTML = ZONAS.map((z) =>
     `<div class="zona" style="--cor:${z.cor}"><span class="cor"></span><span class="corpo"><span class="l1"><span class="nome">${z.nome}</span><span class="faixa">${bpm(z.de)}–${bpm(z.ate)}</span></span>` +
-    `<span class="l2">${Math.round(z.de * 100)}–${Math.round(z.ate * 100)}%${temPace ? ` · PACE ${ritmo(seg + z.dp[1])}–${ritmo(seg + z.dp[0])} /km` : ''}</span>` +
+    `<span class="l2">${Math.round(z.de * 100)}–${Math.round(z.ate * 100)}%${temPace ? ` · pace ${ritmo(seg + z.dp[1])}–${ritmo(seg + z.dp[0])} /km` : ''}</span>` +
     `<span class="uso">${z.uso}</span></span></div>`).join('');
 }
 $('#ferrZonas').addEventListener('input', (e) => { if (e.target.id === 'zPace') e.target.dataset.mexido = '1'; montarZonas(); });
@@ -343,7 +343,7 @@ function calcPulseira() {
   const ate = (x) => x <= km / 2 ? x * p1 : (km / 2) * p1 + (x - km / 2) * p2;
   const marcas = []; for (let k = 1; k < km; k++) marcas.push(k); marcas.push(km);
   const meio = Math.round(km / 2);
-  $('#pzTabela').innerHTML = `<table><thead><tr><th>KM</th><th>PACE</th><th>PASSAGEM</th></tr></thead><tbody>` +
+  $('#pzTabela').innerHTML = `<table><thead><tr><th>Km</th><th>Pace</th><th>Passagem</th></tr></thead><tbody>` +
     marcas.map((k, i) => { const ini = i ? marcas[i - 1] : 0; const parc = (ate(k) - ate(ini)) / (k - ini);
       const rot = k === km ? (km % 1 ? km.toFixed(1).replace('.', ',') : km) : k;
       return `<tr${k === meio && km > 5 ? ' class="meio"' : ''}><td>${rot}</td><td>${fmt(parc, true)}</td><td>${fmt(ate(k))}</td></tr>`; }).join('') + '</tbody></table>';
@@ -552,7 +552,7 @@ function atualizarSimulador() {
   $('#simBarras').innerHTML = r.trechos.map((t) => { const dv = t.pace - media, h = Math.max(3, Math.round(Math.abs(dv) / maxDev * 24));
     return `<span class="${dv >= 0 ? 'lento' : 'rapido'}" style="height:${h}px;${dv >= 0 ? `align-self:flex-start;margin-top:${28 - h}px` : `align-self:flex-end;margin-bottom:${28 - h}px`}" title="km ${t.rot}: ${fmt(t.pace, true)}/km"></span>`; }).join('');
   const maxG = Math.max(1, ...r.trechos.map((t) => t.ganho / t.len)), pior = r.trechos.reduce((x, t) => (t.ganho / t.len > x.ganho / x.len ? t : x), r.trechos[0]);
-  $('#simTabela').innerHTML = `<table><thead><tr><th>KM</th><th>GANHO</th><th>PERDA</th><th>PACE</th><th>PASSAGEM</th></tr></thead><tbody>${r.trechos.map((t) => {
+  $('#simTabela').innerHTML = `<table><thead><tr><th>Km</th><th>Ganho</th><th>Perda</th><th>Pace</th><th>Passagem</th></tr></thead><tbody>${r.trechos.map((t) => {
     const g = Math.round(t.ganho), pd = Math.round(t.perda), w = Math.round((t.ganho / t.len) / maxG * 100);
     return `<tr${t === pior && g >= 5 ? ' class="km-duro" title="Km com mais subida"' : ''}><td>${t.rot}</td><td class="ganho"><span class="g-barra" style="width:${w}%"></span><span class="${g >= 5 ? 'sobe' : ''}">+${g} m</span></td><td class="${pd >= 5 ? 'desce' : 'perda0'}">${pd ? '−' + pd : 0} m</td><td>${fmt(t.pace, true)}</td><td>${fmt(t.pass)}</td></tr>`; }).join('')}</tbody></table>`;
   simEstado.r = r;
@@ -566,14 +566,14 @@ function moverFantasma() {
   for (const t of r.trechos) { const ini = t.km - t.len; if (km >= t.km) pass = t.pass; else { pass += (km - ini) * t.pace; pace = t.pace; break; } }
   if (simFantasma && p) { simFantasma.setLatLng([p.lat, p.lng]); simFeito.setLatLngs(simPts.filter((x) => x.km <= km).map((x) => [x.lat, x.lng]).concat([[p.lat, p.lng]])); }
   const cur = $('#vCorrida .alt-cursor'); if (cur) { const x = (km / r.tot) * 1000; cur.setAttribute('x1', x); cur.setAttribute('x2', x); cur.style.display = ''; }
-  $('#simLeitura').innerHTML = [['KM', km.toFixed(1).replace('.', ',')], ['ALTITUDE', p && p.ele != null ? Math.round(p.ele) + ' m' : '—'], ['PACE', fmt(pace, true)], ['PASSAGEM', fmt(pass)]]
+  $('#simLeitura').innerHTML = [['Km', km.toFixed(1).replace('.', ',')], ['Altitude', p && p.ele != null ? Math.round(p.ele) + ' m' : '—'], ['Pace', fmt(pace, true)], ['Passagem', fmt(pass)]]
     .map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
 }
 function textoEstrategia(r) {
   const e = simEstado.est, a = simEstado.adj;
   $('#simEstTxt').textContent = e === 0 ? 'Ritmo igual do começo ao fim' : e > 0 ? `Guardar para o fim (split negativo, nível ${e})` : `Sair mais forte (split positivo, nível ${-e})`;
   $('#simAdjTxt').textContent = a >= 95 ? 'Esforço constante: mais lento na subida, recupera na descida' : a <= 5 ? 'Pace igual em tudo: a subida exige mais força' : a >= 50 ? 'Poupa um pouco nas subidas' : 'Força um pouco nas subidas';
-  $('#simMetades').innerHTML = `<div><span>1ª METADE</span><b>${fmt(r.metade[0])}</b></div><div><span>2ª METADE</span><b>${fmt(r.metade[1])}</b></div><div><span>DIFERENÇA</span><b>${Math.abs(r.metade[1] - r.metade[0]) < 0.5 ? '0:00' : (r.metade[1] - r.metade[0] > 0 ? '+' : '−') + fmt(Math.abs(r.metade[1] - r.metade[0]), true)}</b></div><div><span>RITMO PLANO</span><b>${fmt(r.plano)}</b></div>`;
+  $('#simMetades').innerHTML = `<div><span>1ª METADE</span><b>${fmt(r.metade[0])}</b></div><div><span>2ª METADE</span><b>${fmt(r.metade[1])}</b></div><div><span>Diferença</span><b>${Math.abs(r.metade[1] - r.metade[0]) < 0.5 ? '0:00' : (r.metade[1] - r.metade[0] > 0 ? '+' : '−') + fmt(Math.abs(r.metade[1] - r.metade[0]), true)}</b></div><div><span>Ritmo plano</span><b>${fmt(r.plano)}</b></div>`;
 }
 document.addEventListener('input', (e) => {
   if (e.target.id === 'simAlvo') { simEstado.alvo = e.target.value; atualizarSimulador(); }
@@ -635,7 +635,7 @@ async function montarRanking() {
     const subKm = (c.subida_m / c.percurso_km).toFixed(1).replace('.', ',');
     const fat = [['Percurso', n.p, `+${c.subida_m} m de subida`], ['Clima', n.cn ?? 0, n.clh ? `${Math.round(n.clh.t)}°C, ${Math.round(n.clh.u)}% umid.` : 'sem dados'], ['Horário', n.h, c.horario ? `largada ${c.horario.slice(0, 5).replace(':', 'h')}` : 'a confirmar']];
     return `<div class="rk-item${i === 0 ? ' top' : ''}">
-      ${i === 0 ? '<span class="rk-selo">SUA MELHOR CHANCE</span>' : ''}
+      ${i === 0 ? '<span class="rk-selo">Sua melhor chance</span>' : ''}
       <button type="button" class="rk-cab" data-rk-abrir="${c.id}" aria-expanded="${aberta}">
         <span class="rk-pos">${String(i + 1).padStart(2, '0')}</span>
         <span class="rk-nome"><b>${esc(c.nome)}</b><small>${esc(c.cidade)} · ${dataLonga(c.data)}${rotulos(c).length ? ' · ' + esc(rotulos(c).join(', ')) : ''}</small></span>
@@ -1086,7 +1086,7 @@ function baixarIcs(c) {
   const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//PaceClub//Corridas//PT-BR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
     `UID:${c.id || c.slug}@paceclub`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
     `DTSTART:${e.ini}`, `DTEND:${e.fim}`, `SUMMARY:${q(e.titulo)}`, `LOCATION:${q(e.local)}`, `DESCRIPTION:${q(e.texto)}`, `URL:${e.pagina}`,
-    'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${q('Amanhã: ' + e.titulo + ' (retire o kit!)')}`, 'TRIGGER:-P1D', 'END:VALARM',
+    'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${q('Amanhã: ' + e.titulo + ' (retire o kit)')}`, 'TRIGGER:-P1D', 'END:VALARM',
     'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
   const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
   const a = Object.assign(document.createElement('a'), { href: url, download: `${c.slug}.ics` });
@@ -1118,7 +1118,7 @@ function mostrarCorrida(slug, percIdx = 0) {
   const temPerc = Array.isArray(c.percurso) && c.percurso.length > 1;
   const brl = (v) => v == null ? 'Preço a confirmar' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const simHtml = temPerc && mod('simulador') ? `<section class="caixa sim sim-lado" id="simBox" aria-labelledby="simTit">
-    <div class="sim-cab"><div><span class="rot">SIMULADOR DA PROVA</span><h2 class="display" id="simTit">Monte a sua estratégia</h2></div>
+    <div class="sim-cab"><div><span class="rot">Simulador da prova</span><h2 class="display" id="simTit">Monte a sua estratégia</h2></div>
       <div class="sim-entrada"><label class="campo">Tempo alvo<input id="simAlvo" inputmode="numeric"></label></div></div>
     <div class="sim-grade">
       <div class="sim-col">
@@ -1142,7 +1142,7 @@ function mostrarCorrida(slug, percIdx = 0) {
     </div></section>` : '';
   const percHtml = temPerc ? `<div class="caixa bloco-perc${simHtml ? ' com-sim' : ''}" id="caixaPerc"><div class="perc-topo"><h2 class="display">Percurso</h2>
         ${percs.length > 1 ? `<div class="perc-abas" role="group" aria-label="Escolha o percurso">${percs.map((p, i) => `<button type="button" class="filtro" data-perc="${i}" aria-pressed="${p === pSel}">${esc(p.rotulo)}</button>`).join('')}</div>` : ''}
-        <div class="perc-stats"><div${c.km_oficial && Math.abs(c.km_oficial - c.percurso_km) >= 0.005 ? ` title="O GPX mediu ${String(c.percurso_km).replace('.', ',')} km. O site ajusta para a distância oficial."` : ''}><span>DISTÂNCIA</span><b>${String(+(c.km_oficial || c.percurso_km).toFixed(2)).replace('.', ',')} km</b></div><div><span>SUBIDA</span><b>${c.subida_m != null ? '+' + c.subida_m + ' m' : '—'}</b></div><div><span>DESCIDA</span><b>${c.descida_m != null ? '−' + c.descida_m + ' m' : '—'}</b></div></div></div>
+        <div class="perc-stats"><div${c.km_oficial && Math.abs(c.km_oficial - c.percurso_km) >= 0.005 ? ` title="O GPX mediu ${String(c.percurso_km).replace('.', ',')} km. O site ajusta para a distância oficial."` : ''}><span>DISTÂNCIA</span><b>${String(+(c.km_oficial || c.percurso_km).toFixed(2)).replace('.', ',')} km</b></div><div><span>Subida</span><b>${c.subida_m != null ? '+' + c.subida_m + ' m' : '—'}</b></div><div><span>Descida</span><b>${c.descida_m != null ? '−' + c.descida_m + ' m' : '—'}</b></div></div></div>
         <div id="mapaCorrida" class="mapa-perc"></div>
         <div class="alt-inter" id="altInter">${svgAltimetria(comDistancia(c))}${marcasKm(c.km_oficial || c.percurso_km)}<div class="alt-dica" id="altDica" hidden></div></div>
         <small class="alt-ajuda">Passe o dedo ou o mouse sobre a altimetria para ver cada ponto no mapa. As setas mostram o sentido da prova.</small></div>
@@ -1257,8 +1257,8 @@ $('#formAviso').addEventListener('submit', async (e) => {
     if (!r.ok) throw new Error(j.erro || 'Não deu para cadastrar agora. Tente de novo em alguns minutos.');
     msg.className = 'msg ok';
     msg.textContent = j.ja_confirmado ? 'Preferências atualizadas. Você continua recebendo os avisos.'
-      : j.confirmacao_enviada ? 'Quase lá! Enviamos um e-mail para você confirmar a inscrição.'
-      : 'Inscrição recebida! Assim que os avisos começarem, você recebe um e-mail para confirmar.';
+      : j.confirmacao_enviada ? 'Quase lá. Enviamos um e-mail para você confirmar a inscrição.'
+      : 'Inscrição recebida. Assim que os avisos começarem, você recebe um e-mail para confirmar.';
     e.target.reset();
   } catch (err) { msg.className = 'msg erro'; msg.textContent = err.message; }
   btn.disabled = false;
@@ -1396,7 +1396,7 @@ async function verificarRobo() {
   const { data } = await sb.from('robo_execucoes').select('rota, origem, inicio, fim, ok').order('inicio', { ascending: false }).limit(30);
   const tem = data && problemasRobo(data).length && data.length;
   const aba = $('[data-aba="robo"] span');
-  if (aba) aba.textContent = tem ? 'Robô ⚠' : 'Robô';
+  if (aba) aba.innerHTML = tem ? 'Robô <i class="ponto-alerta" title="O robô precisa de atenção"></i>' : 'Robô';
 }
 async function adminRobo() {
   const box = $('#conteudoAdmin');
