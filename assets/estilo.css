@@ -900,3 +900,48 @@ a.manchete-foto{display:block}
 .ferr-aviso .av-dist label{flex:0 0 auto;min-width:0;flex-direction:row;align-items:center;gap:6px;height:36px;padding:0 12px;border:1px solid var(--chip);border-radius:999px;color:var(--asfalto);font-size:14px;cursor:pointer}
 .ferr-aviso .av-dist label:has(input:checked){border-color:var(--asfalto);background:var(--concreto)}
 .ferr-aviso .av-dist input{height:auto;width:16px;margin:0}
+
+/* ================= Detalhes ao passar o mouse =================
+   Só em aparelhos com mouse (no toque não fica "preso") e desligado para quem pede menos movimento. */
+.btn,.btn-pilula,.rk-link,.filtro,a.cartao,.cartao-dia,.cartao-faixa,a.q-linha,.q-data,.q-nome,.rk-item,.menu a,.logo,.ci-mapa svg,.cm-nome,.tab tbody tr,.busca-viagem,.hero-abrir{transition:transform .18s ease,background-color .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease,padding .18s ease,opacity .18s ease}
+.menu a{position:relative}
+.menu a::after{content:"";position:absolute;left:0;right:0;bottom:-6px;height:2px;background:var(--cone);transform:scaleX(0);transform-origin:left;transition:transform .2s ease}
+a.q-linha .q-st{position:relative}
+a.q-linha .q-st::after{content:"→";position:absolute;right:-16px;top:50%;transform:translate(-4px,-50%);opacity:0;transition:opacity .18s ease,transform .18s ease}
+@media (hover:hover) and (pointer:fine){
+  /* botões: sobem um pouco e afundam ao clicar */
+  .btn:hover,.btn-pilula:hover,.rk-link:hover{transform:translateY(-1px)}
+  .btn:active,.btn-pilula:active,.rk-link:active{transform:translateY(1px)}
+  .filtro:hover{border-color:var(--asfalto)}
+  .filtro[aria-pressed="true"]:hover{background:#34393E}
+  /* menu do topo: sublinhado laranja que cresce */
+  .menu a:hover::after,.menu a.ativo::after{transform:scaleX(1)}
+  .logo:hover span{color:#FF6A2B}
+  /* cartões "perto de você": levantam e destacam o dia */
+  a.cartao:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(21,24,27,.12)}
+  a.cartao:hover .cartao-dia{color:var(--cone-txt)}
+  a.cartao:hover .cartao-faixa{background:#FF6A2B}
+  /* quadro de largadas: a linha se destaca, a data acende e aparece a seta */
+  a.q-linha:hover .q-data{border-color:var(--cone);color:var(--cone)}
+  a.q-linha:hover .q-nome{padding-left:4px}
+  a.q-linha:hover .q-st::after{opacity:1;transform:translate(0,-50%)}
+  /* lista do mapa: nome sublinhado junto com o zoom da foto que já existe */
+  .cartao-mapa:hover .cm-nome{text-decoration:underline;text-decoration-color:var(--cone);text-underline-offset:3px}
+  /* "onde bater meu recorde" */
+  .rk-item:hover{border-color:var(--asfalto);transform:translateY(-2px)}
+  .rk-item.top:hover{border-color:var(--cone)}
+  /* página da corrida: a seta do mapa anda */
+  .ci-mapa:hover svg{transform:translateX(3px)}
+  /* tabelas do admin: linha sob o mouse */
+  .tab tbody tr:hover{background:var(--realce)}
+  .hero-abrir:hover{transform:translateY(-1px)}
+}
+/* teclado: os mesmos destaques ao navegar com Tab */
+a.cartao:focus-visible{transform:translateY(-3px);box-shadow:0 0 0 3px var(--cone)}
+a.q-linha:focus-visible{background:var(--noite2);outline:2px solid var(--cone);outline-offset:-2px}
+a.q-linha:focus-visible .q-st::after{opacity:1}
+@media (prefers-reduced-motion:reduce){
+  .btn,.btn-pilula,.rk-link,a.cartao,a.q-linha,.q-nome,.rk-item,.ci-mapa svg,.hero-abrir,.menu a::after{transition:none}
+  .btn:hover,.btn-pilula:hover,.rk-link:hover,a.cartao:hover,.rk-item:hover,.ci-mapa:hover svg,.hero-abrir:hover,a.cartao:focus-visible{transform:none}
+  a.q-linha:hover .q-nome{padding-left:0}
+}
