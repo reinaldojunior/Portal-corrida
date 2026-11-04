@@ -43,6 +43,25 @@ module.exports = async (req, res) => {
       await logFim(true, { devolvidas }, null);
       return res.status(200).json({ devolvidas });
     }
+    // ?modo=textos: lê o texto da página de inscrição das corridas sem descrição (para a reescrita das descrições)
+    if (req.query.modo === 'textos') {
+      const lista = (await rpc('robo_para_ler_textos', { p_token: token, p_limite: 60 })) || [];
+      const prazo = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('demorou')), ms))]);
+      const itens = []; let k = 0;
+      const ler = async () => {
+        while (k < lista.length && Date.now() - inicio < 45000) {
+          const f = lista[k++]; let texto = '';
+          try { texto = (await prazo(analisar(f.link_inscricao, undefined, { soTexto: true }), 10000)).texto || ''; } catch { /* página fora do ar: marca como lida */ }
+          itens.push({ tabela: f.tabela, id: f.id, texto });
+        }
+      };
+      await Promise.all(Array.from({ length: 4 }, ler));
+      let gravadas = 0;
+      for (let a = 0; a < itens.length; a += 100) gravadas += (await rpc('robo_guardar_textos', { p_token: token, p_itens: itens.slice(a, a + 100) })) || 0;
+      const resultado = { textos_lidos: itens.length, com_texto: itens.filter((x) => x.texto).length, gravadas, na_fila: lista.length };
+      await logFim(true, resultado, null);
+      return res.status(200).json(resultado);
+    }
     // ?so=pinos pula a leitura das páginas e usa o tempo todo para conferir pinos (e pôr o centro da cidade)
     const soPinos = req.query.so === 'pinos';
     // ?site=ticketsports processa só as provas daquele site (com menos acessos ao mesmo tempo)
@@ -61,7 +80,7 @@ module.exports = async (req, res) => {
         let item;
         try {
           const d = await comPrazo(analisar(f.link_inscricao), 12000);
-          item = { chave: f.chave, imagem: d.imagem || null, lat: d.lat ?? null, lng: d.lng ?? null, local: d.local || null };
+          item = { chave: f.chave, imagem: d.imagem || null, lat: d.lat ?? null, lng: d.lng ?? null, local: d.local || null, texto: d.texto || null };
         } catch {
           // página não abriu ou demorou: conta a tentativa e tenta de novo na próxima rodada (até 3 vezes)
           try { await rpc('robo_falha_enriquecer', { p_token: token, p_chaves: [f.chave] }); } catch { /* segue */ }

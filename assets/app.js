@@ -1411,6 +1411,7 @@ async function adminRobo() {
   const resumo = (e) => {
     const r = e.resultado || {};
     if (e.erro) return `<small class="pend-urgente">${esc(e.erro)}</small>`;
+    if (e.rota === 'enriquecer' && r.textos_lidos != null) return `<small>${r.textos_lidos} página(s) lidas para descrição · ${r.com_texto} com texto</small>`;
     if (e.rota === 'enriquecer' && r.devolvidas != null) return `<small>${r.devolvidas ? `${r.devolvidas} pendente(s) sem imagem ou local voltaram para a fila` : 'nenhuma pendente para reprocessar'}</small>`;
     if (e.rota === 'enriquecer') return `<small>${[r.processadas != null && `${r.processadas} lidas`, r.com_imagem && `${r.com_imagem} com imagem`, r.com_local && `${r.com_local} com local`, r.falhas && `${r.falhas} falhas`, r.conferidos && `${r.conferidos} pinos conferidos`, r.corrigidos && `${r.corrigidos} corrigidos`, r.publicadas && `<b>${r.publicadas} publicadas</b>`, r.pendentes_expiradas && `${r.pendentes_expiradas} pendentes vencidas`].filter(Boolean).join(' · ') || 'nada a fazer'}</small>`;
     if (e.rota === 'avisos') return `<small>${r.servico_configurado === false ? 'serviço de e-mail não configurado · ' : ''}${[r.enviados && `<b>${r.enviados} resumos enviados</b>`, r.simulados && `${r.simulados} simulados`, r.sem_novidade && `${r.sem_novidade} sem corrida nova`, r.confirmacoes && `${r.confirmacoes} confirmações`, r.falhas && `${r.falhas} falhas`].filter(Boolean).join(' · ') || `${r.inscritos || 0} inscritos para enviar`}</small>`;
@@ -1622,7 +1623,7 @@ async function adminPendentes(recarregar = true) {
     }).filter(Boolean);
     const temPonto = p.lat != null && p.lng != null;
     formCorrida({ nome: p.nome, cidade: p.cidade, estado: p.estado, data: p.data, horario: p.horario, link_inscricao: p.link_inscricao,
-      descricao: p.descricao, organizador: p.organizador, local_largada: p.local_largada, imagem_sugerida: p.imagem_sugerida,
+      descricao: p.descricao, descricao_auto: p.descricao_auto, organizador: p.organizador, local_largada: p.local_largada, imagem_sugerida: p.imagem_sugerida,
       lat: temPonto ? p.lat : coord ? coord[0] : null, lng: temPonto ? p.lng : coord ? coord[1] : null, status: 'publicado', inscricoes_abertas: true,
       corrida_distancias: dists.length ? dists : [{}] }, p);
   }));
@@ -1803,7 +1804,7 @@ function formCorrida(c = {}, pendente = null) {
       <small id="gpxInfo">${c.percurso ? `Percurso salvo: ${String(c.percurso_km).replace('.', ',')} km${c.subida_m != null ? `, +${c.subida_m} m de subida` : ''}.` : 'Nenhum percurso enviado.'}</small>
       ${c.percurso ? '<label class="check"><input type="checkbox" name="remover_percurso"> Remover o percurso salvo</label>' : ''}</div>
     <div class="inteiro"><div class="campo" style="margin-bottom:8px">Distâncias</div><div id="distancias">${(c.corrida_distancias || [{}]).map(linhaDist).join('')}</div><button type="button" class="btn btn-linha" id="addDist">Adicionar distância</button></div>
-    <div class="campo inteiro">Descrição <small>Pode colar texto formatado: negrito, itálico, listas e links são mantidos.</small>${editorRico('descricao', c.descricao)}</div>
+    <div class="campo inteiro">Descrição <small>Pode colar texto formatado: negrito, itálico, listas e links são mantidos.</small>${c.descricao_auto ? '<small class="desc-auto">Texto escrito automaticamente a partir da página de inscrição. Confira os dados; ao editar, ele passa a ser seu.</small>' : ''}${editorRico('descricao', c.descricao)}</div>
     <label class="campo">Organizador<input name="organizador" value="${esc(c.organizador || '')}"></label>
     ${campoFoto(c.imagem_url)}
     ${c.imagem_sugerida && !c.imagem_url ? `<div class="campo inteiro sug-img"><span>Imagem de divulgação encontrada pela busca</span>
@@ -1948,6 +1949,8 @@ function formCorrida(c = {}, pendente = null) {
     } catch (err) { gpxNovo = null; $('#gpxInfo').textContent = `${err.message} Confira se é um arquivo .gpx exportado de um app de corrida.`; }
   });
 
+  // descrição automática: continua marcada enquanto ninguém editar o texto
+  const descInicial = valorEditor(f, 'descricao');
   f.addEventListener('submit', async (e) => {
     e.preventDefault();
     const msg = $('#fMsg');
@@ -1955,7 +1958,7 @@ function formCorrida(c = {}, pendente = null) {
       nome: f.nome.value.trim(), cidade: f.cidade.value.trim(), estado: (f.estado.value || 'SP').toUpperCase(),
       data: f.data.value, horario: f.horario.value || null, local_largada: f.local_largada.value.trim() || null,
       lat: f.lat.value ? Number(f.lat.value) : null, lng: f.lng.value ? Number(f.lng.value) : null,
-      descricao: valorEditor(f, 'descricao'), organizador: f.organizador.value.trim() || null,
+      descricao: valorEditor(f, 'descricao'), descricao_auto: !!c.descricao_auto && valorEditor(f, 'descricao') === descInicial, organizador: f.organizador.value.trim() || null,
       link_inscricao: f.link_inscricao.value.trim() || null, imagem_url: f.imagem_url.value.trim() || null, imagem_credito: f.imagem_credito.value.trim() || null,
       kit_inclui: f.kit.value.split(',').map((s) => s.trim()).filter(Boolean),
       inscricoes_abertas: f.inscricoes_abertas.checked, status: f.status.value

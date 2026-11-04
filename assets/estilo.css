@@ -950,3 +950,4 @@ a.q-linha:focus-visible .q-st::after{opacity:1}
 .ferr-aviso form label{min-width:0}
 .ferr-aviso form select,.ferr-aviso form input{width:100%;min-width:0}
 @media (min-width:1000px){.ferr-aviso{grid-template-rows:auto auto 1fr;align-items:start}}
+.desc-auto{display:block;margin:4px 0 6px;padding:6px 10px;border-radius:4px;background:var(--realce);color:var(--cone-txt);font-weight:600}

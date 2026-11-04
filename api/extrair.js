@@ -228,14 +228,44 @@ module.exports = async (req, res) => {
   catch (e) { res.status(502).json({ erro: e.message }); }
 };
 
+// Texto da página (descrição do evento) para a reescrita das descrições. Só texto, sem HTML.
+const LIXO_TEXTO = /cookie|privacidade|todos os direitos|copyright|termos de uso|esqueci (a )?senha|fa[çc]a (seu )?login|carrinho|baixe o app|newsletter|javascript/i;
+function textoDaPagina(html) {
+  const partes = [];
+  const add = (t, marcador = '') => {
+    t = textoLimpo(String(t || '').replace(/\\u003c/gi, '<').replace(/\\u003e/gi, '>').replace(/\\n|\\r/g, ' ').replace(/<br\s*\/?>/gi, ' '));
+    if (!t || t.length < (marcador ? 12 : 30) || LIXO_TEXTO.test(t)) return;
+    if (partes.some((x) => x.includes(t) || t.includes(x.replace(/^• /, '')))) return;
+    partes.push(marcador + t);
+  };
+  // dados estruturados (schema.org / JSON da página) e descrição curta
+  for (const m of html.matchAll(/"description"\s*:\s*"((?:[^"\\]|\\.){40,4000})"/g)) { add(m[1].replace(/\\"/g, '"')); if (partes.length >= 3) break; }
+  const meta = html.match(/<meta[^>]+(?:name|property)=["'](?:og:description|description)["'][^>]*content=["']([^"']{30,})["']/i)
+    || html.match(/<meta[^>]+content=["']([^"']{30,})["'][^>]*(?:name|property)=["'](?:og:description|description)["']/i);
+  if (meta) add(meta[1]);
+  // corpo da página, sem menus, cabeçalho, rodapé e scripts; prefere o bloco "sobre/descrição do evento"
+  const corpo = html.replace(/<(script|style|noscript|svg|nav|header|footer|form|iframe|button|select)\b[\s\S]*?<\/\1>/gi, ' ');
+  const bloco = corpo.match(/<(div|section|article)\b[^>]*(?:id|class)=["'][^"']*(descri|sobre|about|detalh|informa|evento-info|event-info|conteudo)[^"']*["'][^>]*>([\s\S]{200,30000}?)<\/\1>/i);
+  const fonte = bloco ? bloco[3] : corpo;
+  for (const m of fonte.matchAll(/<(p|li|h[2-4])\b[^>]*>([\s\S]*?)<\/\1>/gi)) {
+    const t = textoLimpo(m[2]);
+    if (t.split(/\s+/).length < (m[1].toLowerCase() === 'li' ? 3 : 6)) continue;
+    add(t, m[1].toLowerCase() === 'li' ? '• ' : '');
+    if (partes.join('\n').length > 6000) break;
+  }
+  return partes.join('\n').slice(0, 6000);
+}
+
 // Lê a página de inscrição e devolve imagem de divulgação e local (usado pelo botão do admin e pelo robô)
-async function analisar(url, padraoTeste) {
+async function analisar(url, padraoTeste, opcoes = {}) {
   url = urlValida(url);
   if (!url) throw new Error('Link inválido.');
   let pg;
   try { pg = await baixar(url); } catch { throw new Error('Não consegui abrir a página da inscrição.'); }
   if (!pg.ok) throw new Error(`A página respondeu com erro ${pg.status}.`);
   const html = desfazer(pg.texto);
+  const texto = textoDaPagina(html);
+  if (opcoes.soTexto) return { texto };
 
   // imagem de divulgação
   const og = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]*content=["']([^"']+)["']/i)
@@ -277,7 +307,7 @@ async function analisar(url, padraoTeste) {
   if (lat == null && local) { const g = await geocodificar(local, cidadeEv && cidadeEv[1]); if (g) [lat, lng] = g; }
   // a página monta o link do Maps na hora; montamos o mesmo link a partir do endereço
   if (!mapa && local) mapa = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(local)}`;
-  return { imagem, lat, lng, local, mapa, aproximado: lat != null && !coordsDoLink(mapa || ''), padrao: padrao ? padrao.dominio : null };
+  return { imagem, lat, lng, local, mapa, aproximado: lat != null && !coordsDoLink(mapa || ''), padrao: padrao ? padrao.dominio : null, texto };
 }
 module.exports.analisar = analisar;
 
@@ -314,3 +344,5 @@ async function conferirPino(lat, lng, cidade, uf) {
 }
 module.exports.conferirPino = conferirPino;
 module.exports.centroCidade = centroCidade;
+
+module.exports.textoDaPagina = textoDaPagina;

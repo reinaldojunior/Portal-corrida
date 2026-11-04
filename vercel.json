@@ -72,6 +72,18 @@
     {
       "path": "/api/avisos?acao=enviar",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/enriquecer?modo=textos",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/enriquecer?modo=textos&r=2",
+      "schedule": "30 0 * * *"
+    },
+    {
+      "path": "/api/enriquecer?modo=textos&r=3",
+      "schedule": "30 2 * * *"
     }
   ],
   "rewrites": [
