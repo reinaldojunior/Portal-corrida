@@ -37,6 +37,12 @@ module.exports = async (req, res) => {
   const logId = await rpc('robo_log_inicio', { p_token: token, p_rota: 'enriquecer', p_parametros: params, p_origem: peloAdmin ? 'admin' : 'agendado' }).catch(() => null);
   const logFim = (ok, resultado, erro) => logId ? rpc('robo_log_fim', { p_token: token, p_id: logId, p_ok: ok, p_resultado: resultado, p_erro: erro || null }).catch(() => null) : null;
   try {
+    // ?modo=reprocessar (agendamento das 5h): devolve à fila as pendentes sem imagem ou sem local lidas há mais de 3 dias
+    if (req.query.modo === 'reprocessar') {
+      const devolvidas = (await rpc('robo_reprocessar_incompletas', { p_token: token, p_limite: 150 })) || 0;
+      await logFim(true, { devolvidas }, null);
+      return res.status(200).json({ devolvidas });
+    }
     // ?so=pinos pula a leitura das páginas e usa o tempo todo para conferir pinos (e pôr o centro da cidade)
     const soPinos = req.query.so === 'pinos';
     // ?site=ticketsports processa só as provas daquele site (com menos acessos ao mesmo tempo)

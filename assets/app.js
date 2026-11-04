@@ -1411,6 +1411,7 @@ async function adminRobo() {
   const resumo = (e) => {
     const r = e.resultado || {};
     if (e.erro) return `<small class="pend-urgente">${esc(e.erro)}</small>`;
+    if (e.rota === 'enriquecer' && r.devolvidas != null) return `<small>${r.devolvidas ? `${r.devolvidas} pendente(s) sem imagem ou local voltaram para a fila` : 'nenhuma pendente para reprocessar'}</small>`;
     if (e.rota === 'enriquecer') return `<small>${[r.processadas != null && `${r.processadas} lidas`, r.com_imagem && `${r.com_imagem} com imagem`, r.com_local && `${r.com_local} com local`, r.falhas && `${r.falhas} falhas`, r.conferidos && `${r.conferidos} pinos conferidos`, r.corrigidos && `${r.corrigidos} corrigidos`, r.publicadas && `<b>${r.publicadas} publicadas</b>`, r.pendentes_expiradas && `${r.pendentes_expiradas} pendentes vencidas`].filter(Boolean).join(' · ') || 'nada a fazer'}</small>`;
     if (e.rota === 'avisos') return `<small>${r.servico_configurado === false ? 'serviço de e-mail não configurado · ' : ''}${[r.enviados && `<b>${r.enviados} resumos enviados</b>`, r.simulados && `${r.simulados} simulados`, r.sem_novidade && `${r.sem_novidade} sem corrida nova`, r.confirmacoes && `${r.confirmacoes} confirmações`, r.falhas && `${r.falhas} falhas`].filter(Boolean).join(' · ') || `${r.inscritos || 0} inscritos para enviar`}</small>`;
     if (e.rota === 'coletar' && Array.isArray(r.relatorio)) {
