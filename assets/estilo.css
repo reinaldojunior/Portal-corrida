@@ -951,3 +951,8 @@ a.q-linha:focus-visible .q-st::after{opacity:1}
 .ferr-aviso form select,.ferr-aviso form input{width:100%;min-width:0}
 @media (min-width:1000px){.ferr-aviso{grid-template-rows:auto auto 1fr;align-items:start}}
 .desc-auto{display:block;margin:4px 0 6px;padding:6px 10px;border-radius:4px;background:var(--realce);color:var(--cone-txt);font-weight:600}
+
+.col-desc{min-width:220px;max-width:340px;font-size:14px;line-height:1.4}
+.selo-desc{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;background:var(--chip);color:var(--asfalto);white-space:nowrap}
+.selo-desc.auto{background:var(--realce);color:var(--cone-txt)}
+.desc-ini{color:var(--texto2)}
