@@ -2115,8 +2115,9 @@ function formPadrao(p, exemplo) {
       <small>${exemplo ? `<a href="${esc(exemplo)}" target="_blank" rel="noopener">Abrir o link em outra aba</a>` : 'Cole o link de inscrição de uma corrida.'}</small></label>
     <label class="campo">Imagem (exemplo)<input name="ex_img" placeholder="endereço da imagem ou o elemento <img …>"><small>Melhor: botão direito na foto → Inspecionar → no código, botão direito → Copiar → Copiar elemento. Ou: Copiar endereço da imagem.</small></label>
     <label class="campo">Local da largada (exemplo)<input name="ex_local" placeholder="texto do local ou o elemento <span …>"><small>Copie o texto como aparece na página, ou o elemento (Inspecionar → Copiar elemento)</small></label>
+    <label class="campo inteiro">Descrição da corrida (exemplo)<textarea name="ex_desc" rows="2" placeholder="um trecho do texto de apresentação da corrida, ou o elemento <div …>"></textarea><small>Copie uma frase do texto "sobre o evento" como aparece na página. O robô acha o bloco inteiro que contém essa frase.</small></label>
     <div class="inteiro" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><button type="button" class="btn btn-escuro" id="descobrir">Descobrir padrão</button><small id="msgPadrao" role="status"></small></div>
-    <details class="inteiro" id="avancado"${p.img_antes || p.local_antes ? ' open' : ''}><summary style="cursor:pointer;font-weight:600">Marcadores (avançado)</summary>
+    <details class="inteiro" id="avancado"${p.img_antes || p.local_antes || p.desc_antes ? ' open' : ''}><summary style="cursor:pointer;font-weight:600">Marcadores (avançado)</summary>
       <p class="muted" style="margin:8px 0"><small>O robô pega o que estiver no código da página <b>entre</b> o texto "antes" e o texto "depois". Ou, se "antes" começar com <b>seletor:</b> (ex.: <code>seletor:img.ev-hero-img</code>), pega a imagem ou o texto do elemento com essa classe, e o "depois" não é usado.</small></p>
       <div class="form" style="padding:0;background:none">
         <label class="campo">Site (domínio)<input name="dominio" value="${esc(p.dominio || '')}" placeholder="exemplo.com.br" required></label>
@@ -2125,6 +2126,8 @@ function formPadrao(p, exemplo) {
         <label class="campo">Imagem — depois<input name="img_depois" value="${esc(p.img_depois || '')}" placeholder='"'></label>
         <label class="campo">Local — antes<input name="local_antes" value="${esc(p.local_antes || '')}"></label>
         <label class="campo">Local — depois<input name="local_depois" value="${esc(p.local_depois || '')}" placeholder="</span>"></label>
+        <label class="campo">Descrição — antes<input name="desc_antes" value="${esc(p.desc_antes || '')}" placeholder="seletor:div.ev-sobre"></label>
+        <label class="campo">Descrição — depois<input name="desc_depois" value="${esc(p.desc_depois || '')}" placeholder="</section>"></label>
       </div></details>
     <div class="inteiro" style="display:flex;gap:10px;flex-wrap:wrap"><button type="button" class="btn btn-linha" id="testarPadrao">Testar neste link</button></div>
     <div class="inteiro" id="resultadoPadrao"></div>
@@ -2139,10 +2142,10 @@ function formPadrao(p, exemplo) {
   $('#descobrir').addEventListener('click', async () => {
     const url = f.url.value.trim();
     if (!/^https?:\/\//i.test(url)) return (msg.textContent = 'Cole primeiro o link de uma corrida do site.');
-    if (!f.ex_img.value.trim() && !f.ex_local.value.trim()) return (msg.textContent = 'Cole o endereço da imagem e/ou o texto do local.');
+    if (!f.ex_img.value.trim() && !f.ex_local.value.trim() && !f.ex_desc.value.trim()) return (msg.textContent = 'Cole o endereço da imagem, o texto do local e/ou um trecho da descrição.');
     msg.textContent = 'Lendo a página…';
     try {
-      const r = await fetch(`/api/extrair?aprender=1&url=${encodeURIComponent(url)}&img=${encodeURIComponent(f.ex_img.value.trim())}&local=${encodeURIComponent(f.ex_local.value.trim())}`);
+      const r = await fetch(`/api/extrair?aprender=1&url=${encodeURIComponent(url)}&img=${encodeURIComponent(f.ex_img.value.trim())}&local=${encodeURIComponent(f.ex_local.value.trim())}&desc=${encodeURIComponent(f.ex_desc.value.trim())}`);
       const j = await r.json();
       if (!r.ok) throw new Error(j.erro || 'Não consegui ler a página.');
       const avisos = [];
@@ -2154,12 +2157,16 @@ function formPadrao(p, exemplo) {
         if (j.local && j.local.achou) { f.local_antes.value = j.local.antes; f.local_depois.value = j.local.depois; avisos.push('local: padrão encontrado'); }
         else avisos.push('local: não aparece no código da página (confira se copiou igual, ou o site monta com JavaScript)');
       }
+      if (f.ex_desc.value.trim()) {
+        if (j.desc && j.desc.achou) { f.desc_antes.value = j.desc.antes; f.desc_depois.value = j.desc.depois; avisos.push('descrição: padrão encontrado'); }
+        else avisos.push('descrição: não achei um bloco com esse trecho (cole um trecho menor, ou o elemento <div …> inteiro; pode ser página montada por JavaScript)');
+      }
       if (!f.dominio.value.trim()) f.dominio.value = dominioDe(url);
       $('#avancado').open = true;
       msg.textContent = avisos.join(' · ') + '. Agora teste.';
     } catch (e) { msg.textContent = e.message; }
   });
-  const marcadores = () => ({ img_antes: f.img_antes.value, img_depois: f.img_depois.value, local_antes: f.local_antes.value, local_depois: f.local_depois.value });
+  const marcadores = () => ({ img_antes: f.img_antes.value, img_depois: f.img_depois.value, local_antes: f.local_antes.value, local_depois: f.local_depois.value, desc_antes: f.desc_antes.value, desc_depois: f.desc_depois.value });
   $('#testarPadrao').addEventListener('click', async () => {
     const url = f.url.value.trim(), out = $('#resultadoPadrao');
     if (!/^https?:\/\//i.test(url)) return (out.innerHTML = '<small>Cole um link para testar.</small>');
@@ -2172,6 +2179,7 @@ function formPadrao(p, exemplo) {
       out.innerHTML = `<div class="admin-busca" style="border:0;padding:0">
         <div class="admin-busca-item">${j.imagem ? `<img src="${esc(j.imagem)}" alt="" onerror="this.replaceWith('(a imagem não abriu)')">` : ''}<span><b>Imagem</b><br><small>${j.imagem ? esc(j.imagem) : 'não encontrada'}</small></span></div>
         <div class="admin-busca-item"><span><b>Local</b><br><small>${j.local ? esc(j.local) : 'não encontrado'}${j.lat != null ? ` · pino ${j.aproximado ? 'aproximado' : 'exato'} (${j.lat.toFixed(5)}, ${j.lng.toFixed(5)})` : ' · sem pino'}</small></span></div>
+        <div class="admin-busca-item"><span><b>Descrição</b><br><small>${j.descricao_padrao ? esc(j.descricao_padrao.slice(0, 400)) + (j.descricao_padrao.length > 400 ? '…' : '') + ` (${j.descricao_padrao.length} caracteres)` : 'não encontrada pelo padrão' + (j.texto ? ' · a busca genérica achou ' + j.texto.length + ' caracteres' : '')}</small></span></div>
         <small class="muted">Dica: troque o link acima por outra corrida do mesmo site e teste de novo, para ter certeza de que o padrão serve para todas.</small></div>`;
     } catch (e) { out.innerHTML = `<small>${esc(e.message)}</small>`; }
   });

@@ -86,13 +86,13 @@ function padraoDoHost(lista, host) {
     .sort((a, b) => b.dominio.length - a.dominio.length)[0] || null;
 }
 // texto entre os marcadores "antes" e "depois" (o primeiro que aparecer na página)
-function entreMarcadores(html, antes, depois) {
+function entreMarcadores(html, antes, depois, max = 2000) {
   if (!antes) return null;
   const i = html.indexOf(antes);
   if (i < 0) return null;
   const ini = i + antes.length;
   const fim = html.indexOf(depois || '"', ini);
-  if (fim < 0 || fim - ini > 2000) return null;
+  if (fim < 0 || fim - ini > max) return null;
   return html.slice(ini, fim);
 }
 const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', ordm: 'º', ordf: 'ª', ccedil: 'ç', atilde: 'ã', otilde: 'õ', aacute: 'á', eacute: 'é', iacute: 'í', oacute: 'ó', uacute: 'ú', acirc: 'â', ecirc: 'ê', ocirc: 'ô', agrave: 'à', ndash: '–', mdash: '—' };
@@ -118,7 +118,7 @@ function porSeletor(html, seletor) {
     const fecha = html.indexOf(`</${t[1]}`, re.lastIndex);
     const texto = fecha > 0 && fecha - re.lastIndex < 3000 ? html.slice(re.lastIndex, fecha) : '';
     const estilo = (attr(tag, 'style') || '').match(/url\(\s*['"]?([^'")]+)/i);
-    return { src: attr(tag, 'data-src') || attr(tag, 'data-lazy-src') || attr(tag, 'src') || attr(tag, 'content') || (estilo && estilo[1]) || attr(tag, 'href'), onerror: attr(tag, 'onerror') || '', texto };
+    return { pos: re.lastIndex, tag: t[1], src: attr(tag, 'data-src') || attr(tag, 'data-lazy-src') || attr(tag, 'src') || attr(tag, 'content') || (estilo && estilo[1]) || attr(tag, 'href'), onerror: attr(tag, 'onerror') || '', texto };
   }
   return null;
 }
@@ -219,11 +219,11 @@ module.exports = async (req, res) => {
       const pg = await baixar(url);
       if (!pg.ok) throw new Error(`A página respondeu com erro ${pg.status}.`);
       const html = desfazer(pg.texto);
-      return res.status(200).json({ img: sugerirMarcadores(html, q.img, 'img'), local: sugerirMarcadores(html, q.local, 'local'), tamanho: html.length });
+      return res.status(200).json({ img: sugerirMarcadores(html, q.img, 'img'), local: sugerirMarcadores(html, q.local, 'local'), desc: q.desc ? sugerirDescricao(html, q.desc) : null, tamanho: html.length });
     } catch (e) { return res.status(502).json({ erro: e.message || 'Não consegui abrir a página da inscrição.' }); }
   }
   // teste de um padrão ainda não salvo: ?url=...&teste=1&img_antes=...&img_depois=...&local_antes=...&local_depois=...
-  const padrao = q.teste ? { dominio: hostDe(url), img_antes: q.img_antes || null, img_depois: q.img_depois || null, local_antes: q.local_antes || null, local_depois: q.local_depois || null } : undefined;
+  const padrao = q.teste ? { dominio: hostDe(url), img_antes: q.img_antes || null, img_depois: q.img_depois || null, local_antes: q.local_antes || null, local_depois: q.local_depois || null, desc_antes: q.desc_antes || null, desc_depois: q.desc_depois || null } : undefined;
   try { res.status(200).json(await analisar(url, padrao)); }
   catch (e) { res.status(502).json({ erro: e.message }); }
 };
@@ -256,6 +256,66 @@ function textoDaPagina(html) {
   return partes.join('\n').slice(0, 6000);
 }
 
+// Conteúdo de um elemento até a tag que o fecha, contando as aberturas da mesma tag aninhadas
+function blocoBalanceado(html, ini, tag) {
+  const re = new RegExp(`<(/?)${tag}\\b[^>]*>`, 'gi');
+  re.lastIndex = ini;
+  let nivel = 1, m;
+  while ((m = re.exec(html))) {
+    nivel += m[1] ? -1 : 1;
+    if (nivel === 0) return html.slice(ini, m.index);
+    if (m.index - ini > 40000) break;
+  }
+  return html.slice(ini, ini + 40000);
+}
+// Sugere o marcador da descrição a partir de um trecho do texto (ou do HTML) que o admin colou
+function sugerirDescricao(html, exemplo) {
+  exemplo = String(exemplo || '').trim();
+  if (!exemplo) return null;
+  if (exemplo.startsWith('<')) {
+    const sel = seletorDoElemento(exemplo);
+    const el = sel && porSeletor(html, sel);
+    if (el) return { achou: true, antes: 'seletor:' + sel, depois: '', valor: textoLimpo(blocoBalanceado(html, el.pos, el.tag).replace(/<\/(p|li|h[2-4]|div)>/gi, '\n')).slice(0, 300) };
+    exemplo = textoLimpo(exemplo);
+  }
+  const chave = exemplo.replace(/\s+/g, ' ').slice(0, 50);
+  let pos = html.indexOf(chave);
+  if (pos < 0) pos = html.indexOf(chave.slice(0, 25));
+  if (pos < 0) return { achou: false };
+  // procura, para trás, o elemento com class/id que contém o trecho
+  const re = /<(div|section|article|main|td)\b[^>]*(?:class|id)=["'][^"']+["'][^>]*>/gi;
+  const abertas = [];
+  let m;
+  while ((m = re.exec(html.slice(Math.max(0, pos - 6000), pos)))) abertas.push(m);
+  for (let k = abertas.length - 1; k >= 0; k--) {
+    const tagTxt = abertas[k][0];
+    const ini = Math.max(0, pos - 6000) + abertas[k].index + tagTxt.length;
+    const bloco = blocoBalanceado(html, ini, abertas[k][1]);
+    if (ini + bloco.length < pos) continue; // já fechou antes do trecho
+    const cls = (attr(tagTxt, 'class') || '').split(/\s+/).filter(Boolean)[0];
+    const id = attr(tagTxt, 'id');
+    const sel = abertas[k][1].toLowerCase() + (id ? '#' + id : cls ? '.' + cls : '');
+    const ach = porSeletor(html, sel);
+    if (ach && ach.pos === ini) return { achou: true, antes: 'seletor:' + sel, depois: '', valor: textoLimpo(bloco.replace(/<\/(p|li|h[2-4]|div)>/gi, '\n')).slice(0, 300) };
+  }
+  // sem elemento com classe: usa o começo do trecho e vai até o fim do bloco (marcador de texto)
+  return { achou: false };
+}
+
+// Descrição pelo padrão cadastrado do site (desc_antes/desc_depois ou seletor:...). Guarda parágrafos e itens separados por quebra de linha.
+function descricaoPorPadrao(html, padrao) {
+  if (!padrao || !padrao.desc_antes) return '';
+  let trecho = '';
+  if (/^seletor:/i.test(padrao.desc_antes)) {
+    const el = porSeletor(html, padrao.desc_antes.slice(8));
+    trecho = el ? blocoBalanceado(html, el.pos, el.tag) : '';
+  } else trecho = entreMarcadores(html, padrao.desc_antes, padrao.desc_depois, 30000) || '';
+  if (!trecho) return '';
+  const blocos = [...String(trecho).matchAll(/<(p|li|h[2-4])\b[^>]*>([\s\S]*?)<\/\1>/gi)].map((m) => (m[1].toLowerCase() === 'li' ? '• ' : '') + textoLimpo(m[2])).filter((t) => t.length > 3);
+  const t = blocos.length ? blocos.join('\n') : textoLimpo(String(trecho).replace(/<br\s*\/?>/gi, ' '));
+  return t.slice(0, 6000);
+}
+
 // Lê a página de inscrição e devolve imagem de divulgação e local (usado pelo botão do admin e pelo robô)
 async function analisar(url, padraoTeste, opcoes = {}) {
   url = urlValida(url);
@@ -264,15 +324,17 @@ async function analisar(url, padraoTeste, opcoes = {}) {
   try { pg = await baixar(url); } catch { throw new Error('Não consegui abrir a página da inscrição.'); }
   if (!pg.ok) throw new Error(`A página respondeu com erro ${pg.status}.`);
   const html = desfazer(pg.texto);
-  const texto = textoDaPagina(html);
-  if (opcoes.soTexto) return { texto };
+  const padraoSite = padraoTeste !== undefined ? padraoTeste : padraoDoHost(await carregarPadroes(), hostDe(pg.url || url) || hostDe(url)) || padraoDoHost(await carregarPadroes(), hostDe(url));
+  const textoPadrao = descricaoPorPadrao(html, padraoSite);
+  const texto = textoPadrao.length >= 40 ? textoPadrao : textoDaPagina(html);
+  if (opcoes.soTexto) return { texto, descricao_padrao: textoPadrao, do_padrao: textoPadrao.length >= 40 };
 
   // imagem de divulgação
   const og = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]*content=["']([^"']+)["']/i)
     || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]*(?:property|name)=["'](?:og:image|twitter:image)["']/i);
   let imagem = og ? og[1] : null;
   // padrão cadastrado para este site (vale mais que a busca genérica)
-  const padrao = padraoTeste !== undefined ? padraoTeste : padraoDoHost(await carregarPadroes(), hostDe(pg.url || url) || hostDe(url)) || padraoDoHost(await carregarPadroes(), hostDe(url));
+  const padrao = padraoSite;
   let localPadrao = null;
   if (padrao) {
     const im = /^seletor:/i.test(padrao.img_antes || '') ? await imagemPorSeletor(html, padrao.img_antes.slice(8), pg.url || url) : entreMarcadores(html, padrao.img_antes, padrao.img_depois);
@@ -307,7 +369,7 @@ async function analisar(url, padraoTeste, opcoes = {}) {
   if (lat == null && local) { const g = await geocodificar(local, cidadeEv && cidadeEv[1]); if (g) [lat, lng] = g; }
   // a página monta o link do Maps na hora; montamos o mesmo link a partir do endereço
   if (!mapa && local) mapa = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(local)}`;
-  return { imagem, lat, lng, local, mapa, aproximado: lat != null && !coordsDoLink(mapa || ''), padrao: padrao ? padrao.dominio : null, texto };
+  return { imagem, lat, lng, local, mapa, aproximado: lat != null && !coordsDoLink(mapa || ''), padrao: padrao ? padrao.dominio : null, texto, descricao_padrao: textoPadrao };
 }
 module.exports.analisar = analisar;
 
