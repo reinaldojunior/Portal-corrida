@@ -93,7 +93,8 @@ function modoDemo(motivo) {
   aviso.style.cssText = 'background:#FFF1D6;color:#6B4000;font-size:14px;padding:10px 20px;text-align:center;position:relative;z-index:650';
   aviso.textContent = 'Modo demonstração: esta visualização não consegue acessar o banco de dados, então mostra corridas de exemplo. Publicado num endereço real, o site usa os dados do Supabase.';
   document.body.prepend(aviso);
-  aplicarModulos(); montarHome(); rotear();
+  estado.pos = lerPosSalva();
+  aplicarModulos(); montarHome(); rotear(); rotuloPerto(); localizacaoAutomatica();
 }
 async function carregar() {
   let m, c, n;
@@ -119,7 +120,7 @@ async function carregar() {
   estado.corridas = c.data;
   estado.noticias = n.error ? [] : n.data;
   estado.pos = lerPosSalva(); // quem já aceitou antes abre direto perto de si
-  try { aplicarModulos(); montarHome(); rotear(); rotuloPerto(); }
+  try { aplicarModulos(); montarHome(); rotear(); rotuloPerto(); localizacaoAutomatica(); }
   catch (e) { console.error('Mapmove: erro ao montar a página', e); $('#listaPerto').innerHTML = '<p class="vazio">Algo deu errado ao montar a página. Recarregue para tentar de novo.</p>'; }
 }
 
@@ -718,22 +719,42 @@ function desenharPos(centralizar) {
   montarCartoes();
   if (mapaGrande) listarMapa();
 }
+const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* segue */ } };
+function lerLocalizacao(manual) {
+  navigator.geolocation.getCurrentPosition((r) => {
+    const la = r.coords.latitude, ln = r.coords.longitude;
+    if (!NO_BRASIL(la, ln)) { if (manual) toast('Sua localização está fora do Brasil. Escolha a cidade no filtro.'); return; }
+    estado.pos = [la, ln];
+    lsSet('mm_pos', JSON.stringify([+la.toFixed(2), +ln.toFixed(2)]));
+    try { localStorage.removeItem('mm_pos_off'); } catch { /* segue */ }
+    desenharPos(true);
+    if (!manual) toast('Mostrando as corridas perto de você');
+  }, (e) => { if (manual) toast(e.code === 1 ? 'Sem permissão de localização. Escolha a cidade no filtro.' : 'Não consegui descobrir onde você está. Escolha a cidade no filtro.'); },
+  { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+}
 function pedirLocalizacao() {
-  if (estado.pos) { // segundo toque: volta para a visão do Brasil
+  if (estado.pos) { // segundo toque: volta para a visão do Brasil e não pergunta mais sozinho
     estado.pos = null;
     try { localStorage.removeItem('mm_pos'); } catch { /* segue */ }
+    lsSet('mm_pos_off', '1');
     desenharPos(true); return;
   }
   if (!navigator.geolocation) return toast('Este aparelho não informa a localização. Escolha a cidade no filtro.');
   toast('Procurando a sua localização…');
-  navigator.geolocation.getCurrentPosition((r) => {
-    const la = r.coords.latitude, ln = r.coords.longitude;
-    if (!NO_BRASIL(la, ln)) return toast('Sua localização está fora do Brasil. Escolha a cidade no filtro.');
-    estado.pos = [la, ln];
-    try { localStorage.setItem('mm_pos', JSON.stringify([+la.toFixed(2), +ln.toFixed(2)])); } catch { /* segue */ }
-    desenharPos(true);
-  }, (e) => toast(e.code === 1 ? 'Sem permissão de localização. Escolha a cidade no filtro.' : 'Não consegui descobrir onde você está. Escolha a cidade no filtro.'),
-  { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+  lerLocalizacao(true);
+}
+// Ao abrir a página inicial: usa a localização se já foi permitida; senão pergunta uma vez (e só de novo depois de 7 dias)
+function localizacaoAutomatica() {
+  if (estado.pos || !navigator.geolocation || location.pathname !== '/' || lsGet('mm_pos_off')) return;
+  const recente = Date.now() - (+lsGet('mm_pos_ask') || 0) < 7 * 864e5;
+  const perguntar = () => { if (recente) return; lsSet('mm_pos_ask', String(Date.now())); lerLocalizacao(false); };
+  if (navigator.permissions && navigator.permissions.query) {
+    navigator.permissions.query({ name: 'geolocation' }).then((r) => {
+      if (r.state === 'granted') lerLocalizacao(false);
+      else if (r.state === 'prompt') perguntar();
+    }).catch(perguntar);
+  } else perguntar();
 }
 document.addEventListener('click', (e) => { if (e.target.closest('[data-perto]')) pedirLocalizacao(); });
 
