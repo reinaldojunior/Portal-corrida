@@ -18,6 +18,9 @@
     },
     "api/avisos.js": {
       "maxDuration": 60
+    },
+    "api/corridas.js": {
+      "maxDuration": 10
     }
   },
   "crons": [
@@ -90,6 +93,18 @@
     {
       "source": "/corrida/:slug",
       "destination": "/api/corrida?slug=:slug"
+    },
+    {
+      "source": "/corridas",
+      "destination": "/api/corridas"
+    },
+    {
+      "source": "/corridas/:uf",
+      "destination": "/api/corridas?uf=:uf"
+    },
+    {
+      "source": "/corridas/:uf/:cidade",
+      "destination": "/api/corridas?uf=:uf&cidade=:cidade"
     },
     {
       "source": "/sitemap.xml",

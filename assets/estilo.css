@@ -964,3 +964,26 @@ a.q-linha:focus-visible .q-st::after{opacity:1}
 .aviso-cookies-bt{display:flex;gap:10px}
 .aviso-cookies .btn{height:40px;padding:0 18px;border-radius:20px;font-weight:700}
 @media (max-width:760px){.aviso-cookies{bottom:92px}}
+
+/* páginas de calendário por estado e cidade */
+.lp .wrap{max-width:900px;padding-top:28px;padding-bottom:64px}
+.lp-mig{font-size:14px;color:var(--cinza);margin-bottom:10px}
+.lp h1{font-size:56px;line-height:1;margin:0 0 12px}
+.lp h2{font-family:var(--display);font-size:34px;font-weight:400;margin:36px 0 12px}
+.lp-intro{font-size:17px;max-width:720px;color:var(--texto2)}
+.lp-intro a,.lp-mais a{color:var(--cone-txt);text-decoration:underline}
+.lp-lista,.lp-links{list-style:none;margin:0;padding:0}
+.lp-lista{display:flex;flex-direction:column;gap:10px}
+.lp-prova{display:flex;gap:14px;align-items:center;background:#fff;border:1.5px solid var(--asfalto);border-radius:6px;padding:10px 14px;color:var(--asfalto)}
+.lp-prova:hover{border-color:var(--cone);color:var(--asfalto)}
+.lp-data{flex:0 0 58px;text-align:center;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--cone-txt);line-height:1.1}
+.lp-data b{display:block;font-family:var(--display);font-size:40px;font-weight:400;color:var(--asfalto);line-height:.95}
+.lp-info{display:flex;flex-direction:column;min-width:0;gap:2px}
+.lp-nome{font-weight:700;font-size:16px;line-height:1.2}
+.lp-meta{font-size:13px;color:var(--cinza)}
+.lp-links{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.lp-links a{display:flex;justify-content:space-between;gap:8px;align-items:baseline;background:#fff;border:1px solid var(--linha);border-radius:6px;padding:10px 12px}
+.lp-links a:hover{border-color:var(--cone)}
+.lp-links span{font-size:12px;color:var(--cinza);white-space:nowrap}
+.lp-mais{margin-top:14px;font-size:14px}
+@media (max-width:760px){.lp h1{font-size:40px}.lp .wrap{padding-bottom:110px}}
