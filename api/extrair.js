@@ -13,6 +13,13 @@ function urlValida(u) {
   } catch { return null; }
 }
 
+// Mensagem clara para o admin quando o site recusa a leitura
+function erroPagina(st) {
+  if ([401, 403, 429].includes(st)) return `Este site bloqueia a leitura automática (erro ${st}). Padrão de busca não funciona aqui: preencha a foto e o local à mão na corrida.`;
+  if (st === 404 || st === 410) return `A página não existe mais (erro ${st}). Confira se o link da inscrição está certo.`;
+  if (st >= 500) return `O site está fora do ar ou instável agora (erro ${st}). Tente de novo mais tarde.`;
+  return `A página respondeu com erro ${st}.`;
+}
 async function baixar(url, ms = 9000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
@@ -217,7 +224,7 @@ module.exports = async (req, res) => {
   if (q.aprender) {
     try {
       const pg = await baixar(url);
-      if (!pg.ok) throw new Error(`A página respondeu com erro ${pg.status}.`);
+      if (!pg.ok) throw new Error(erroPagina(pg.status));
       const html = desfazer(pg.texto);
       return res.status(200).json({ img: sugerirMarcadores(html, q.img, 'img'), local: sugerirMarcadores(html, q.local, 'local'), desc: q.desc ? sugerirDescricao(html, q.desc) : null, tamanho: html.length });
     } catch (e) { return res.status(502).json({ erro: e.message || 'Não consegui abrir a página da inscrição.' }); }
@@ -322,7 +329,7 @@ async function analisar(url, padraoTeste, opcoes = {}) {
   if (!url) throw new Error('Link inválido.');
   let pg;
   try { pg = await baixar(url); } catch { throw new Error('Não consegui abrir a página da inscrição.'); }
-  if (!pg.ok) throw new Error(`A página respondeu com erro ${pg.status}.`);
+  if (!pg.ok) throw new Error(erroPagina(pg.status));
   const html = desfazer(pg.texto);
   const padraoSite = padraoTeste !== undefined ? padraoTeste : padraoDoHost(await carregarPadroes(), hostDe(pg.url || url) || hostDe(url)) || padraoDoHost(await carregarPadroes(), hostDe(url));
   const textoPadrao = descricaoPorPadrao(html, padraoSite);
