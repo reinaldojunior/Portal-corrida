@@ -134,14 +134,14 @@ module.exports = async (req, res) => {
       const url = `${base}/corridas/${uf.toLowerCase()}`;
       const prim = lista[0];
       const intro = lista.length
-        ? `${plural(lista.length, 'prova futura', 'provas futuras')} em ${esc(nomeUF)}, em ${plural(cidades.length, 'cidade', 'cidades')}. A próxima é a <a href="/corrida/${encodeURIComponent(prim.slug)}">${esc(prim.nome)}</a>, em ${esc(prim.cidade)}, no dia ${esc(dataLonga(prim.data))}. A lista abaixo é atualizada todo dia.`
+        ? `${plural(lista.length, 'prova futura', 'provas futuras')} em ${esc(nomeUF)}, em ${plural(cidades.length, 'cidade', 'cidades')}. A próxima é <a href="/corrida/${encodeURIComponent(prim.slug)}">${esc(prim.nome)}</a>, em ${esc(prim.cidade)}, no dia ${esc(dataLonga(prim.data))}. A lista abaixo é atualizada todo dia.`
         : `Ainda não há provas futuras cadastradas em ${esc(nomeUF)}. Veja o <a href="/">mapa</a> com as provas de todo o Brasil.`;
       const html = (cidades.length ? `<h2>Cidades com provas em ${esc(nomeUF)}</h2><ul class="lp-links">${cidades.map((c) => `<li><a href="/corridas/${uf.toLowerCase()}/${c.slug}"><b>${esc(c.nome)}</b><span>${plural(c.n, 'prova', 'provas')}</span></a></li>`).join('')}</ul>` : '')
         + (lista.length ? `<h2>Próximas corridas em ${esc(nomeUF)}</h2><ul class="lp-lista">${lista.slice(0, 120).map(cartao).join('')}</ul>${lista.length > 120 ? `<p class="lp-mais">Mostrando as 120 primeiras. Escolha uma cidade acima para ver as demais.</p>` : ''}` : '');
       res.setHeader('cache-control', 'public, s-maxage=1800, stale-while-revalidate=86400');
       return res.end(pagina({
         titulo: cortar(`Corridas em ${nomeUF} (${uf}) ${ano}: calendário`, 49) + ' · Mapmove',
-        descricao: cortar(lista.length ? `${plural(lista.length, 'corrida', 'corridas')} em ${nomeUF} em ${ano}: datas, distâncias e inscrições. Próxima: ${prim.nome}, ${dataCurta(prim.data)}, em ${prim.cidade}.` : `Calendário de corridas de rua em ${nomeUF}.`, 155),
+        descricao: cortar(lista.length ? `${plural(lista.length, 'corrida', 'corridas')} em ${nomeUF}: datas, distâncias e inscrições. Próxima: ${prim.nome}, ${dataCurta(prim.data)}, em ${prim.cidade}.` : `Calendário de corridas de rua em ${nomeUF}.`, 155),
         url, h1: `Corridas de rua em ${nomeUF} (${uf}) em ${ano}`, intro, corpo: { migalhas: migalhas(['Mapmove', '/'], ['Corridas', '/corridas'], [nomeUF]), html }, noindex: !lista.length,
         ld: ldLista(url, `Corridas em ${nomeUF}`, lista, base, [['Mapmove', '/'], ['Corridas', '/corridas'], [nomeUF, `/corridas/${uf.toLowerCase()}`]])
       }));
@@ -153,15 +153,15 @@ module.exports = async (req, res) => {
     const url = `${base}/corridas/${uf.toLowerCase()}/${cidSlug}`;
     const prim = doCid[0];
     const ult = doCid[doCid.length - 1];
-    const distSet = [...new Set(doCid.flatMap((c) => (c.corrida_distancias || []).map((d) => d.rotulo)).filter(Boolean))].slice(0, 8);
-    const intro = `${plural(doCid.length, 'prova futura', 'provas futuras')} em ${esc(cid.nome)}/${uf}. A próxima é a <a href="/corrida/${encodeURIComponent(prim.slug)}">${esc(prim.nome)}</a>, no dia ${esc(dataLonga(prim.data))}${doCid.length > 1 ? `, e a mais distante acontece em ${esc(dataCurta(ult.data))}` : ''}.${distSet.length ? ` Distâncias oferecidas: ${esc(distSet.join(', '))}.` : ''} Os dados vêm dos sites dos organizadores; confirme data e valores na página da inscrição.`;
+    const distSet = [...new Map(doCid.flatMap((c) => c.corrida_distancias || []).filter((d) => d.rotulo && d.km != null && !/caminhada/i.test(d.rotulo)).sort((a, b) => a.km - b.km).map((d) => [String(d.rotulo).toUpperCase(), String(d.rotulo).toUpperCase()])).values()].slice(0, 8);
+    const intro = `${plural(doCid.length, 'prova futura', 'provas futuras')} em ${esc(cid.nome)}/${uf}. A próxima é <a href="/corrida/${encodeURIComponent(prim.slug)}">${esc(prim.nome)}</a>, no dia ${esc(dataLonga(prim.data))}${doCid.length > 1 ? `, e a mais distante acontece em ${esc(dataCurta(ult.data))}` : ''}.${distSet.length ? ` Distâncias oferecidas: ${esc(distSet.join(', '))}.` : ''} Os dados vêm dos sites dos organizadores; confirme data e valores na página da inscrição.`;
     const outras = cidades.filter((c) => c.slug !== cidSlug).slice(0, 12);
     const html = `<h2>Próximas corridas em ${esc(cid.nome)}</h2><ul class="lp-lista">${doCid.map(cartao).join('')}</ul>`
       + (outras.length ? `<h2>Outras cidades de ${esc(nomeUF)}</h2><ul class="lp-links">${outras.map((c) => `<li><a href="/corridas/${uf.toLowerCase()}/${c.slug}"><b>${esc(c.nome)}</b><span>${plural(c.n, 'prova', 'provas')}</span></a></li>`).join('')}</ul><p class="lp-mais"><a href="/corridas/${uf.toLowerCase()}">Ver todas as corridas em ${esc(nomeUF)}</a></p>` : '');
     res.setHeader('cache-control', 'public, s-maxage=1800, stale-while-revalidate=86400');
     return res.end(pagina({
       titulo: cortar(`Corridas em ${cid.nome}/${uf} ${ano}: calendário`, 49) + ' · Mapmove',
-      descricao: cortar(`${plural(doCid.length, 'corrida', 'corridas')} em ${cid.nome}/${uf} em ${ano}: datas, distâncias e inscrições. Próxima: ${prim.nome}, ${dataCurta(prim.data)}.`, 155),
+      descricao: cortar(`${plural(doCid.length, 'corrida', 'corridas')} em ${cid.nome}/${uf}: datas, distâncias e inscrições. Próxima: ${prim.nome}, ${dataCurta(prim.data)}.`, 155),
       url, h1: `Corridas de rua em ${cid.nome}/${uf} em ${ano}`, intro, corpo: { migalhas: migalhas(['Mapmove', '/'], ['Corridas', '/corridas'], [nomeUF, `/corridas/${uf.toLowerCase()}`], [cid.nome]), html },
       ld: ldLista(url, `Corridas em ${cid.nome}/${uf}`, doCid, base, [['Mapmove', '/'], ['Corridas', '/corridas'], [nomeUF, `/corridas/${uf.toLowerCase()}`], [cid.nome, `/corridas/${uf.toLowerCase()}/${cidSlug}`]])
     }));
