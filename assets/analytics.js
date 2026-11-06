@@ -1,7 +1,7 @@
 // Medição (Google Tag Manager ou GA4 direto) só depois do aceite do visitante (LGPD). Sem ID, nada é carregado e o aviso não aparece.
 (function () {
-  const GTM_ID = 'GTM-5BH77FJS'; // contêiner do Tag Manager; o GA4 é configurado lá dentro
-  const GA_ID = ''; // alternativa sem Tag Manager: ID de métricas do GA4, ex.: G-XXXXXXXXXX
+  const GTM_ID = ''; // contêiner do Tag Manager; o GA4 é configurado lá dentro
+  const GA_ID = 'G-JM8P0BBFT1'; // alternativa sem Tag Manager: ID de métricas do GA4, ex.: G-XXXXXXXXXX
   if (!GTM_ID && !GA_ID) return;
   const CHAVE = 'mm_cookies';
   document.querySelectorAll('[data-cookies]').forEach((a) => { a.hidden = false; });
