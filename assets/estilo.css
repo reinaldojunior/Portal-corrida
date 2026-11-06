@@ -988,6 +988,6 @@ a.q-linha:focus-visible .q-st::after{opacity:1}
 .lp-mais{margin-top:14px;font-size:14px}
 @media (max-width:760px){.lp h1{font-size:40px}.lp .wrap{padding-bottom:110px}}
 
-.ver-cidade{margin:6px 0 0;font-size:15px}.ver-cidade a{color:var(--cone-txt);text-decoration:underline}
+.ver-cidade{margin:6px 0 0;font-size:14px}.ver-cidade a{color:var(--cone-txt);text-decoration:underline}
 .rodape-ufs{flex:1 0 100%;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;border-top:1px solid var(--linha-esc);padding-top:16px;font-size:14px}
 .rodape-ufs b{color:var(--claro-esc);margin-right:4px}
