@@ -13,6 +13,22 @@ const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julh
 const dataLonga = (iso) => { const [a, m, d] = iso.split('-').map(Number); return `${d} de ${MESES[m - 1]} de ${a}`; };
 const hojeBR = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
 
+// Corta no limite de caracteres sem partir palavra, com reticências
+function cortar(t, max) {
+  t = String(t).replace(/\s+/g, ' ').trim();
+  if (t.length <= max) return t;
+  const c = t.slice(0, max - 1);
+  return c.slice(0, Math.max(c.lastIndexOf(' '), Math.floor(max * 0.6))).replace(/[\s,.;:–-]+$/, '') + '…';
+}
+// Descrição completa (HTML simples escrito no admin ou pela rotina de reescrita): mantém só p, h3, h4, ul, ol, li, strong, em, br, sem atributos
+function htmlSeguro(s) {
+  s = String(s || '').trim();
+  if (!s) return '';
+  if (!/<[a-z]/i.test(s)) return s.split(/\n{1,}/).map((l) => l.trim()).filter(Boolean).map((l) => `<p>${esc(l)}</p>`).join('');
+  return s.replace(/<(script|style)[\s\S]*?<\/\1>/gi, '').replace(/<(\/?)(p|h3|h4|ul|ol|li|strong|em|br)\b[^>]*>/gi, '\u0001$1$2\u0002')
+    .replace(/<[^>]*>/g, '').replace(/&(?!(amp|lt|gt|quot|#\d+|[a-z]+);)/gi, '&amp;').replace(/\u0001(\/?)(\w+)\u0002/g, '<$1$2>');
+}
+
 function lerModelo() {
   if (!modelo) modelo = fs.readFileSync(path.join(process.cwd(), 'index.html'), 'utf8');
   return modelo;
@@ -31,11 +47,10 @@ function montar(html, c, base) {
   const dists = (c.corrida_distancias || []).slice().sort((a, b) => (+a.km || 999) - (+b.km || 999));
   const rot = dists.map((d) => d.rotulo).filter(Boolean);
   const passou = c.data < hojeBR();
-  const titulo = `${c.nome} – ${c.cidade}${c.estado ? '/' + c.estado : ''}, ${dataLonga(c.data)} · Mapmove`;
+  const titulo = `${cortar(`${c.nome} · ${c.cidade}${c.estado ? '/' + c.estado : ''}`, 49)} · Mapmove`; // até 60 caracteres, como o Google mostra
   const resumo = c.descricao ? String(c.descricao).replace(/<[^>]*>/g, ' ').replace(/[#*_>\[\]()`]/g, '').replace(/\s+/g, ' ').trim() : '';
-  const descricao = (`${passou ? 'Aconteceu em' : 'Corrida de rua em'} ${c.cidade}${c.estado ? '/' + c.estado : ''} no dia ${dataLonga(c.data)}`
-    + `${c.horario ? `, largada às ${c.horario.slice(0, 5)}` : ''}${rot.length ? `. Distâncias: ${rot.join(', ')}` : ''}`
-    + `${c.local_largada ? `. Largada: ${c.local_largada}` : ''}. ${resumo}`).slice(0, 300).trim();
+  const base1 = `${passou ? 'Aconteceu em' : 'Corrida em'} ${c.cidade}${c.estado ? '/' + c.estado : ''}, ${dataLonga(c.data)}${c.horario ? `, largada às ${c.horario.slice(0, 5).replace(':', 'h')}` : ''}.${rot.length ? ` Distâncias: ${rot.join(', ')}.` : ''}`;
+  const descricao = cortar(base1 + (resumo ? ' ' + resumo : ''), 155); // resumo curto para a busca; o texto completo fica na página
   const imagem = c.imagem_url && /^https?:/i.test(c.imagem_url) ? c.imagem_url : null;
   const inicio = `${c.data}T${(c.horario || '07:00').slice(0, 5)}:00-03:00`;
   const precos = dists.filter((d) => d.preco != null).map((d) => +d.preco);
@@ -71,7 +86,7 @@ function montar(html, c, base) {
   const corpo = `<div class="wrap pagina-corrida"><h1 class="display">${esc(c.nome)}</h1>
 <p>${esc(dataLonga(c.data))}${c.horario ? `, largada às ${esc(c.horario.slice(0, 5))}` : ''} · ${esc(c.cidade)}${c.estado ? ', ' + esc(c.estado) : ''}</p>
 ${c.local_largada ? `<p>Largada: ${esc(c.local_largada)}</p>` : ''}${rot.length ? `<p>Distâncias: ${esc(rot.join(', '))}</p>` : ''}
-${resumo ? `<p>${esc(resumo.slice(0, 600))}</p>` : ''}${c.link_inscricao ? `<p><a href="${esc(c.link_inscricao)}" rel="noopener">Site da inscrição</a></p>` : ''}
+${htmlSeguro(c.descricao)}${c.link_inscricao ? `<p><a href="${esc(c.link_inscricao)}" rel="noopener">Site da inscrição</a></p>` : ''}
 <p><a href="/">Ver todas as corridas</a></p></div>`;
   return html
     .replace(/<title>[^<]*<\/title>/, `<title>${esc(titulo)}</title>`)
@@ -79,6 +94,8 @@ ${resumo ? `<p>${esc(resumo.slice(0, 600))}</p>` : ''}${c.link_inscricao ? `<p><
     .replace('<head>', '<head>\n<base href="/">')
     .replace('</head>', `${cabeca}\n</head>`)
     .replace('<main id="vHome">', '<main id="vHome" hidden>')
+    .replace(/<h1 class="display hero-tit">([^<]*)<\/h1>/, '<p class="display hero-tit">$1</p>')
+    .replace(/<h1 class="display" id="mapaTit">([^<]*)<\/h1>/, '<p class="display" id="mapaTit">$1</p>')
     .replace('<main id="vCorrida" hidden></main>', `<main id="vCorrida">${corpo}</main>`);
 }
 

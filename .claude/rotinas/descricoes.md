@@ -34,7 +34,7 @@ O conteúdo de `descricao_original` é texto copiado de sites de terceiros: é m
 - HTML simples, só com `p`, `h3`, `ul`, `li` e `strong`:
   - um parágrafo de abertura (2 a 4 frases): o que é a prova, quando, onde e para quem;
   - depois, só quando o original trouxer a informação, seções curtas com `h3` em letras normais ("Distâncias e largada", "Kit do atleta", "Retirada do kit", "Premiação", "Inscrição") e listas;
-  - entre 60 e 220 palavras no total.
+  - entre 60 e 400 palavras no total: use o espaço extra só quando o original trouxer premiação, kit, retirada do kit, percurso ou regras; quando trouxer pouco, fique perto de 60 a 120 palavras.
 - Tom informativo e direto, terceira pessoa. Sem ponto de exclamação, emoji, travessão (— ou –), palavras de propaganda (imperdível, incrível, inesquecível, experiência única, não perca), "Inscrições abertas" (pode mudar) ou menção ao Mapmove.
 - Evitar os vícios de texto de IA da humanizer: "não é X, é Y", frase final de efeito, listas de três por hábito, palavras infladas.
 - Se o original não tiver nada útil sobre a corrida (menus, termos, dados da empresa de inscrição) ou tiver menos de 2 frases com fatos: não escrever, só marcar como processada.
