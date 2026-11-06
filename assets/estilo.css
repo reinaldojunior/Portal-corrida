@@ -956,3 +956,11 @@ a.q-linha:focus-visible .q-st::after{opacity:1}
 .selo-desc{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;background:var(--chip);color:var(--asfalto);white-space:nowrap}
 .selo-desc.auto{background:var(--realce);color:var(--cone-txt)}
 .desc-ini{color:var(--texto2)}
+
+/* aviso de cookies */
+.aviso-cookies{position:fixed;left:16px;right:16px;bottom:16px;z-index:900;max-width:720px;margin:0 auto;background:var(--asfalto);color:#fff;border-radius:14px;padding:16px 18px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;box-shadow:0 6px 24px rgba(0,0,0,.3)}
+.aviso-cookies p{margin:0;flex:1 1 280px;font-size:14px;line-height:1.45;color:var(--claro-esc)}
+.aviso-cookies a{color:#fff;text-decoration:underline}
+.aviso-cookies-bt{display:flex;gap:10px}
+.aviso-cookies .btn{height:40px;padding:0 18px;border-radius:20px;font-weight:700}
+@media (max-width:760px){.aviso-cookies{bottom:92px}}
