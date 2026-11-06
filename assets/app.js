@@ -708,13 +708,23 @@ function rotuloPerto() {
   const sub = $('#painelSub'); if (sub) sub.textContent = estado.pos ? 'Raio de 30 km a partir da sua localização' : 'Raio de 30 km a partir de Indaiatuba';
   $$('[data-perto]').forEach((b) => { b.setAttribute('aria-pressed', String(!!estado.pos)); b.textContent = estado.pos ? 'Perto de mim ✓' : (b.dataset.perto === 'home' ? 'Usar minha localização' : 'Perto de mim'); });
 }
+// Centraliza o mapa da tela inicial na posição da pessoa; repete depois que o mapa terminar de se ajustar à tela
+function centralizarCompacto() {
+  const ir = () => {
+    if (!mapaCompacto) return;
+    mapaCompacto.invalidateSize();
+    mapaCompacto.setView(origem(), Math.max(mapaCompacto.getZoom(), 9), { animate: false });
+    if (!matchMedia('(min-width: 1000px)').matches) mapaCompacto.panBy([0, -70], { animate: false }); // mesmo deslocamento da abertura (celular)
+  };
+  ir(); setTimeout(ir, 400);
+}
 function desenharPos(centralizar) {
   const o = origem();
   [circuloGrande, circuloCompacto].forEach((c) => c && c.setLatLng(o));
   desenharVoce(); rotuloPerto();
   if (centralizar) {
     if (mapaGrande) mapaGrande.setView(estado.pos || [-14.2, -51.9], estado.pos ? 11 : 4);
-    if (mapaCompacto) mapaCompacto.setView(o, mapaCompacto.getZoom());
+    if (mapaCompacto) centralizarCompacto();
   }
   montarCartoes();
   if (mapaGrande) listarMapa();
