@@ -11,6 +11,7 @@ let modelo = null;
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 const dataLonga = (iso) => { const [a, m, d] = iso.split('-').map(Number); return `${d} de ${MESES[m - 1]} de ${a}`; };
+const slugar = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const hojeBR = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
 
 // Corta no limite de caracteres sem partir palavra, com reticências
@@ -87,6 +88,7 @@ function montar(html, c, base) {
 <p>${esc(dataLonga(c.data))}${c.horario ? `, largada às ${esc(c.horario.slice(0, 5))}` : ''} · ${esc(c.cidade)}${c.estado ? ', ' + esc(c.estado) : ''}</p>
 ${c.local_largada ? `<p>Largada: ${esc(c.local_largada)}</p>` : ''}${rot.length ? `<p>Distâncias: ${esc(rot.join(', '))}</p>` : ''}
 ${htmlSeguro(c.descricao)}${c.link_inscricao ? `<p><a href="${esc(c.link_inscricao)}" rel="noopener">Site da inscrição</a></p>` : ''}
+${c.estado && slugar(c.cidade) ? `<p><a href="/corridas/${esc(c.estado.toLowerCase())}/${slugar(c.cidade)}">Ver todas as corridas em ${esc(c.cidade)}/${esc(c.estado)}</a> · <a href="/corridas/${esc(c.estado.toLowerCase())}">Corridas em ${esc(c.estado)}</a></p>` : ''}
 <p><a href="/">Ver todas as corridas</a></p></div>`;
   return html
     .replace(/<title>[^<]*<\/title>/, `<title>${esc(titulo)}</title>`)
