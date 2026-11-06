@@ -118,7 +118,8 @@ async function carregar() {
   estado.modulos = Object.fromEntries(m.data.map((x) => [x.chave, x.ativo]));
   estado.corridas = c.data;
   estado.noticias = n.error ? [] : n.data;
-  try { aplicarModulos(); montarHome(); rotear(); }
+  estado.pos = lerPosSalva(); // quem já aceitou antes abre direto perto de si
+  try { aplicarModulos(); montarHome(); rotear(); rotuloPerto(); }
   catch (e) { console.error('Mapmove: erro ao montar a página', e); $('#listaPerto').innerHTML = '<p class="vazio">Algo deu errado ao montar a página. Recarregue para tentar de novo.</p>'; }
 }
 
@@ -133,7 +134,13 @@ function aplicarModulos() {
 
 /* ================== Home ================== */
 let mapaCompacto, timerContagem;
-const pertoLista = () => publicadas().filter((c) => c.lat == null || distKm(CENTRO, [c.lat, c.lng]) <= RAIO_KM);
+const origem = () => estado.pos || CENTRO;
+const pertoLista = () => {
+  const o = origem();
+  const l = publicadas().filter((c) => c.lat == null || distKm(o, [c.lat, c.lng]) <= RAIO_KM);
+  return estado.pos ? l.sort((a, b) => (a.lat == null ? 1e9 : distKm(o, [a.lat, a.lng])) - (b.lat == null ? 1e9 : distKm(o, [b.lat, b.lng]))) : l;
+};
+const textoDist = (c) => (estado.pos && c.lat != null ? `a ${Math.max(1, Math.round(distKm(estado.pos, [c.lat, c.lng])))} km` : '');
 const ddmm = (iso) => { const [, m, d] = iso.split('-'); return `${d}/${m}`; };
 function abreLink(c, cls) {
   const l = linkCorrida(c);
@@ -203,7 +210,7 @@ function cartao(c) {
   const [abre, fecha] = abreLink(c, 'cartao');
   const chips = rotulos(c).map((r) => `<span class="chip">${esc(r)}</span>`).join('');
   return `${abre}<span class="cartao-faixa"><span>${p.sem.toUpperCase()}</span><span>${esc(c.cidade.toUpperCase())}</span></span>` +
-    `<span class="cartao-corpo"><span class="cartao-dia">${p.dia}</span><span class="cartao-info"><span class="cartao-mes">${p.mesL.charAt(0).toUpperCase() + p.mesL.slice(1)}</span>` +
+    `<span class="cartao-corpo"><span class="cartao-dia">${p.dia}</span><span class="cartao-info"><span class="cartao-mes">${p.mesL.charAt(0).toUpperCase() + p.mesL.slice(1)}${textoDist(c) ? ' · ' + textoDist(c) : ''}</span>` +
     `<span class="cartao-nome">${esc(c.nome)}</span>${chips ? `<span class="chips">${chips}</span>` : ''}</span></span>` +
     `${c.inscricoes_abertas ? '' : '<span class="cartao-enc">Inscrições encerradas</span>'}${fecha}`;
 }
@@ -667,7 +674,7 @@ function camadas() {
   };
 }
 const iconePino = (ativo, aberta) => L.divIcon({ className: '', html: `<div class="pino${ativo ? ' ativo' : ''}${aberta ? ' aberta' : ''}"></div>`, iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -12] });
-function circuloRaio() { return L.circle(CENTRO, { radius: RAIO_KM * 1000, color: '#FF4D00', weight: 1.5, dashArray: '6 6', fillColor: '#FF4D00', fillOpacity: 0.05, interactive: false }); }
+function circuloRaio() { return L.circle(origem(), { radius: RAIO_KM * 1000, color: '#FF4D00', weight: 1.5, dashArray: '6 6', fillColor: '#FF4D00', fillOpacity: 0.05, interactive: false }); }
 function comCoords() { return publicadas().filter((c) => c.lat != null && c.lng != null); }
 
 function desenharFiltros(alvo) {
@@ -682,6 +689,53 @@ document.addEventListener('click', (e) => {
   atualizarMarcadores();
   montarCartoes();
 });
+
+/* ================== Localização do visitante ("Perto de mim") ================== */
+// A posição fica só no navegador (nunca vai para o servidor). Guardamos arredondada (~1 km) para abrir perto da pessoa na próxima visita.
+const NO_BRASIL = (la, ln) => la > -34 && la < 6 && ln > -74 && ln < -34;
+function lerPosSalva() {
+  try { const v = JSON.parse(localStorage.getItem('mm_pos') || 'null'); if (v && NO_BRASIL(v[0], v[1])) return v; } catch { /* sem armazenamento */ }
+  return null;
+}
+function desenharVoce() { // ponto azul "você está aqui" nos dois mapas
+  vocePino.forEach((m) => m.remove()); vocePino = [];
+  if (estado.pos) [mapaGrande, mapaCompacto].forEach((m) => {
+    if (m) vocePino.push(L.circleMarker(estado.pos, { radius: 8, color: '#fff', weight: 3, fillColor: '#1A73E8', fillOpacity: 1, interactive: false }).addTo(m));
+  });
+}
+function rotuloPerto() {
+  const sub = $('#painelSub'); if (sub) sub.textContent = estado.pos ? 'Raio de 30 km a partir da sua localização' : 'Raio de 30 km a partir de Indaiatuba';
+  $$('[data-perto]').forEach((b) => { b.setAttribute('aria-pressed', String(!!estado.pos)); b.textContent = estado.pos ? 'Perto de mim ✓' : (b.dataset.perto === 'home' ? 'Usar minha localização' : 'Perto de mim'); });
+}
+function desenharPos(centralizar) {
+  const o = origem();
+  [circuloGrande, circuloCompacto].forEach((c) => c && c.setLatLng(o));
+  desenharVoce(); rotuloPerto();
+  if (centralizar) {
+    if (mapaGrande) mapaGrande.setView(estado.pos || [-14.2, -51.9], estado.pos ? 11 : 4);
+    if (mapaCompacto) mapaCompacto.setView(o, mapaCompacto.getZoom());
+  }
+  montarCartoes();
+  if (mapaGrande) listarMapa();
+}
+function pedirLocalizacao() {
+  if (estado.pos) { // segundo toque: volta para a visão do Brasil
+    estado.pos = null;
+    try { localStorage.removeItem('mm_pos'); } catch { /* segue */ }
+    desenharPos(true); return;
+  }
+  if (!navigator.geolocation) return toast('Este aparelho não informa a localização. Escolha a cidade no filtro.');
+  toast('Procurando a sua localização…');
+  navigator.geolocation.getCurrentPosition((r) => {
+    const la = r.coords.latitude, ln = r.coords.longitude;
+    if (!NO_BRASIL(la, ln)) return toast('Sua localização está fora do Brasil. Escolha a cidade no filtro.');
+    estado.pos = [la, ln];
+    try { localStorage.setItem('mm_pos', JSON.stringify([+la.toFixed(2), +ln.toFixed(2)])); } catch { /* segue */ }
+    desenharPos(true);
+  }, (e) => toast(e.code === 1 ? 'Sem permissão de localização. Escolha a cidade no filtro.' : 'Não consegui descobrir onde você está. Escolha a cidade no filtro.'),
+  { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+}
+document.addEventListener('click', (e) => { if (e.target.closest('[data-perto]')) pedirLocalizacao(); });
 
 let grupoCompacto;
 // Agrupa os pinos próximos numa bolinha com o número de corridas; ao aproximar o zoom (ou clicar) eles se separam
@@ -703,10 +757,11 @@ function agrupador(interativo) {
 function montarMapaCompacto() {
   if (!mapaCompacto) {
     const desk = matchMedia('(min-width: 1000px)').matches;
-    mapaCompacto = L.map('mapaHero', { zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, tap: false }).setView(CENTRO, desk ? 10 : 9);
+    mapaCompacto = L.map('mapaHero', { zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, tap: false }).setView(origem(), desk ? 10 : 9);
     camadas().escuro.addTo(mapaCompacto);
-    circuloRaio().addTo(mapaCompacto);
+    circuloCompacto = circuloRaio().addTo(mapaCompacto);
     grupoCompacto = agrupador(false).addTo(mapaCompacto);
+    desenharVoce();
     mapaCompacto.on('click', () => { location.hash = '#mapa'; });
     if (!desk) mapaCompacto.panBy([0, -70], { animate: false });
   }
@@ -714,18 +769,19 @@ function montarMapaCompacto() {
   atualizarMarcadores();
 }
 
-let mapaGrande, grupoGrande, camadasGrande, marcadores = new Map();
+let mapaGrande, grupoGrande, camadasGrande, marcadores = new Map(), circuloGrande, circuloCompacto, vocePino = [];
 function montarMapaGrande() {
   desenharFiltros($('#filtrosMapa'));
   desenharExtras();
   desenharCidades();
   if (!mapaGrande) {
-    mapaGrande = L.map('mapaGrande', { zoomControl: false }).setView(CENTRO, 10);
+    mapaGrande = L.map('mapaGrande', { zoomControl: false }).setView(origem(), estado.pos ? 11 : 10);
     L.control.zoom({ position: 'bottomright', zoomInTitle: 'Aproximar', zoomOutTitle: 'Afastar' }).addTo(mapaGrande);
     camadasGrande = camadas();
     camadasGrande[estado.camada].addTo(mapaGrande);
-    circuloRaio().addTo(mapaGrande);
+    circuloGrande = circuloRaio().addTo(mapaGrande);
     grupoGrande = agrupador(true).addTo(mapaGrande);
+    desenharVoce();
     mapaGrande.on('moveend', listarMapa);
     $$('.alterna button').forEach((b) => b.addEventListener('click', () => trocarCamada(b.dataset.camada)));
     $('#buscaMapa').addEventListener('input', buscar);
@@ -776,6 +832,7 @@ function listarMapa() {
   const termo = $('#buscaMapa').value.trim().toLowerCase();
   const lista = comCoords().filter(passaFiltro).filter(passaExtras).filter((c) => b.contains([c.lat, c.lng]))
     .filter((c) => !termo || (c.nome + ' ' + c.cidade).toLowerCase().includes(termo));
+  if (estado.pos) lista.sort((a, b) => distKm(estado.pos, [a.lat, a.lng]) - distKm(estado.pos, [b.lat, b.lng]));
   const n = lista.length;
   $('#mapaTit').textContent = n === 0 ? 'Nenhuma corrida nesta área' : n === 1 ? '1 corrida nesta área' : n > 1000 ? 'Mais de mil corridas' : `${n} corridas nesta área`;
   // desenha em partes para não travar quando a área tem centenas de provas
@@ -791,7 +848,7 @@ function cartaoMapa(c) {
   const foto = `${c.imagem_url ? `<img src="${esc(c.imagem_url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span class="cm-sem">${p.dia} ${p.mes}</span>${c.inscricoes_abertas ? '<span class="cm-selo">Inscrições abertas</span>' : ''}`;
   return `<article class="cartao-mapa" data-id="${c.id}">
     ${l ? `<a class="cm-foto" href="${esc(l.href)}"${l.ext ? ' target="_blank" rel="noopener"' : ''} aria-label="${esc(c.nome)}">${foto}</a>` : `<button type="button" class="cm-foto" data-foco="${c.id}" aria-label="Mostrar ${esc(c.nome)} no mapa">${foto}</button>`}
-    <div class="cm-info"><span class="cm-cid">${esc(c.cidade)}${c.estado ? ' · ' + esc(c.estado) : ''}</span><span class="cm-data">${p.sem}, ${p.d} ${p.mes.toLowerCase()}</span></div>
+    <div class="cm-info"><span class="cm-cid">${esc(c.cidade)}${c.estado ? ' · ' + esc(c.estado) : ''}</span><span class="cm-data">${textoDist(c) ? textoDist(c) + ' · ' : ''}${p.sem}, ${p.d} ${p.mes.toLowerCase()}</span></div>
     <span class="cm-nome">${esc(c.nome)}</span>
     ${dists.length ? `<div class="chips">${dists.map((r) => `<span class="chip">${esc(r)}</span>`).join('')}</div>` : ''}
     <span class="cm-acoes">${l ? `<a class="cm-link" href="${esc(l.href)}"${l.ext ? ' target="_blank" rel="noopener"' : ''}>${l.ext ? 'Ir para a inscrição' : 'Ver corrida'} →</a>` : ''}<button type="button" class="cm-ver-mapa" data-foco="${c.id}">Ver no mapa</button></span>
