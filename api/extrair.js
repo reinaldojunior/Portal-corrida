@@ -2,7 +2,7 @@
 // a imagem de divulgação (og:image) e o local da largada (link do Google Maps → coordenadas).
 // Não devolve o HTML da página.
 
-const UA = 'Mozilla/5.0 (compatible; MapmoveBot/1.0; +https://paceclub-mu.vercel.app)';
+const UA = 'Mozilla/5.0 (compatible; MapmoveBot/1.0; +https://mapmove.com.br)';
 
 function urlValida(u) {
   try {
@@ -53,7 +53,7 @@ async function geocodificar(local, cidade) {
   ].filter(Boolean))];
   for (const q of tentativas) {
     try {
-      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(q)}`, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR', referer: 'https://paceclub-mu.vercel.app/' }, signal: AbortSignal.timeout(5000) });
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(q)}`, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR', referer: 'https://mapmove.com.br/' }, signal: AbortSignal.timeout(5000) });
       const j = r.ok ? await r.json() : [];
       if (j[0]) return [+j[0].lat, +j[0].lon];
     } catch { /* segue */ }
@@ -381,7 +381,7 @@ async function centroCidade(cidade, uf = 'SP') {
   let r = null;
   try {
     const q = encodeURIComponent(`${cidade}, ${uf}, Brasil`);
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&featuretype=city&q=${q}`, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR', referer: 'https://paceclub-mu.vercel.app/' }, signal: AbortSignal.timeout(5000) });
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&featuretype=city&q=${q}`, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR', referer: 'https://mapmove.com.br/' }, signal: AbortSignal.timeout(5000) });
     const j = res.ok ? await res.json() : [];
     if (j[0]) r = [+j[0].lat, +j[0].lon];
   } catch { /* segue */ }

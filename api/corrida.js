@@ -85,7 +85,7 @@ ${resumo ? `<p>${esc(resumo.slice(0, 600))}</p>` : ''}${c.link_inscricao ? `<p><
 module.exports = async (req, res) => {
   const slug = String((req.query && req.query.slug) || '').slice(0, 200);
   // endereço oficial do site (o mesmo em qualquer endereço da Vercel); troque SITE_URL ao usar domínio próprio
-  const base = (process.env.SITE_URL || 'https://paceclub-mu.vercel.app').replace(/\/$/, '');
+  const base = (process.env.SITE_URL || 'https://mapmove.com.br').replace(/\/$/, '');
   let html;
   try { html = lerModelo(); } catch { res.statusCode = 302; res.setHeader('location', `/#corrida/${encodeURIComponent(slug)}`); return res.end(); }
   res.setHeader('content-type', 'text/html; charset=utf-8');

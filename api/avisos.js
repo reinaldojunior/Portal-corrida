@@ -8,7 +8,7 @@ const { centroCidade } = require('./extrair.js');
 
 const SUPABASE_URL = 'https://ssfsxdmzbubvygctdjgf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
-const SITE = () => (process.env.SITE_URL || 'https://paceclub-mu.vercel.app').replace(/\/$/, '');
+const SITE = () => (process.env.SITE_URL || 'https://mapmove.com.br').replace(/\/$/, '');
 const NOME = () => process.env.SITE_NOME || 'Mapmove';
 const DIST = { '5K': [3, 6.5], '10K': [7, 12.5], '21K': [15, 25], '42K': [30, 50] };
 

@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://paceclub-mu.vercel.app/sitemap.xml
+Sitemap: https://mapmove.com.br/sitemap.xml

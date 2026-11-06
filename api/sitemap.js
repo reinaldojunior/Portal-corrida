@@ -5,7 +5,7 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 
 module.exports = async (req, res) => {
   // endereço oficial do site (o mesmo em qualquer endereço da Vercel); troque SITE_URL ao usar domínio próprio
-  const base = (process.env.SITE_URL || 'https://paceclub-mu.vercel.app').replace(/\/$/, '');
+  const base = (process.env.SITE_URL || 'https://mapmove.com.br').replace(/\/$/, '');
   let lista = [];
   try {
     for (let de = 0; de < 20000; de += 1000) {
