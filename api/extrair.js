@@ -2,7 +2,7 @@
 // a imagem de divulgação (og:image) e o local da largada (link do Google Maps → coordenadas).
 // Não devolve o HTML da página.
 
-const UA = 'Mozilla/5.0 (compatible; PaceClubBot/1.0; +https://paceclub-mu.vercel.app)';
+const UA = 'Mozilla/5.0 (compatible; MapmoveBot/1.0; +https://paceclub-mu.vercel.app)';
 
 function urlValida(u) {
   try {

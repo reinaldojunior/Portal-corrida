@@ -2,7 +2,7 @@
 // descobre quais provas são novas e grava só essas na fila de pendentes do Supabase.
 // Guarda apenas dados factuais (nome, data, cidade, distâncias, local, organizador, links).
 
-const UA = 'Mozilla/5.0 (compatible; PaceClubBot/1.0; +https://paceclub-mu.vercel.app)';
+const UA = 'Mozilla/5.0 (compatible; MapmoveBot/1.0; +https://paceclub-mu.vercel.app)';
 const SUPABASE_URL = 'https://ssfsxdmzbubvygctdjgf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
 const MAX_DETALHES = 35; // páginas de detalhe por execução (só das provas novas)

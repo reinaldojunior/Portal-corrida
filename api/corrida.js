@@ -31,7 +31,7 @@ function montar(html, c, base) {
   const dists = (c.corrida_distancias || []).slice().sort((a, b) => (+a.km || 999) - (+b.km || 999));
   const rot = dists.map((d) => d.rotulo).filter(Boolean);
   const passou = c.data < hojeBR();
-  const titulo = `${c.nome} – ${c.cidade}${c.estado ? '/' + c.estado : ''}, ${dataLonga(c.data)} · PaceClub`;
+  const titulo = `${c.nome} – ${c.cidade}${c.estado ? '/' + c.estado : ''}, ${dataLonga(c.data)} · Mapmove`;
   const resumo = c.descricao ? String(c.descricao).replace(/<[^>]*>/g, ' ').replace(/[#*_>\[\]()`]/g, '').replace(/\s+/g, ' ').trim() : '';
   const descricao = (`${passou ? 'Aconteceu em' : 'Corrida de rua em'} ${c.cidade}${c.estado ? '/' + c.estado : ''} no dia ${dataLonga(c.data)}`
     + `${c.horario ? `, largada às ${c.horario.slice(0, 5)}` : ''}${rot.length ? `. Distâncias: ${rot.join(', ')}` : ''}`
@@ -55,11 +55,11 @@ function montar(html, c, base) {
       ...(precos.length ? { price: Math.min(...precos).toFixed(2) } : {})
     } : undefined
   };
-  const tituloOriginal = (html.match(/<title>([^<]*)<\/title>/) || [])[1] || 'PaceClub';
+  const tituloOriginal = (html.match(/<title>([^<]*)<\/title>/) || [])[1] || 'Mapmove';
   const cabeca = [
     `<meta name="pc-titulo" content="${esc(tituloOriginal)}">`,
     `<link rel="canonical" href="${esc(url)}">`,
-    `<meta property="og:type" content="website">`, `<meta property="og:site_name" content="PaceClub">`, `<meta property="og:locale" content="pt_BR">`,
+    `<meta property="og:type" content="website">`, `<meta property="og:site_name" content="Mapmove">`, `<meta property="og:locale" content="pt_BR">`,
     `<meta property="og:title" content="${esc(c.nome)}">`, `<meta property="og:description" content="${esc(descricao)}">`, `<meta property="og:url" content="${esc(url)}">`,
     imagem ? `<meta property="og:image" content="${esc(imagem)}">` : '',
     `<meta name="twitter:card" content="${imagem ? 'summary_large_image' : 'summary'}">`,

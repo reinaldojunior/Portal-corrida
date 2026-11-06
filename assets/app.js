@@ -14,7 +14,7 @@ const armazenamento = {
 };
 let sb = null;
 try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storage: armazenamento } }); }
-catch (e) { console.warn('PaceClub: não foi possível iniciar o Supabase', e); }
+catch (e) { console.warn('Mapmove: não foi possível iniciar o Supabase', e); }
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -82,7 +82,7 @@ const DEMO = (() => {
   };
 })();
 function modoDemo(motivo) {
-  console.warn('PaceClub em modo demonstração:', motivo);
+  console.warn('Mapmove em modo demonstração:', motivo);
   estado.demo = true;
   estado.listaModulos = DEMO.modulos;
   estado.modulos = Object.fromEntries(DEMO.modulos.map((x) => [x.chave, x.ativo]));
@@ -111,7 +111,7 @@ async function carregar() {
     const msg = String(e.message || e);
     if (/postMessage|Failed to fetch|NetworkError|Load failed|cloned/i.test(msg)) return modoDemo(msg);
     $('#listaPerto').innerHTML = `<p class="vazio">Não foi possível carregar as corridas.<br><small style="font-family:monospace">${esc(msg)}${e.code ? ' · código ' + esc(e.code) : ''}${e.hint ? ' · ' + esc(e.hint) : ''}</small></p>`;
-    console.error('PaceClub: erro ao ler o Supabase:', msg, e.hint || '', e.code || '');
+    console.error('Mapmove: erro ao ler o Supabase:', msg, e.hint || '', e.code || '');
     return;
   }
   estado.listaModulos = m.data;
@@ -119,7 +119,7 @@ async function carregar() {
   estado.corridas = c.data;
   estado.noticias = n.error ? [] : n.data;
   try { aplicarModulos(); montarHome(); rotear(); }
-  catch (e) { console.error('PaceClub: erro ao montar a página', e); $('#listaPerto').innerHTML = '<p class="vazio">Algo deu errado ao montar a página. Recarregue para tentar de novo.</p>'; }
+  catch (e) { console.error('Mapmove: erro ao montar a página', e); $('#listaPerto').innerHTML = '<p class="vazio">Algo deu errado ao montar a página. Recarregue para tentar de novo.</p>'; }
 }
 
 function aplicarModulos() {
@@ -917,7 +917,7 @@ async function mostrarNoticia(slug) {
   const quando = n.publicado_em || n.criado_em;
   const data = quando ? new Date(quando).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
   const outras = estado.noticias.filter((x) => x.slug !== slug).slice(0, 4);
-  document.title = `${n.titulo} · PaceClub`;
+  document.title = `${n.titulo} · Mapmove`;
   v.innerHTML = `<div class="wrap pagina-noticia">
     <article class="noticia-art">
       <a href="#" class="voltar">← Voltar</a>
@@ -1083,8 +1083,8 @@ function linkGoogleAgenda(c) {
 function baixarIcs(c) {
   const e = eventoCalendario(c);
   const q = (t) => String(t || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/([,;])/g, '\\$1');
-  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//PaceClub//Corridas//PT-BR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
-    `UID:${c.id || c.slug}@paceclub`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Mapmove//Corridas//PT-BR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
+    `UID:${c.id || c.slug}@mapmove`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
     `DTSTART:${e.ini}`, `DTEND:${e.fim}`, `SUMMARY:${q(e.titulo)}`, `LOCATION:${q(e.local)}`, `DESCRIPTION:${q(e.texto)}`, `URL:${e.pagina}`,
     'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${q('Amanhã: ' + e.titulo + ' (retire o kit)')}`, 'TRIGGER:-P1D', 'END:VALARM',
     'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
@@ -1112,7 +1112,7 @@ function mostrarCorrida(slug, percIdx = 0) {
   const c = c0 && pSel ? { ...c0, percurso: pSel.percurso, percurso_km: pSel.percurso_km, subida_m: pSel.subida_m, descida_m: pSel.descida_m, km_oficial: pSel.km && Math.abs(pSel.km - pSel.percurso_km) / pSel.km <= 0.15 ? pSel.km : null } : c0;
   const v = $('#vCorrida');
   if (!c) { v.innerHTML = '<div class="wrap" style="padding:64px 0"><h1 class="display" style="font-size:56px">Corrida não encontrada</h1><p class="muted">Ela pode ter sido removida ou já aconteceu. <a href="#" style="color:var(--cone-txt);font-weight:600">Voltar para a agenda</a></p></div>'; return; }
-  document.title = `${c.nome} · ${c.cidade} · PaceClub`;
+  document.title = `${c.nome} · ${c.cidade} · Mapmove`;
   const passou = c.data < hojeISO();
   const dist = (c.corrida_distancias || []).slice().sort(porDist);
   const temPerc = Array.isArray(c.percurso) && c.percurso.length > 1;

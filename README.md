@@ -1,4 +1,4 @@
-# PaceClub
+# Mapmove
 
 Portal de corridas de rua de Indaiatuba e região: mapa e agenda de provas, notícias, ferramentas para corredores (pace, zonas de FC, ritmos de treino, pulseira de pace, conversor de esteira), simulador da prova pelo percurso (GPX) e ranking "Onde bater meu recorde".
 
