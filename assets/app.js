@@ -701,7 +701,10 @@ function lerPosSalva() {
 function desenharVoce() { // ponto azul "você está aqui" nos dois mapas
   vocePino.forEach((m) => m.remove()); vocePino = [];
   if (estado.pos) [mapaGrande, mapaCompacto].forEach((m) => {
-    if (m) vocePino.push(L.circleMarker(estado.pos, { radius: 8, color: '#fff', weight: 3, fillColor: '#1A73E8', fillOpacity: 1, interactive: false }).addTo(m));
+    if (!m) return;
+    if (!m.getPane('voce')) { const pn = m.createPane('voce'); pn.style.zIndex = 650; pn.style.pointerEvents = 'none'; }
+    vocePino.push(L.circleMarker(estado.pos, { pane: 'voce', radius: 20, stroke: false, fillColor: '#1A73E8', fillOpacity: 0.18, interactive: false }).addTo(m));
+    vocePino.push(L.circleMarker(estado.pos, { pane: 'voce', radius: 9, color: '#fff', weight: 3, fillColor: '#1A73E8', fillOpacity: 1, interactive: false }).addTo(m));
   });
 }
 function rotuloPerto() {
@@ -713,7 +716,7 @@ function centralizarCompacto() {
   const ir = () => {
     if (!mapaCompacto) return;
     mapaCompacto.invalidateSize();
-    mapaCompacto.setView(origem(), Math.max(mapaCompacto.getZoom(), 9), { animate: false });
+    mapaCompacto.setView(origem(), estado.pos ? 11 : Math.max(mapaCompacto.getZoom(), 9), { animate: false });
     if (!matchMedia('(min-width: 1000px)').matches) mapaCompacto.panBy([0, -70], { animate: false }); // mesmo deslocamento da abertura (celular)
   };
   ir(); setTimeout(ir, 400);
@@ -788,7 +791,7 @@ function agrupador(interativo) {
 function montarMapaCompacto() {
   if (!mapaCompacto) {
     const desk = matchMedia('(min-width: 1000px)').matches;
-    mapaCompacto = L.map('mapaHero', { zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, tap: false }).setView(origem(), desk ? 10 : 9);
+    mapaCompacto = L.map('mapaHero', { zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, tap: false }).setView(origem(), estado.pos ? 11 : desk ? 10 : 9);
     camadas().escuro.addTo(mapaCompacto);
     circuloCompacto = circuloRaio().addTo(mapaCompacto);
     grupoCompacto = agrupador(false).addTo(mapaCompacto);
