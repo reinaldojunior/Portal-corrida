@@ -96,6 +96,17 @@ function modoDemo(motivo) {
   estado.pos = lerPosSalva();
   aplicarModulos(); montarHome(); rotear(); rotuloPerto(); localizacaoAutomatica();
 }
+// O banco devolve no máximo 1000 linhas por consulta: busca em páginas até acabar.
+// Recebe uma função que monta a consulta (sem .range) e devolve { data, error } como o Supabase.
+async function todasPaginas(consulta) {
+  let data = [];
+  for (let de = 0; ; de += 1000) {
+    const r = await consulta().range(de, de + 999);
+    if (r.error) return { data: null, error: r.error };
+    data = data.concat(r.data || []);
+    if (!r.data || r.data.length < 1000) return { data, error: null };
+  }
+}
 async function carregar() {
   let m, c, n;
   if (!sb) return modoDemo('biblioteca do Supabase indisponível');
@@ -103,7 +114,7 @@ async function carregar() {
   try {
     [m, c, n] = await Promise.race([limite, Promise.all([
     sb.from('modulos').select('*').order('ordem'),
-    sb.from('corridas').select('*, corrida_distancias(*)').gte('data', hojeISO()).order('data'),
+    todasPaginas(() => sb.from('corridas').select('*, corrida_distancias(*)').gte('data', hojeISO()).order('data').order('id')),
     sb.from('noticias').select('*').eq('status', 'publicado').order('publicado_em', { ascending: false }).limit(20)
   ])]);
   } catch (e) { return modoDemo(e.message || e); }
@@ -1553,7 +1564,7 @@ function pintarAdmin(semConteudo) {
   ({ corridas: adminCorridas, pendentes: adminPendentes, padroes: adminPadroes, robo: adminRobo, noticias: adminNoticias, modulos: adminModulos, inscritos: adminInscritos })[abaAdmin]();
 }
 async function recarregarCorridas() {
-  const { data } = await sb.from('corridas').select('*, corrida_distancias(*)').order('data', { ascending: false });
+  const { data } = await todasPaginas(() => sb.from('corridas').select('*, corrida_distancias(*)').order('data', { ascending: false }).order('id'));
   return data || [];
 }
 

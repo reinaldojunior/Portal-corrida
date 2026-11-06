@@ -21,11 +21,17 @@ function cortar(t, max) {
 }
 
 async function buscar(uf) {
-  const q = new URLSearchParams({ select: 'slug,nome,cidade,estado,data,horario,corrida_distancias(rotulo,km)', status: 'eq.publicado', data: `gte.${hojeBR()}`, order: 'data.asc', limit: '1000' });
+  const q = new URLSearchParams({ select: 'slug,nome,cidade,estado,data,horario,corrida_distancias(rotulo,km)', status: 'eq.publicado', data: `gte.${hojeBR()}`, order: 'data.asc,id' });
   if (uf) q.set('estado', `eq.${uf}`);
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/corridas?${q}`, { headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${SUPABASE_KEY}` }, signal: AbortSignal.timeout(6000) });
-  if (!r.ok) throw new Error(`banco ${r.status}`);
-  return r.json();
+  let lista = [];
+  for (let de = 0; de < 10000; de += 1000) { // o banco devolve no máximo 1000 por vez
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/corridas?${q}`, { headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${SUPABASE_KEY}`, range: `${de}-${de + 999}` }, signal: AbortSignal.timeout(6000) });
+    if (!r.ok) throw new Error(`banco ${r.status}`);
+    const j = await r.json();
+    lista = lista.concat(j);
+    if (j.length < 1000) break;
+  }
+  return lista;
 }
 
 function agrupar(lista) {

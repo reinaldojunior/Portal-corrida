@@ -9,7 +9,7 @@ module.exports = async (req, res) => {
   let lista = [];
   try {
     for (let de = 0; de < 20000; de += 1000) {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/corridas?select=slug,data,atualizado_em&status=eq.publicado&order=data.desc`, {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/corridas?select=slug,data,atualizado_em&status=eq.publicado&order=data.desc,id`, {
         headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${SUPABASE_KEY}`, range: `${de}-${de + 999}` }, signal: AbortSignal.timeout(8000) });
       if (!r.ok) break;
       const j = await r.json();
@@ -22,8 +22,15 @@ module.exports = async (req, res) => {
   const slugar = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   const ufs = {}, cids = {};
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/corridas?select=estado,cidade&status=eq.publicado&data=gte.${hoje}&limit=1000`, { headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${SUPABASE_KEY}` }, signal: AbortSignal.timeout(8000) });
-    if (r.ok) for (const c of await r.json()) {
+    let futuras = [];
+    for (let de = 0; de < 20000; de += 1000) { // o banco devolve no máximo 1000 por vez
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/corridas?select=estado,cidade&status=eq.publicado&data=gte.${hoje}&order=data,id`, { headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${SUPABASE_KEY}`, range: `${de}-${de + 999}` }, signal: AbortSignal.timeout(8000) });
+      if (!r.ok) break;
+      const j = await r.json();
+      futuras = futuras.concat(j);
+      if (j.length < 1000) break;
+    }
+    for (const c of futuras) {
       if (!c.estado || !slugar(c.cidade)) continue;
       ufs[c.estado] = 1;
       const k = `${c.estado.toLowerCase()}/${slugar(c.cidade)}`;

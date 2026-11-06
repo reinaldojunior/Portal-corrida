@@ -90,9 +90,15 @@ async function enviarResumos() {
   if (confOk.length) { await rpc('robo_avisos_marcar', { p_token: token, p_ids: confOk, p_tipo: 'confirmacao' }); r.confirmacoes = confOk.length; }
   if (!inscritos.length) return r;
   const hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
-  const q = new URLSearchParams({ select: 'slug,nome,cidade,estado,data,lat,lng,criado_em,corrida_distancias(km,rotulo)', status: 'eq.publicado', data: `gte.${hoje}`, order: 'data.asc', limit: '2000' });
-  const cr = await fetch(`${SUPABASE_URL}/rest/v1/corridas?${q}`, { headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${SUPABASE_KEY}` } });
-  const corridas = cr.ok ? await cr.json() : [];
+  const q = new URLSearchParams({ select: 'slug,nome,cidade,estado,data,lat,lng,criado_em,corrida_distancias(km,rotulo)', status: 'eq.publicado', data: `gte.${hoje}`, order: 'data.asc,id' });
+  let corridas = [];
+  for (let de = 0; de < 10000; de += 1000) { // o banco devolve no máximo 1000 por vez
+    const cr = await fetch(`${SUPABASE_URL}/rest/v1/corridas?${q}`, { headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${SUPABASE_KEY}`, range: `${de}-${de + 999}` } });
+    if (!cr.ok) break;
+    const j = await cr.json();
+    corridas = corridas.concat(j);
+    if (j.length < 1000) break;
+  }
   const feitos = [];
   for (const i of inscritos) {
     const lista = corridas.filter((c) => c.criado_em > i.desde && c.lat != null && i.lat != null && km(i.lat, i.lng, c.lat, c.lng) <= i.raio_km
