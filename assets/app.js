@@ -1218,6 +1218,17 @@ function mostrarCorrida(slug, percIdx = 0) {
   const passou = c.data < hojeISO();
   const dist = (c.corrida_distancias || []).slice().sort(porDist);
   const temPerc = Array.isArray(c.percurso) && c.percurso.length > 1;
+  const proximasCidade = estado.corridas
+    .filter((x) => x.slug !== slug && x.cidade === c.cidade && x.estado === c.estado && x.data >= hojeISO())
+    .sort((a, b) => a.data.localeCompare(b.data))
+    .slice(0, 5);
+  const proximasHtml = proximasCidade.length ? `<section class="caixa proximas-cidade" aria-labelledby="proxTit">
+    <h2 class="display" id="proxTit">Próximas em ${esc(c.cidade)}</h2>
+    <ul class="proximas-lista">${proximasCidade.map((x) => {
+      const dd = (x.corrida_distancias || []).slice().sort(porDist);
+      return `<li><a class="proxima-item" href="#corrida/${esc(x.slug)}">${bib(x.data, true)}<div class="proxima-info"><b>${esc(x.nome)}</b>${dd.length ? `<span class="proxima-dists">${dd.map((d) => esc(d.rotulo)).join(' · ')}</span>` : ''}</div><svg class="proxima-seta" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M9 18l6-6-6-6"/></svg></a></li>`;
+    }).join('')}</ul>
+  </section>` : '';
   const brl = (v) => v == null ? 'Preço a confirmar' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const simHtml = temPerc && mod('simulador') ? `<section class="caixa sim sim-lado" id="simBox" aria-labelledby="simTit">
     <div class="sim-cab"><div><span class="rot">Simulador da prova</span><h2 class="display" id="simTit">Monte a sua estratégia</h2></div>
@@ -1277,7 +1288,7 @@ function mostrarCorrida(slug, percIdx = 0) {
     <a href="#mapa" class="ci-mapa" data-mod="mapa"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Ver corridas próximas no mapa</a>
     </aside>
     </div>
-${percHtml}${simHtml}</div>`;
+${proximasHtml}${percHtml}${simHtml}</div>`;
   $('#baixarIcs', v)?.addEventListener('click', () => baixarIcs(c));
   // menu "Adicionar à agenda": fecha ao escolher ou ao clicar fora
   const menuAg = $('.ci-agenda', v);
