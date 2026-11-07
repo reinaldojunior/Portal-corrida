@@ -991,3 +991,19 @@ a.q-linha:focus-visible .q-st::after{opacity:1}
 .ver-cidade{margin:6px 0 0;font-size:14px}.ver-cidade a{color:var(--cone-txt);text-decoration:underline}
 .rodape-ufs{flex:1 0 100%;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;border-top:1px solid var(--linha-esc);padding-top:16px;font-size:14px}
 .rodape-ufs b{color:var(--claro-esc);margin-right:4px}
+
+/* Próximas corridas na cidade — página de corrida */
+.proximas-cidade{grid-column:span 8}
+@media (max-width:860px){.proximas-cidade{grid-column:span 12}}
+.proximas-cidade h2{font-size:28px;margin-bottom:4px}
+.proximas-lista{list-style:none;margin:0;padding:0}
+.proxima-item{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--linha2);text-decoration:none;color:inherit;transition:background .15s}
+.proxima-item:hover .proxima-info b{text-decoration:underline}
+.proximas-lista li:last-child .proxima-item{border-bottom:none}
+.proxima-item .bib.p{width:52px;height:58px;flex-shrink:0}
+.proxima-item .bib.p .dia{font-size:32px}
+.proxima-item .bib.p .mes{font-size:10px}
+.proxima-info{flex:1;min-width:0}
+.proxima-info b{font-family:var(--display);font-weight:400;font-size:20px;line-height:1.2;display:block}
+.proxima-dists{font-size:13px;color:var(--texto2);margin-top:3px;display:block}
+.proxima-seta{color:var(--texto2);flex-shrink:0}
