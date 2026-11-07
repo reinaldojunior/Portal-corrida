@@ -1288,7 +1288,7 @@ function mostrarCorrida(slug, percIdx = 0) {
     <a href="#mapa" class="ci-mapa" data-mod="mapa"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Ver corridas próximas no mapa</a>
     </aside>
     </div>
-${proximasHtml}${percHtml}${simHtml}</div>`;
+${percHtml}${simHtml}${proximasHtml}</div>`;
   $('#baixarIcs', v)?.addEventListener('click', () => baixarIcs(c));
   // menu "Adicionar à agenda": fecha ao escolher ou ao clicar fora
   const menuAg = $('.ci-agenda', v);
