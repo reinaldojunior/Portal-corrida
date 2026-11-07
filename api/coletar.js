@@ -3,6 +3,7 @@
 // Guarda apenas dados factuais (nome, data, cidade, distâncias, local, organizador, links).
 
 const UA = 'Mozilla/5.0 (compatible; MapmoveBot/1.0; +https://mapmove.com.br)';
+const DOMINIOS_BLOQUEADOS = ['kmaisclube.com.br'];
 const SUPABASE_URL = 'https://ssfsxdmzbubvygctdjgf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
 const MAX_DETALHES = 35; // páginas de detalhe por execução (só das provas novas)
@@ -114,7 +115,8 @@ async function coletar(estados, gravar, MAX_DETALHES = 35) {
         detalhesUsados += 1;
         await dormir(150); // educado com o site
       }
-      const inseridas = gravar && lote.length ? await rpc('robo_inserir_pendentes', { p_token: token, p_itens: lote }) : 0;
+      const lotePermitido = lote.filter(it => !it.link_inscricao || !DOMINIOS_BLOQUEADOS.some(d => it.link_inscricao.includes(d)));
+      const inseridas = gravar && lotePermitido.length ? await rpc('robo_inserir_pendentes', { p_token: token, p_itens: lotePermitido }) : 0;
       relatorio.push({ uf, no_calendario: itens.length, novas: lote.length, gravadas: inseridas, exemplo: lote.slice(0, 3) });
     } catch (e) { relatorio.push({ uf, erro: e.message }); }
   }
