@@ -23,6 +23,7 @@
       <a href="#mapa" data-mod="mapa">Mapa</a>
       <a href="#" data-mod="agenda" data-ir="quadro">Agenda</a>
       <a href="#" data-mod="noticias" data-ir="noticias">Notícias</a>
+      <a href="#" data-mod="dicas" data-ir="dicas">Dicas</a>
       <a href="#" data-mod-algum="calculadora aviso_provas zonas_fc ritmos_treino pulseira_pace conversor_esteira" data-ir="ferramentas">Ferramentas</a>
     </nav>
     <div class="spacer"></div>
@@ -80,6 +81,13 @@
       <div class="noticias-corpo" id="noticiasConteudo"></div>
     </section>
   </div>
+
+  <section class="wrap dicas-sec" id="dicas" data-mod="dicas" hidden aria-labelledby="dicasTit">
+    <div class="dicas-cab">
+      <div><h2 class="display" id="dicasTit">Dicas de corrida</h2><p>Tudo que você precisa saber para correr melhor.</p></div>
+    </div>
+    <div class="dicas-grade" id="dicasGrade"></div>
+  </section>
 
   <section class="wrap rk" id="ranking" data-mod="ranking_recorde" aria-labelledby="rkTit">
     <div class="rk-cab-sec">
@@ -226,6 +234,7 @@
 <!-- PÁGINA DA CORRIDA -->
 <main id="vCorrida" hidden></main>
 <main id="vNoticia" hidden></main>
+<main id="vDica" hidden></main>
 
 <!-- ADMIN -->
 <main id="vAdmin" hidden><div class="wrap admin" id="adminBox"></div></main>
