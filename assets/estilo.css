@@ -991,3 +991,8 @@ a.q-linha:focus-visible .q-st::after{opacity:1}
 .ver-cidade{margin:6px 0 0;font-size:14px}.ver-cidade a{color:var(--cone-txt);text-decoration:underline}
 .rodape-ufs{flex:1 0 100%;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;border-top:1px solid var(--linha-esc);padding-top:16px;font-size:14px}
 .rodape-ufs b{color:var(--claro-esc);margin-right:4px}
+
+/* o cartão de inscrição acompanha a rolagem só até o fim do bloco de texto, antes do percurso */
+.pagina-corrida .corpo-corrida{grid-column:span 12;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:32px;row-gap:32px;align-items:start}
+.pagina-corrida.sem-texto .corpo-corrida{display:contents}
+@media (min-width:1000px){.pagina-corrida.sem-texto .lado{position:static}}

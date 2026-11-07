@@ -1253,6 +1253,7 @@ function mostrarCorrida(slug, percIdx = 0) {
   v.innerHTML = `<div class="wrap pagina-corrida${semTexto ? ' sem-texto' : ''}">
     ${c.data < hojeISO() ? `<div class="aviso aviso-passada"><b>Esta corrida já aconteceu</b> em ${dataLonga(c.data)}. <a href="#" data-ir="quadro">Ver as próximas corridas</a></div>` : ''}
     <div class="cab">${bib(c.data)}<div><span class="editoria">${dataLonga(c.data)}${c.horario ? ', largada às ' + c.horario.slice(0, 5) : ''}</span><h1 class="display">${esc(c.nome)}</h1><span class="muted" style="font-size:18px">${esc(c.cidade)}, ${esc(c.estado)}${c.organizador ? ' · Organização: ' + esc(c.organizador) : ''}</span>${c.estado && c.cidade && slugify(c.cidade) ? `<p class="ver-cidade"><a href="/corridas/${esc(String(c.estado).toLowerCase())}/${slugify(c.cidade)}">Ver todas as corridas em ${esc(c.cidade)}/${esc(c.estado)}</a> · <a href="/corridas/${esc(String(c.estado).toLowerCase())}">Corridas em ${esc(c.estado)}</a></p>` : ''}</div></div>
+    <div class="corpo-corrida">
     <div class="principal">
       ${c.imagem_url ? `<figure class="foto-cred"><div class="foto" style="height:360px"><img src="${esc(c.imagem_url)}" alt="${esc(c.nome)}"></div>${c.imagem_credito ? `<figcaption>${esc(c.imagem_credito)}</figcaption>` : ''}</figure>` : ''}
       ${c.descricao ? `<div class="caixa"><h2 class="display">Sobre a corrida</h2><div class="texto-corrida">${textoRico(c.descricao)}</div></div>` : ''}
@@ -1275,6 +1276,7 @@ function mostrarCorrida(slug, percIdx = 0) {
     </div>
     <a href="#mapa" class="ci-mapa" data-mod="mapa"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Ver corridas próximas no mapa</a>
     </aside>
+    </div>
 ${percHtml}${simHtml}</div>`;
   $('#baixarIcs', v)?.addEventListener('click', () => baixarIcs(c));
   // menu "Adicionar à agenda": fecha ao escolher ou ao clicar fora
