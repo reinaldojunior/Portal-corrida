@@ -1,0 +1,34 @@
+# Teste de leitura do Ahotu (só leitura, NADA é gravado no banco e nada na Vercel muda).
+# Roda só quando você clica em "Run workflow". Faz 3 pedidos ao site e mostra o resultado no log.
+name: Teste Ahotu (somente leitura)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ler:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Regras do site (robots.txt)
+        run: |
+          UA='MapmoveBot/1.0 (+https://mapmove.com.br)'
+          echo "== robots.txt =="
+          curl -sS -m 30 -A "$UA" -w '\nHTTP %{http_code}\n' https://www.ahotu.com/robots.txt | head -80
+      - name: Página do calendário
+        run: |
+          UA='MapmoveBot/1.0 (+https://mapmove.com.br)'
+          sleep 3
+          curl -sS -m 30 -A "$UA" -L -o pagina.html -w 'HTTP %{http_code} · %{size_download} bytes · %{content_type}\n' 'https://www.ahotu.com/pt-BR/calendario/south-america'
+          echo "== o que tem na página =="
+          echo "blocos JSON-LD: $(grep -o 'application/ld+json' pagina.html | wc -l)"
+          echo "tipo Event no JSON-LD: $(grep -o '"@type":"[A-Za-z]*Event"' pagina.html | sort | uniq -c | tr '\n' ' ')"
+          echo "dados Next.js: $(grep -c '__NEXT_DATA__' pagina.html)"
+          echo "links com /evento ou /event: $(grep -o 'href="[^"]*/ev[^"]*"' pagina.html | wc -l)"
+          echo "== primeiros links de evento =="
+          grep -o 'href="[^"]*/ev[^"]*"' pagina.html | head -15
+          echo "== início do texto visível =="
+          sed -e 's/<script[^>]*>.*<\/script>//g' -e 's/<[^>]*>/ /g' pagina.html | tr -s ' \n' | head -c 2500
+      - name: Termos de uso (só o endereço, para você ler)
+        run: |
+          grep -oiE 'href="[^"]*(termos|terms|privacy|legal)[^"]*"' pagina.html | sort -u | head
