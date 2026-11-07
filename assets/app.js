@@ -924,7 +924,7 @@ let observaFim = null;
 /* Filtros extras do mapa (estilo Airbnb) e filtro por cidade */
 const EXTRAS = [
   ['abertas', 'Inscrições abertas'], ['fds', 'Este fim de semana'], ['30d', 'Próximos 30 dias'],
-  ['noite', 'Noturnas'], ['curta', 'Até 5K'], ['longa', 'Acima de 42K']
+  ['noite', 'Noturnas'], ['curta', 'Até 5K'], ['longa', 'Acima de 42K'], ['mapa', 'Com mapa do percurso']
 ];
 estado.extras = new Set();
 estado.cidade = '';
@@ -946,6 +946,7 @@ function passaExtras(c) {
     if (x === 'noite' && !(c.horario && c.horario.slice(0, 5) >= '17:00')) return false;
     if (x === 'curta' && !ds.some((d) => d.km != null && +d.km > 0 && +d.km <= 5.5)) return false;
     if (x === 'longa' && !ds.some((d) => (d.km != null && +d.km > 42.3) || d.horas)) return false;
+    if (x === 'mapa' && !temTrajeto(c) && !ds.some(temTrajeto)) return false;
   }
   return true;
 }
