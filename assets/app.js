@@ -22,7 +22,7 @@ const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov'
 const MESES_L = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
-const estado = { modulos: {}, listaModulos: [], corridas: [], noticias: [], filtro: 'todas', camada: 'mapa', admin: false };
+const estado = { modulos: {}, listaModulos: [], corridas: [], noticias: [], dicas: [], filtro: 'todas', camada: 'mapa', admin: false };
 
 /* ================== Utilidades ================== */
 function partes(dataISO) {
@@ -129,7 +129,9 @@ async function carregar() {
   estado.listaModulos = m.data;
   estado.modulos = Object.fromEntries(m.data.map((x) => [x.chave, x.ativo]));
   estado.corridas = c.data;
-  estado.noticias = n.error ? [] : n.data;
+  const todasNoticias = n.error ? [] : n.data;
+  estado.dicas = todasNoticias.filter((x) => x.editoria === 'dica');
+  estado.noticias = todasNoticias.filter((x) => x.editoria !== 'dica');
   estado.pos = lerPosSalva(); // quem já aceitou antes abre direto perto de si
   try { aplicarModulos(); montarHome(); rotear(); rotuloPerto(); localizacaoAutomatica(); }
   catch (e) { console.error('Mapmove: erro ao montar a página', e); $('#listaPerto').innerHTML = '<p class="vazio">Algo deu errado ao montar a página. Recarregue para tentar de novo.</p>'; }
@@ -168,6 +170,9 @@ function montarHome() {
   $('#gradeHome').classList.toggle('so-quadro', !temNoticias);
   $('#gradeHome').hidden = !temNoticias && !mod('agenda');
   if (temNoticias) montarNoticias();
+  const temDicas = mod('dicas') && estado.dicas.length > 0;
+  $('#dicas').hidden = !temDicas;
+  if (temDicas) montarDicas();
   if (mod('calculadora')) calcular();
   if (mod('zonas_fc')) montarZonas();
   if (mod('ranking_recorde')) montarRanking();
@@ -239,7 +244,7 @@ function montarQuadro() {
 }
 
 function fotoOuVazio(url, alt) { return url ? `<div class="foto"><img src="${esc(url)}" alt="${esc(alt)}" loading="lazy"></div>` : '<div class="foto"></div>'; }
-const NOMES_ED = { regiao: 'Região', brasil: 'Brasil', mundo: 'Mundo', treino: 'Treino', percurso: 'Percurso', equipamento: 'Equipamento' };
+const NOMES_ED = { regiao: 'Região', brasil: 'Brasil', mundo: 'Mundo', treino: 'Treino', percurso: 'Percurso', equipamento: 'Equipamento', dica: 'Dica' };
 function montarNoticias() {
   estado.noticias.forEach((n) => { if (!n.slug) n.slug = slugify(n.titulo); });
   const ns = estado.noticias.slice();
@@ -253,6 +258,44 @@ function montarNoticias() {
       ${principal.resumo ? `<p>${esc(principal.resumo)}</p>` : ''}${principal.fonte_nome ? `<p class="credito" style="font-size:12px;opacity:.7;margin-top:4px">Com informações de ${principal.fonte_url ? `<a href="${esc(principal.fonte_url)}" target="_blank" rel="noopener">${esc(principal.fonte_nome)}</a>` : esc(principal.fonte_nome)}</p>` : ''}
     </article>
     ${resto.length ? `<ol class="lista-num">${resto.map((n, i) => `<li><span class="num">${String(i + 2).padStart(2, '0')}</span><span><span class="editoria">${esc(NOMES_ED[n.editoria] || '')}</span><a class="tit link-noticia" href="#noticia/${esc(n.slug)}">${esc(n.titulo)}</a></span></li>`).join('')}</ol>` : ''}`;
+}
+
+function montarDicas() {
+  estado.dicas.forEach((d) => { if (!d.slug) d.slug = slugify(d.titulo); });
+  $('#dicasGrade').innerHTML = estado.dicas.slice(0, 6).map((d) => `
+    <a class="dica-card" href="#dica/${esc(d.slug)}">
+      <span class="dica-tag">Dica</span>
+      <h3>${esc(d.titulo)}</h3>
+      ${d.resumo ? `<p>${esc(d.resumo)}</p>` : ''}
+    </a>`).join('');
+}
+
+async function mostrarDica(slug) {
+  const v = $('#vDica');
+  estado.dicas.forEach((x) => { if (!x.slug) x.slug = slugify(x.titulo); });
+  let d = estado.dicas.find((x) => x.slug === slug);
+  if (!d && sb) { const r = await sb.from('noticias').select('*').eq('slug', slug).eq('editoria', 'dica').maybeSingle(); d = r.data; }
+  if (!d) { v.innerHTML = '<div class="wrap" style="padding:64px 0"><h1 class="display" style="font-size:56px">Dica não encontrada</h1><p class="muted"><a href="#" style="color:var(--cone-txt);font-weight:600">Voltar para o início</a></p></div>'; return; }
+  document.title = `${d.titulo} · Mapmove`;
+  atualizarSEO({
+    titulo: `${d.titulo} · Mapmove`,
+    descricao: (d.resumo || d.titulo).slice(0, 160),
+    url: `/dica/${d.slug || slugify(d.titulo)}`,
+    tipo: 'article',
+    ldJson: { '@context': 'https://schema.org', '@type': 'Article', headline: d.titulo, description: d.resumo || '', url: `${BASE_URL}/dica/${d.slug || slugify(d.titulo)}` },
+  });
+  const outras = estado.dicas.filter((x) => x.slug !== slug).slice(0, 4);
+  v.innerHTML = `<div class="wrap pagina-noticia">
+    <article class="noticia-art">
+      <a href="#" class="voltar">← Voltar</a>
+      <span class="editoria">Dica de corrida</span>
+      <h1 class="display">${esc(d.titulo)}</h1>
+      ${d.resumo ? `<p class="noticia-linha">${esc(d.resumo)}</p>` : ''}
+      ${d.imagem_url ? `<figure class="noticia-foto"><img src="${esc(d.imagem_url)}" alt="">${d.imagem_credito ? `<figcaption>${esc(d.imagem_credito)}</figcaption>` : ''}</figure>` : ''}
+      <div class="texto-corrida noticia-texto">${textoRico(d.conteudo || '')}</div>
+    </article>
+    ${outras.length ? `<aside class="noticia-mais"><h2 class="display">Mais dicas</h2><ol class="lista-num">${outras.map((o, i) => `<li><span class="num">${String(i + 1).padStart(2, '0')}</span><span><a class="tit link-noticia" href="#dica/${esc(o.slug)}">${esc(o.titulo)}</a></span></li>`).join('')}</ol></aside>` : ''}
+  </div>`;
 }
 
 /* ================== Zonas de frequência cardíaca ================== */
@@ -924,7 +967,7 @@ let observaFim = null;
 /* Filtros extras do mapa (estilo Airbnb) e filtro por cidade */
 const EXTRAS = [
   ['abertas', 'Inscrições abertas'], ['fds', 'Este fim de semana'], ['30d', 'Próximos 30 dias'],
-  ['noite', 'Noturnas'], ['curta', 'Até 5K'], ['longa', 'Acima de 42K']
+  ['noite', 'Noturnas'], ['curta', 'Até 5K'], ['longa', 'Acima de 42K'], ['mapa', 'Com mapa do percurso']
 ];
 estado.extras = new Set();
 estado.cidade = '';
@@ -946,6 +989,7 @@ function passaExtras(c) {
     if (x === 'noite' && !(c.horario && c.horario.slice(0, 5) >= '17:00')) return false;
     if (x === 'curta' && !ds.some((d) => d.km != null && +d.km > 0 && +d.km <= 5.5)) return false;
     if (x === 'longa' && !ds.some((d) => (d.km != null && +d.km > 42.3) || d.horas)) return false;
+    if (x === 'mapa' && !temTrajeto(c) && !ds.some(temTrajeto)) return false;
   }
   return true;
 }
@@ -1020,6 +1064,13 @@ async function mostrarNoticia(slug) {
   const data = quando ? new Date(quando).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
   const outras = estado.noticias.filter((x) => x.slug !== slug).slice(0, 4);
   document.title = `${n.titulo} · Mapmove`;
+  atualizarSEO({
+    titulo: `${n.titulo} · Mapmove`,
+    descricao: (n.resumo || n.titulo).slice(0, 160),
+    url: `/noticia/${n.slug || slugify(n.titulo)}`,
+    tipo: 'article',
+    ldJson: { '@context': 'https://schema.org', '@type': 'NewsArticle', headline: n.titulo, description: n.resumo || '', datePublished: n.publicado_em || n.criado_em || '', url: `${BASE_URL}/noticia/${n.slug || slugify(n.titulo)}` },
+  });
   v.innerHTML = `<div class="wrap pagina-noticia">
     <article class="noticia-art">
       <a href="#" class="voltar">← Voltar</a>
@@ -1215,8 +1266,24 @@ function mostrarCorrida(slug, percIdx = 0) {
   const v = $('#vCorrida');
   if (!c) { v.innerHTML = '<div class="wrap" style="padding:64px 0"><h1 class="display" style="font-size:56px">Corrida não encontrada</h1><p class="muted">Ela pode ter sido removida ou já aconteceu. <a href="#" style="color:var(--cone-txt);font-weight:600">Voltar para a agenda</a></p></div>'; return; }
   document.title = `${c.nome} · ${c.cidade} · Mapmove`;
-  const passou = c.data < hojeISO();
   const dist = (c.corrida_distancias || []).slice().sort(porDist);
+  const distTexto = dist.length ? dist.map((d) => d.rotulo).join(', ') : '';
+  const descCorrida = c.descricao || (distTexto ? `Corrida em ${c.cidade}/${c.estado}. Distâncias: ${distTexto}.` : `Corrida em ${c.cidade}, ${c.estado}.`);
+  atualizarSEO({
+    titulo: `${c.nome} · ${c.cidade} · Mapmove`,
+    descricao: descCorrida.slice(0, 160),
+    url: `/corrida/${c.slug}`,
+    tipo: 'article',
+    ldJson: {
+      '@context': 'https://schema.org', '@type': 'SportsEvent',
+      name: c.nome, startDate: c.data,
+      location: { '@type': 'Place', name: c.cidade, address: { '@type': 'PostalAddress', addressLocality: c.cidade, addressRegion: c.estado, addressCountry: 'BR' } },
+      url: `${BASE_URL}/corrida/${c.slug}`,
+      description: descCorrida.slice(0, 300),
+      organizer: c.organizador ? { '@type': 'Organization', name: c.organizador } : undefined,
+    },
+  });
+  const passou = c.data < hojeISO();
   const temPerc = Array.isArray(c.percurso) && c.percurso.length > 1;
   const proximasCidade = estado.corridas
     .filter((x) => x.slug !== slug && x.cidade === c.cidade && x.estado === c.estado && x.data >= hojeISO())
@@ -1379,9 +1446,30 @@ $('#formAviso').addEventListener('submit', async (e) => {
   btn.disabled = false;
 });
 
+/* ================== SEO dinâmico ================== */
+const BASE_URL = 'https://mapmove.com.br';
+const DESC_SITE = document.querySelector('meta[name="description"]')?.content || '';
+const TITULO_PADRAO = document.title;
+function atualizarSEO({ titulo, descricao, url, tipo, ldJson } = {}) {
+  const t = titulo || TITULO_PADRAO;
+  const d = descricao || DESC_SITE;
+  const u = url ? BASE_URL + url : BASE_URL + '/';
+  document.querySelector('meta[name="description"]').content = d;
+  const el = (id) => document.getElementById(id);
+  if (el('ogTitle')) el('ogTitle').content = t;
+  if (el('ogDesc')) el('ogDesc').content = d;
+  if (el('ogUrl')) el('ogUrl').content = u;
+  if (el('ogType')) el('ogType').content = tipo || 'website';
+  if (el('twTitle')) el('twTitle').content = t;
+  if (el('twDesc')) el('twDesc').content = d;
+  if (el('canonicalUrl')) el('canonicalUrl').href = u;
+  if (el('ldJson')) el('ldJson').textContent = JSON.stringify(ldJson || { '@context': 'https://schema.org', '@type': 'WebSite', name: 'Mapmove', url: BASE_URL });
+}
+
 /* ================== Rotas ================== */
 // título padrão (as páginas /corrida/... chegam com o título da prova, vindo do servidor)
-const TITULO_SITE = document.querySelector('meta[name="pc-titulo"]')?.content || document.title;
+const TITULO_SITE_RAW = document.querySelector('meta[name="pc-titulo"]')?.content || document.title;
+const TITULO_SITE = TITULO_SITE_RAW;
 // endereço de verdade da corrida (/corrida/nome-da-prova), usado pelo Google e no compartilhamento
 function rotaCorridaPeloCaminho() { const m = location.pathname.match(/^\/corrida\/([^/]+)\/?$/); return m ? decodeURIComponent(m[1]) : ''; }
 function rotaAtual() { return decodeURIComponent(location.hash) || (rotaCorridaPeloCaminho() ? '#corrida/' + rotaCorridaPeloCaminho() : ''); }
@@ -1389,12 +1477,13 @@ function rotaAtual() { return decodeURIComponent(location.hash) || (rotaCorridaP
 function irInicio() { history.pushState('', '', '/'); rotear(); }
 function rotear() {
   const h = rotaAtual();
-  const eMapa = h === '#mapa', eAdmin = h === '#admin', eCorrida = h.startsWith('#corrida/'), eNoticia = h.startsWith('#noticia/'), eZonas = h === '#zonas' && mod('zonas_fc');
+  const eMapa = h === '#mapa', eAdmin = h === '#admin', eCorrida = h.startsWith('#corrida/'), eNoticia = h.startsWith('#noticia/'), eDica = h.startsWith('#dica/'), eZonas = h === '#zonas' && mod('zonas_fc');
   $('#vMapa').hidden = !(eMapa && mod('mapa'));
   document.body.style.overflow = eMapa ? 'hidden' : '';
-  $('#vHome').hidden = eAdmin || eCorrida || eNoticia;
+  $('#vHome').hidden = eAdmin || eCorrida || eNoticia || eDica;
   $('#vNoticia').hidden = !eNoticia;
-  if (!eNoticia && !eCorrida) document.title = TITULO_SITE;
+  $('#vDica').hidden = !eDica;
+  if (!eNoticia && !eCorrida && !eDica) { document.title = TITULO_SITE; atualizarSEO(); }
   $('#vAdmin').hidden = !eAdmin;
   $('#vCorrida').hidden = !eCorrida;
   $('#navApp').hidden = eAdmin || eMapa;
@@ -1402,9 +1491,10 @@ function rotear() {
   if (eMapa && mod('mapa')) montarMapaGrande();
   if (eCorrida) { mostrarCorrida(h.slice(9)); scrollTo(0, 0); }
   if (eNoticia) { mostrarNoticia(h.slice(9)); scrollTo(0, 0); }
+  if (eDica) { mostrarDica(h.slice(6)); scrollTo(0, 0); }
   if (eAdmin) { abrirAdmin(); scrollTo(0, 0); }
   if (eZonas) setTimeout(() => $('#ferrZonas').scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
-  if (!eMapa && !eAdmin && !eCorrida && !eNoticia && mapaCompacto) setTimeout(() => mapaCompacto.invalidateSize(), 50);
+  if (!eMapa && !eAdmin && !eCorrida && !eNoticia && !eDica && mapaCompacto) setTimeout(() => mapaCompacto.invalidateSize(), 50);
 }
 window.addEventListener('hashchange', rotear);
 window.addEventListener('popstate', () => { if (!location.hash) rotear(); });

@@ -464,6 +464,18 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
 .rk-link:hover{color:#fff}
 .rk-vazio{grid-column:1/-1;border:0}
 .rk-nota{margin:12px 0 0;font-size:12px;color:var(--cinza)}
+.dicas-sec{padding:48px 0 40px}
+.dicas-cab{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;border-bottom:2px solid var(--asfalto);padding-bottom:12px;margin-bottom:28px}
+.dicas-cab h2{font-size:40px}
+.dicas-cab p{margin:4px 0 0;color:var(--cinza)}
+.dicas-grade{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.dica-card{display:flex;flex-direction:column;gap:10px;padding:22px;background:#fff;border:1.5px solid var(--linha2);border-radius:12px;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s}
+.dica-card:hover{border-color:var(--cone);box-shadow:0 4px 16px rgba(0,0,0,.08)}
+.dica-tag{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--cone);text-transform:uppercase;letter-spacing:.04em}
+.dica-card h3{font-size:19px;font-weight:700;line-height:1.3;margin:0}
+.dica-card p{margin:0;font-size:14px;color:var(--cinza);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+@media(max-width:900px){.dicas-grade{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.dicas-grade{grid-template-columns:1fr}}
 @media (max-width:999px){
   .perc-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
   .mapa-perc{height:280px}

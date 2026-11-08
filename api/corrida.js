@@ -72,16 +72,11 @@ function montar(html, c, base) {
     } : undefined
   };
   const tituloOriginal = (html.match(/<title>([^<]*)<\/title>/) || [])[1] || 'Mapmove';
-  const cabeca = [
+  // Tags extras para corrida (imagem e pc-titulo, que o index.html não tem)
+  const cabecaExtra = [
     `<meta name="pc-titulo" content="${esc(tituloOriginal)}">`,
-    `<link rel="canonical" href="${esc(url)}">`,
-    `<meta property="og:type" content="website">`, `<meta property="og:site_name" content="Mapmove">`, `<meta property="og:locale" content="pt_BR">`,
-    `<meta property="og:title" content="${esc(c.nome)}">`, `<meta property="og:description" content="${esc(descricao)}">`, `<meta property="og:url" content="${esc(url)}">`,
     imagem ? `<meta property="og:image" content="${esc(imagem)}">` : '',
-    `<meta name="twitter:card" content="${imagem ? 'summary_large_image' : 'summary'}">`,
-    `<meta name="twitter:title" content="${esc(c.nome)}">`, `<meta name="twitter:description" content="${esc(descricao)}">`,
     imagem ? `<meta name="twitter:image" content="${esc(imagem)}">` : '',
-    `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`
   ].filter(Boolean).join('\n');
   // conteúdo já no HTML (quem não roda JavaScript também lê); o app substitui ao carregar
   const corpo = `<div class="wrap pagina-corrida"><h1 class="display">${esc(c.nome)}</h1>
@@ -94,7 +89,16 @@ ${c.estado && slugar(c.cidade) ? `<p><a href="/corridas/${esc(c.estado.toLowerCa
     .replace(/<title>[^<]*<\/title>/, `<title>${esc(titulo)}</title>`)
     .replace(/<meta name="description"[^>]*>/, `<meta name="description" content="${esc(descricao)}">`)
     .replace('<head>', '<head>\n<base href="/">')
-    .replace('</head>', `${cabeca}\n</head>`)
+    // Substituir as tags placeholder do index.html com os valores da corrida (evita duplicatas)
+    .replace(/<link\s+rel="canonical"[^>]*>/g, `<link rel="canonical" id="canonicalUrl" href="${esc(url)}">`)
+    .replace(/<meta\s+property="og:type"[^>]*>/g, `<meta property="og:type" id="ogType" content="article">`)
+    .replace(/<meta\s+property="og:url"[^>]*>/g, `<meta property="og:url" id="ogUrl" content="${esc(url)}">`)
+    .replace(/<meta\s+property="og:title"[^>]*>/g, `<meta property="og:title" id="ogTitle" content="${esc(c.nome)}">`)
+    .replace(/<meta\s+property="og:description"[^>]*>/g, `<meta property="og:description" id="ogDesc" content="${esc(descricao)}">`)
+    .replace(/<meta\s+name="twitter:title"[^>]*>/g, `<meta name="twitter:title" id="twTitle" content="${esc(c.nome)}">`)
+    .replace(/<meta\s+name="twitter:description"[^>]*>/g, `<meta name="twitter:description" id="twDesc" content="${esc(descricao)}">`)
+    .replace(/<script\s+type="application\/ld\+json"[^>]*>[\s\S]*?<\/script>/, `<script type="application/ld+json" id="ldJson">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`)
+    .replace('</head>', `${cabecaExtra}\n</head>`)
     .replace('<main id="vHome">', '<main id="vHome" hidden>')
     .replace(/<h1 class="display hero-tit">([^<]*)<\/h1>/, '<p class="display hero-tit">$1</p>')
     .replace(/<h1 class="display" id="mapaTit">([^<]*)<\/h1>/, '<p class="display" id="mapaTit">$1</p>')

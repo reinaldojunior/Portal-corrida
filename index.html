@@ -6,6 +6,17 @@
 <title>Mapmove · Corridas e eventos esportivos pelo Brasil</title>
 <meta name="description" content="Ache a próxima corrida, trilha, pedal ou prova no mapa. Agenda de corridas e eventos esportivos pelo Brasil.">
 <meta name="theme-color" content="#15181B">
+<link rel="canonical" id="canonicalUrl" href="https://mapmove.com.br/">
+<meta property="og:site_name" content="Mapmove">
+<meta property="og:type" id="ogType" content="website">
+<meta property="og:url" id="ogUrl" content="https://mapmove.com.br/">
+<meta property="og:title" id="ogTitle" content="Mapmove · Corridas e eventos esportivos pelo Brasil">
+<meta property="og:description" id="ogDesc" content="Ache a próxima corrida, trilha, pedal ou prova no mapa. Agenda de corridas e eventos esportivos pelo Brasil.">
+<meta property="og:locale" content="pt_BR">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" id="twTitle" content="Mapmove · Corridas e eventos esportivos pelo Brasil">
+<meta name="twitter:description" id="twDesc" content="Ache a próxima corrida, trilha, pedal ou prova no mapa. Agenda de corridas e eventos esportivos pelo Brasil.">
+<script type="application/ld+json" id="ldJson">{"@context":"https://schema.org","@type":"WebSite","name":"Mapmove","url":"https://mapmove.com.br","description":"Agenda de corridas e eventos esportivos pelo Brasil"}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -23,6 +34,7 @@
       <a href="#mapa" data-mod="mapa">Mapa</a>
       <a href="#" data-mod="agenda" data-ir="quadro">Agenda</a>
       <a href="#" data-mod="noticias" data-ir="noticias">Notícias</a>
+      <a href="#" data-mod="dicas" data-ir="dicas">Dicas</a>
       <a href="#" data-mod-algum="calculadora aviso_provas zonas_fc ritmos_treino pulseira_pace conversor_esteira" data-ir="ferramentas">Ferramentas</a>
     </nav>
     <div class="spacer"></div>
@@ -80,6 +92,13 @@
       <div class="noticias-corpo" id="noticiasConteudo"></div>
     </section>
   </div>
+
+  <section class="wrap dicas-sec" id="dicas" data-mod="dicas" hidden aria-labelledby="dicasTit">
+    <div class="dicas-cab">
+      <div><h2 class="display" id="dicasTit">Dicas de corrida</h2><p>Tudo que você precisa saber para correr melhor.</p></div>
+    </div>
+    <div class="dicas-grade" id="dicasGrade"></div>
+  </section>
 
   <section class="wrap rk" id="ranking" data-mod="ranking_recorde" aria-labelledby="rkTit">
     <div class="rk-cab-sec">
@@ -226,6 +245,7 @@
 <!-- PÁGINA DA CORRIDA -->
 <main id="vCorrida" hidden></main>
 <main id="vNoticia" hidden></main>
+<main id="vDica" hidden></main>
 
 <!-- ADMIN -->
 <main id="vAdmin" hidden><div class="wrap admin" id="adminBox"></div></main>
