@@ -1352,11 +1352,30 @@ function mostrarCorrida(slug, percIdx = 0) {
           <small>Com lembrete na véspera, para retirar o kit.</small>
         </div></details>`}
     </div>
+    <button type="button" class="ci-compartilhar" id="btnCompartilhar"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="18" cy="5" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="19" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" d="m8.59 13.51 6.83 3.98M15.41 6.51 8.59 10.49"/></svg><span>Compartilhar</span></button>
     <a href="#mapa" class="ci-mapa" data-mod="mapa"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Ver corridas próximas no mapa</a>
     </aside>
     </div>
 ${percHtml}${simHtml}${proximasHtml}</div>`;
   $('#baixarIcs', v)?.addEventListener('click', () => baixarIcs(c));
+  $('#btnCompartilhar', v)?.addEventListener('click', async () => {
+    const url = `https://mapmove.com.br/corrida/${encodeURIComponent(c.slug)}`;
+    const titulo = c.nome;
+    const texto = `${c.nome} · ${dataLonga(c.data)} em ${c.cidade}/${c.estado}`;
+    const btn = $('#btnCompartilhar', v);
+    const label = $('span', btn);
+    if (navigator.share) {
+      try { await navigator.share({ title: titulo, text: texto, url }); } catch { /* cancelado */ }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+        label.textContent = 'Link copiado!';
+        setTimeout(() => { label.textContent = 'Compartilhar'; }, 2500);
+      } catch {
+        prompt('Copie o link:', url);
+      }
+    }
+  });
   // menu "Adicionar à agenda": fecha ao escolher ou ao clicar fora
   const menuAg = $('.ci-agenda', v);
   if (menuAg) {
