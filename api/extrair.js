@@ -2,7 +2,29 @@
 // a imagem de divulgação (og:image) e o local da largada (link do Google Maps → coordenadas).
 // Não devolve o HTML da página.
 
+const dns = require('dns').promises;
+const net = require('net');
+const { ehAdmin } = require('./_seguranca.js');
+
 const UA = 'Mozilla/5.0 (compatible; MapmoveBot/1.0; +https://mapmove.com.br)';
+
+function ipInterno(ip) {
+  if (net.isIPv6(ip)) {
+    const v = ip.toLowerCase();
+    if (v.startsWith('::ffff:') && net.isIPv4(v.slice(7))) return ipInterno(v.slice(7));
+    return v === '::' || v === '::1' || /^f[cd]/.test(v) || /^fe[89ab]/.test(v);
+  }
+  const [a, b] = ip.split('.').map(Number);
+  return a === 0 || a === 10 || a === 127 || a >= 224 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254)
+    || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 198 && (b === 18 || b === 19));
+}
+// o nome pode apontar para a rede interna (ex.: localtest.me → 127.0.0.1): confere o IP de verdade
+async function hostPublico(u) {
+  try {
+    const ips = await dns.lookup(new URL(u).hostname, { all: true });
+    return ips.length > 0 && !ips.some((i) => ipInterno(i.address));
+  } catch { return false; }
+}
 
 function urlValida(u) {
   try {
@@ -24,8 +46,16 @@ async function baixar(url, ms = 9000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {
-    const r = await fetch(url, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR,pt;q=0.9' }, redirect: 'follow', signal: ctrl.signal });
-    return { ok: r.ok, status: r.status, url: r.url, texto: r.ok ? await r.text() : '' };
+    // segue os redirecionamentos um a um, conferindo cada destino
+    let atual = url;
+    for (let saltos = 0; saltos < 6; saltos++) {
+      if (!urlValida(atual) || !(await hostPublico(atual))) throw new Error('Link inválido.');
+      const r = await fetch(atual, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR,pt;q=0.9' }, redirect: 'manual', signal: ctrl.signal });
+      const destino = r.status >= 300 && r.status < 400 && r.headers.get('location');
+      if (destino) { atual = new URL(destino, atual).toString(); continue; }
+      return { ok: r.ok, status: r.status, url: atual, texto: r.ok ? await r.text() : '' };
+    }
+    throw new Error('Redirecionamentos demais.');
   } finally { clearTimeout(t); }
 }
 
@@ -130,10 +160,11 @@ function porSeletor(html, seletor) {
   return null;
 }
 async function abreImagem(u) {
+  if (!urlValida(u) || !(await hostPublico(u))) return false;
   for (const method of ['HEAD', 'GET']) {
     try {
-      const r = await fetch(u, { method, headers: { 'user-agent': UA, range: 'bytes=0-0' }, redirect: 'follow', signal: AbortSignal.timeout(5000) });
-      if (r.ok || r.status === 206) return true;
+      const r = await fetch(u, { method, headers: { 'user-agent': UA, range: 'bytes=0-0' }, redirect: 'manual', signal: AbortSignal.timeout(5000) });
+      if (r.ok || r.status === 206 || (r.status >= 300 && r.status < 400)) return true; // redirecionamento: o navegador segue
       if (r.status !== 405 && r.status !== 403) return false;
     } catch { /* tenta de novo */ }
   }
@@ -210,6 +241,8 @@ function sugerirMarcadores(html, exemplo, tipo) {
 
 module.exports = async (req, res) => {
   res.setHeader('cache-control', 'no-store');
+  // ferramenta do painel: só o admin logado (aberta, virava proxy para ler qualquer endereço)
+  if (!(await ehAdmin(req))) return res.status(401).json({ erro: 'não autorizado' });
   // modo só endereço: /api/extrair?endereco=...
   const endQ = String((req.query && req.query.endereco) || '').trim();
   if (endQ) {

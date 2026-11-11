@@ -2,6 +2,8 @@
 // descobre quais provas são novas e grava só essas na fila de pendentes do Supabase.
 // Guarda apenas dados factuais (nome, data, cidade, distâncias, local, organizador, links).
 
+const { ehAgendamento } = require('./_seguranca.js');
+
 const UA = 'Mozilla/5.0 (compatible; MapmoveBot/1.0; +https://mapmove.com.br)';
 const DOMINIOS_BLOQUEADOS = ['kmaisclube.com.br'];
 const SUPABASE_URL = 'https://ssfsxdmzbubvygctdjgf.supabase.co';
@@ -144,10 +146,8 @@ async function coletar(estados, gravar, MAX_DETALHES = 35) {
 }
 
 module.exports = async (req, res) => {
-  // só roda pelo agendamento da Vercel (que envia a chave do cron)
-  const segredo = process.env.CRON_SECRET;
-  const enviada = (req.headers.authorization || '').replace(/^Bearer /, '') || String(req.query.chave || '');
-  if (!segredo || enviada !== segredo) return res.status(401).json({ erro: 'não autorizado' });
+  // só roda pelo agendamento da Vercel (que envia a chave do cron no cabeçalho)
+  if (!ehAgendamento(req)) return res.status(401).json({ erro: 'não autorizado' });
   const todos = String(process.env.ESTADOS || 'SP').toUpperCase().split(/[,\s]+/).filter((x) => /^[A-Z]{2}$/.test(x));
   // ?uf=BA,SE roda só esses; ?grupo=1|2 divide a lista em duas metades (para caber no tempo da Vercel)
   let estados = todos;
