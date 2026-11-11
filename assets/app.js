@@ -244,6 +244,42 @@ function montarQuadro() {
 }
 
 function fotoOuVazio(url, alt) { return url ? `<div class="foto"><img src="${esc(url)}" alt="${esc(alt)}" loading="lazy"></div>` : '<div class="foto"></div>'; }
+
+const _PH_PALETAS = [
+  { bg: '#1d4ed8', text: '#e0eaff' },
+  { bg: '#0f766e', text: '#ccfbf1' },
+  { bg: '#7c3aed', text: '#ede9fe' },
+  { bg: '#b45309', text: '#fef3c7' },
+  { bg: '#be185d', text: '#fce7f3' },
+  { bg: '#166534', text: '#dcfce7' },
+  { bg: '#9f1239', text: '#fee2e2' },
+];
+function _phHash(uf) { let h = 0; for (let i = 0; i < (uf||'').length; i++) h = (h * 31 + uf.charCodeAt(i)) & 0xffff; return h % _PH_PALETAS.length; }
+function _phLinhas(str, max) {
+  const palavras = str.split(' '); const linhas = []; let l = '';
+  for (const p of palavras) {
+    if ((l + ' ' + p).trim().length > max && l) { linhas.push(l.trim()); l = p; if (linhas.length === 2) { l = '…'; break; } }
+    else l = (l + ' ' + p).trim();
+  }
+  if (l) linhas.push(l.trim()); return linhas;
+}
+// cidade: exibido apenas quando lat=null (sem enriquecimento de local)
+function placeholderImagem(nome, uf, distancias, cidade, opts = {}) {
+  const { w = 400, h = 225 } = opts;
+  const p = _PH_PALETAS[_phHash(uf)];
+  const linhas = _phLinhas(nome, 22);
+  const fs = Math.min(h * 0.1, 20);
+  const lh = h * 0.13;
+  const cidTxt = cidade && uf ? `${cidade}, ${uf}` : (uf || '');
+  const blockH = (linhas.length - 1) * lh + (cidTxt ? lh * 1.4 : 0);
+  const y0 = h * 0.5 - blockH / 2;
+  const linhasSVG = linhas.map((l, i) =>
+    `<text x="${w/2}" y="${y0 + i * lh}" text-anchor="middle" font-family="system-ui,sans-serif" font-size="${fs}" font-weight="700" fill="${p.text}" dominant-baseline="middle">${esc(l)}</text>`
+  ).join('');
+  const cidSVG = cidTxt ? `<text x="${w/2}" y="${y0 + (linhas.length - 1) * lh + lh * 1.3}" text-anchor="middle" font-family="system-ui,sans-serif" font-size="${Math.min(h * 0.075, 13)}" font-weight="500" fill="${p.text}" opacity=".65" dominant-baseline="middle">${esc(cidTxt)}</text>` : '';
+  const distSVG = distancias ? `<text x="${w/2}" y="${h * 0.91}" text-anchor="middle" font-family="system-ui,sans-serif" font-size="${Math.min(h * 0.065, 12)}" font-weight="500" fill="${p.text}" opacity=".5" dominant-baseline="middle">${esc(distancias)}</text>` : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Sem foto — ${esc(nome)}"><rect width="${w}" height="${h}" fill="${p.bg}"/><rect width="${w}" height="${h}" fill="url(#ph_tex)" opacity=".08"/><defs><pattern id="ph_tex" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse"><circle cx="20" cy="20" r="1" fill="${p.text}"/></pattern></defs>${uf ? `<text x="${w/2}" y="${h * 0.72}" text-anchor="middle" font-family="system-ui,sans-serif" font-size="${h * 1.0}" font-weight="700" fill="${p.text}" opacity=".07" dominant-baseline="auto">${esc(uf)}</text>` : ''}${linhasSVG}${cidSVG}${distSVG}</svg>`;
+}
 const NOMES_ED = { regiao: 'Região', brasil: 'Brasil', mundo: 'Mundo', treino: 'Treino', percurso: 'Percurso', equipamento: 'Equipamento', dica: 'Dica' };
 function montarNoticias() {
   estado.noticias.forEach((n) => { if (!n.slug) n.slug = slugify(n.titulo); });
@@ -886,7 +922,8 @@ function trocarCamada(k) {
 
 function popupHtml(c) {
   const l = linkCorrida(c);
-  return `<div class="pop">${c.imagem_url ? `<div class="pop-foto"><img src="${esc(c.imagem_url)}" alt="" loading="lazy" onerror="this.parentNode.remove()"></div>` : ''}<span class="data">${dataLonga(c.data)}</span><span class="nome">${esc(c.nome)}</span><span class="cid">${esc(c.cidade)}${rotulos(c).length ? ', ' + rotulos(c).join(', ') : ''}</span>${l ? `<a class="btn btn-escuro" href="${esc(l.href)}"${l.ext ? ' target="_blank" rel="noopener"' : ''}>${l.ext ? 'Ir para a inscrição' : 'Ver corrida'}</a>` : ''}</div>`;
+  const popFoto = c.imagem_url ? `<div class="pop-foto"><img src="${esc(c.imagem_url)}" alt="" loading="lazy" onerror="this.parentNode.remove()"></div>` : `<div class="pop-foto">${placeholderImagem(c.nome, c.estado, rotulos(c).join(' · '), c.lat == null ? c.cidade : null, {w:240,h:135})}</div>`;
+  return `<div class="pop">${popFoto}<span class="data">${dataLonga(c.data)}</span><span class="nome">${esc(c.nome)}</span><span class="cid">${esc(c.cidade)}${rotulos(c).length ? ', ' + rotulos(c).join(', ') : ''}</span>${l ? `<a class="btn btn-escuro" href="${esc(l.href)}"${l.ext ? ' target="_blank" rel="noopener"' : ''}>${l.ext ? 'Ir para a inscrição' : 'Ver corrida'}</a>` : ''}</div>`;
 }
 
 function atualizarMarcadores() {
@@ -933,7 +970,8 @@ function cartaoMapa(c) {
   const p = partes(c.data);
   const dists = rotulos(c);
   const l = linkCorrida(c);
-  const foto = `${c.imagem_url ? `<img src="${esc(c.imagem_url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span class="cm-sem">${p.dia} ${p.mes}</span>${c.inscricoes_abertas ? '<span class="cm-selo">Inscrições abertas</span>' : ''}`;
+  const fotoEl = c.imagem_url ? `<img src="${esc(c.imagem_url)}" alt="" loading="lazy" onerror="this.remove()">` : placeholderImagem(c.nome, c.estado, rotulos(c).join(' · '), c.lat == null ? c.cidade : null);
+  const foto = `${fotoEl}<span class="cm-sem">${p.dia} ${p.mes}</span>${c.inscricoes_abertas ? '<span class="cm-selo">Inscrições abertas</span>' : ''}`;
   return `<article class="cartao-mapa" data-id="${c.id}">
     ${l ? `<a class="cm-foto" href="${esc(l.href)}"${l.ext ? ' target="_blank" rel="noopener"' : ''} aria-label="${esc(c.nome)}">${foto}</a>` : `<button type="button" class="cm-foto" data-foco="${c.id}" aria-label="Mostrar ${esc(c.nome)} no mapa">${foto}</button>`}
     <div class="cm-info"><span class="cm-cid">${esc(c.cidade)}${c.estado ? ' · ' + esc(c.estado) : ''}</span><span class="cm-data">${textoDist(c) ? textoDist(c) + ' · ' : ''}${p.sem}, ${p.d} ${p.mes.toLowerCase()}</span></div>
@@ -1333,7 +1371,7 @@ function mostrarCorrida(slug, percIdx = 0) {
     <div class="cab">${bib(c.data)}<div><span class="editoria">${dataLonga(c.data)}${c.horario ? ', largada às ' + c.horario.slice(0, 5) : ''}</span><h1 class="display">${esc(c.nome)}</h1><span class="muted" style="font-size:18px">${esc(c.cidade)}, ${esc(c.estado)}${c.organizador ? ' · Organização: ' + esc(c.organizador) : ''}</span>${c.estado && c.cidade && slugify(c.cidade) ? `<p class="ver-cidade"><a href="/corridas/${esc(String(c.estado).toLowerCase())}/${slugify(c.cidade)}">Ver todas as corridas em ${esc(c.cidade)}/${esc(c.estado)}</a> · <a href="/corridas/${esc(String(c.estado).toLowerCase())}">Corridas em ${esc(c.estado)}</a></p>` : ''}</div></div>
     <div class="corpo-corrida">
     <div class="principal">
-      ${c.imagem_url ? `<figure class="foto-cred"><div class="foto" style="height:360px"><img src="${esc(c.imagem_url)}" alt="${esc(c.nome)}"></div>${c.imagem_credito ? `<figcaption>${esc(c.imagem_credito)}</figcaption>` : ''}</figure>` : ''}
+      <figure class="foto-cred"><div class="foto" style="height:360px">${c.imagem_url ? `<img src="${esc(c.imagem_url)}" alt="${esc(c.nome)}">` : placeholderImagem(c.nome, c.estado, rotulos(c).join(' · '), c.lat == null ? c.cidade : null, {w:800,h:360})}</div>${c.imagem_url && c.imagem_credito ? `<figcaption>${esc(c.imagem_credito)}</figcaption>` : ''}</figure>
       ${c.descricao ? `<div class="caixa"><h2 class="display">Sobre a corrida</h2><div class="texto-corrida">${textoRico(c.descricao)}</div></div>` : ''}
       ${temPerc ? '' :
       c.lat != null ? `<div class="caixa"><h2 class="display">Largada</h2><p style="margin:0 0 14px">${esc(c.local_largada || c.cidade)}</p><div id="mapaCorrida"></div></div>` : ''}
