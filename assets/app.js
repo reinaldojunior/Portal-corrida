@@ -52,10 +52,16 @@ function passaFiltro(c) {
   const alvo = { '5K': [4, 6], '10K': [8, 12], '21K': [15, 25], '42K': [30, 50] }[estado.filtro];
   return (c.corrida_distancias || []).some((d) => d.km != null && +d.km >= alvo[0] && +d.km <= alvo[1]);
 }
+const linkSeguro = (u) => (/^https?:\/\//i.test(u || '') ? u : null);
 function linkCorrida(c) {
   if (mod('pagina_corrida')) return { href: `/corrida/${encodeURIComponent(c.slug)}`, ext: false };
-  if (c.link_inscricao) return { href: c.link_inscricao, ext: true };
+  if (linkSeguro(c.link_inscricao)) return { href: c.link_inscricao, ext: true };
   return null;
+}
+// rotas do painel que exigem o login do admin
+async function fetchAdmin(url) {
+  const { data: { session } } = await sb.auth.getSession();
+  return fetch(url, { headers: { authorization: `Bearer ${session ? session.access_token : ''}` } });
 }
 
 /* ================== Carregamento ================== */
@@ -1203,7 +1209,7 @@ async function buscarFotoLocal(barra, c) {
   caixa.innerHTML = '<small>Lendo a página da inscrição…</small>';
   let j;
   try {
-    const r = await fetch(`/api/extrair?url=${encodeURIComponent(c.link_inscricao)}`);
+    const r = await fetchAdmin(`/api/extrair?url=${encodeURIComponent(c.link_inscricao)}`);
     j = await r.json();
     if (!r.ok) throw new Error(j.erro || 'Não foi possível ler a página.');
   } catch (e) { caixa.innerHTML = `<small>${esc(e.message || 'Não foi possível ler a página.')}</small>`; return; }
@@ -1380,7 +1386,7 @@ function mostrarCorrida(slug, percIdx = 0) {
     <aside class="lado"><div class="card-insc">
       <div class="ci-topo"><h2 class="display">Inscrição</h2>${passou ? '<span class="ci-status fechada">Já aconteceu</span>' : c.inscricoes_abertas ? '<span class="ci-status aberta">Abertas</span>' : '<span class="ci-status fechada">Encerradas</span>'}</div>
       <div class="ci-dists">${dist.length ? dist.map((d) => `<div class="ci-dist"><b>${esc(d.rotulo)}</b><span>${d.preco == null ? 'preço a confirmar' : brl(d.preco)}</span></div>`).join('') : '<p class="muted" style="margin:0">Distâncias a confirmar.</p>'}</div>
-      ${c.link_inscricao ? `<a class="btn btn-cone ci-cta" href="${esc(c.link_inscricao)}" target="_blank" rel="noopener">${c.inscricoes_abertas && !passou ? 'Fazer inscrição' : 'Ver site da prova'}<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" d="M7 17 17 7M9 7h8v8"/></svg></a>
+      ${linkSeguro(c.link_inscricao) ? `<a class="btn btn-cone ci-cta" href="${esc(c.link_inscricao)}" target="_blank" rel="noopener">${c.inscricoes_abertas && !passou ? 'Fazer inscrição' : 'Ver site da prova'}<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" d="M7 17 17 7M9 7h8v8"/></svg></a>
         <small class="ci-fonte">no site ${esc(dominioDoLink(c.link_inscricao))}</small>` : ''}
       ${passou ? '' : `<details class="ci-agenda">
         <summary><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg>Adicionar à agenda</summary>
@@ -2157,7 +2163,7 @@ function formCorrida(c = {}, pendente = null) {
     if (mp) { try { nomeLink = decodeURIComponent(mp[1].replace(/\+/g, ' ')).replace(/,\s*Brasil$/i, '').trim(); } catch { nomeLink = mp[1].replace(/\+/g, ' '); } }
     if (!c && nomeLink && !/^-?\d+[.,]\d+/.test(nomeLink)) {
       const alvo = t; $('#localInfo').textContent = 'O link não traz coordenadas; procurando pelo endereço…';
-      fetch(`/api/extrair?endereco=${encodeURIComponent(nomeLink)}`).then((r) => r.json()).then((j) => {
+      fetchAdmin(`/api/extrair?endereco=${encodeURIComponent(nomeLink)}`).then((r) => r.json()).then((j) => {
         if ($('#colarLocal').value.trim() !== alvo) return;
         if (j.lat != null) { if (!f.local_largada.value.trim()) { f.local_largada.value = nomeLink; autoLocal = nomeLink; } aplicarPonto(j.lat, j.lng, true); setTimeout(() => { $('#localInfo').textContent = 'Local aproximado, achado pelo endereço do link. Confira o pino e ajuste clicando no mapa se precisar.'; }, 1600); }
         else $('#localInfo').textContent = 'Não achei esse endereço no mapa. Marque o pino clicando no mapa.';
@@ -2175,7 +2181,7 @@ function formCorrida(c = {}, pendente = null) {
     if (!/^https?:\/\//i.test(link)) { msg.textContent = 'Cole primeiro o link da página de inscrição.'; return; }
     msg.textContent = 'Lendo a página da inscrição…';
     try {
-      const r = await fetch(`/api/extrair?url=${encodeURIComponent(link)}`);
+      const r = await fetchAdmin(`/api/extrair?url=${encodeURIComponent(link)}`);
       const j = await r.json();
       if (!r.ok) throw new Error(j.erro || 'Não foi possível ler a página.');
       const achou = [];
@@ -2407,7 +2413,7 @@ function formPadrao(p, exemplo) {
     if (!f.ex_img.value.trim() && !f.ex_local.value.trim() && !f.ex_desc.value.trim()) return (msg.textContent = 'Cole o endereço da imagem, o texto do local e/ou um trecho da descrição.');
     msg.textContent = 'Lendo a página…';
     try {
-      const r = await fetch(`/api/extrair?aprender=1&url=${encodeURIComponent(url)}&img=${encodeURIComponent(f.ex_img.value.trim())}&local=${encodeURIComponent(f.ex_local.value.trim())}&desc=${encodeURIComponent(f.ex_desc.value.trim())}`);
+      const r = await fetchAdmin(`/api/extrair?aprender=1&url=${encodeURIComponent(url)}&img=${encodeURIComponent(f.ex_img.value.trim())}&local=${encodeURIComponent(f.ex_local.value.trim())}&desc=${encodeURIComponent(f.ex_desc.value.trim())}`);
       const j = await r.json();
       if (!r.ok) throw new Error(j.erro || 'Não consegui ler a página.');
       const avisos = [];
@@ -2435,7 +2441,7 @@ function formPadrao(p, exemplo) {
     out.innerHTML = '<small>Testando…</small>';
     try {
       const qs = new URLSearchParams({ url, teste: '1', ...marcadores() });
-      const r = await fetch(`/api/extrair?${qs}`);
+      const r = await fetchAdmin(`/api/extrair?${qs}`);
       const j = await r.json();
       if (!r.ok) throw new Error(j.erro || 'Não consegui ler a página.');
       out.innerHTML = `<div class="admin-busca" style="border:0;padding:0">

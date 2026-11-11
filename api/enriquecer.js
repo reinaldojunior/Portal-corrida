@@ -1,6 +1,7 @@
 // Robô de enriquecimento (sem IA): para as provas pendentes com link de inscrição,
 // lê a página da inscrição e guarda a imagem de divulgação (como SUGESTÃO, não publicada) e o local.
 const { analisar, conferirPino } = require('./extrair.js');
+const { ehAgendamento, ehAdmin } = require('./_seguranca.js');
 
 const SUPABASE_URL = 'https://ssfsxdmzbubvygctdjgf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
@@ -17,19 +18,10 @@ async function rpc(nome, corpo) {
   return j;
 }
 
-async function ehAdmin(jwt) {
-  try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/is_admin`, { method: 'POST', headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${jwt}`, 'content-type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(5000) });
-    return r.ok && (await r.json()) === true;
-  } catch { return false; }
-}
-
 module.exports = async (req, res) => {
-  const segredo = process.env.CRON_SECRET;
-  const enviada = (req.headers.authorization || '').replace(/^Bearer /, '') || String(req.query.chave || '');
   // quem chama: o agendamento (CRON_SECRET) ou o admin logado no site (token de login do Supabase)
-  const peloAdmin = !(segredo && enviada === segredo) && enviada.split('.').length === 3 && await ehAdmin(enviada);
-  if (!(segredo && enviada === segredo) && !peloAdmin) return res.status(401).json({ erro: 'não autorizado' });
+  const peloAdmin = !ehAgendamento(req) && await ehAdmin(req);
+  if (!ehAgendamento(req) && !peloAdmin) return res.status(401).json({ erro: 'não autorizado' });
   const token = process.env.ROBO_TOKEN;
   const inicio = Date.now();
   // registra a rodada (aba "Robô" do admin); se o registro falhar, o robô segue

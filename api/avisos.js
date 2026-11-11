@@ -1,10 +1,11 @@
 // Avisos de provas novas por e-mail.
 //   POST /api/avisos                      inscrição (e-mail, cidade, raio, distâncias) + e-mail de confirmação
-//   GET  /api/avisos?acao=confirmar&t=..  confirma a inscrição (link do e-mail)
-//   GET  /api/avisos?acao=sair&t=..       descadastra (link em todo e-mail)
+//   GET  /api/avisos?acao=confirmar&t=..  página com o botão de confirmar (link do e-mail); o POST confirma
+//   GET  /api/avisos?acao=sair&t=..       página com o botão de sair (link em todo e-mail); o POST descadastra
 //   GET  /api/avisos?acao=enviar          resumo semanal (agendamento diário; cada pessoa recebe no máximo 1 por semana)
 // Envio pelo Resend (resend.com). Sem RESEND_API_KEY, nada é enviado: a rotina só simula e informa.
 const { centroCidade } = require('./extrair.js');
+const { ehAgendamento, ehAdmin } = require('./_seguranca.js');
 
 const SUPABASE_URL = 'https://ssfsxdmzbubvygctdjgf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
@@ -19,12 +20,6 @@ async function rpc(nome, corpo) {
   const j = await r.json().catch(() => null);
   if (!r.ok) throw new Error(`Supabase ${nome}: ${r.status} ${j && j.message ? j.message : ''}`);
   return j;
-}
-async function ehAdmin(jwt) {
-  try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/is_admin`, { method: 'POST', headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${jwt}`, 'content-type': 'application/json' }, body: '{}' });
-    return r.ok && (await r.json()) === true;
-  } catch { return false; }
 }
 
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -61,12 +56,12 @@ async function emailConfirmacao(email, token) {
     molde('Falta só confirmar', `<p style="line-height:1.5">Clique no botão para começar a receber, uma vez por semana, as corridas novas perto de você.</p><p>${botao(ok, 'Confirmar meu e-mail')}</p><p style="font-size:13px;color:#5E6367">Se não foi você que pediu, é só ignorar este e-mail.</p>`, sair), sair);
 }
 
-function pagina(res, status, titulo, texto) {
+function pagina(res, status, titulo, texto, extra = '') {
   res.statusCode = status;
   res.setHeader('content-type', 'text/html; charset=utf-8');
   res.end(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(titulo)} · ${esc(NOME())}</title><meta name="robots" content="noindex"></head>
 <body style="margin:0;background:#EDEEEA;font-family:Arial,Helvetica,sans-serif;color:#1E2124"><div style="max-width:520px;margin:12vh auto;padding:0 16px">
-<div style="background:#fff;border-radius:8px;padding:28px"><h1 style="margin:0 0 10px;font-size:24px">${esc(titulo)}</h1><p style="line-height:1.5">${texto}</p>
+<div style="background:#fff;border-radius:8px;padding:28px"><h1 style="margin:0 0 10px;font-size:24px">${esc(titulo)}</h1><p style="line-height:1.5">${texto}</p>${extra}
 <p><a href="${esc(SITE())}/" style="color:#C23A00;font-weight:700">Ver as próximas corridas</a></p></div></div></body></html>`);
 }
 
@@ -126,6 +121,13 @@ module.exports = async (req, res) => {
     if (q.acao === 'confirmar' || q.acao === 'sair') {
       const t = String(q.t || '');
       if (!/^[0-9a-f-]{36}$/i.test(t)) return pagina(res, 400, 'Link inválido', 'Este link não está completo. Abra de novo pelo e-mail.');
+      // GET só mostra o botão: antivírus de e-mail abrem os links sozinhos e confirmariam/descadastrariam sem a pessoa
+      // (o descadastro em um clique do Gmail/Outlook chega por POST e passa direto)
+      if (req.method !== 'POST') {
+        const conf = q.acao === 'confirmar';
+        return pagina(res, 200, conf ? 'Confirmar os avisos' : 'Sair da lista', conf ? 'Falta um clique para começar a receber as corridas novas perto de você.' : 'Clique para não receber mais os avisos de corridas.',
+          `<form method="post" action="/api/avisos?acao=${q.acao}&amp;t=${esc(t)}"><button type="submit" style="background:#FF4D00;color:#1E2124;font-weight:700;border:0;padding:12px 20px;border-radius:6px;font-size:16px;cursor:pointer">${conf ? 'Confirmar meu e-mail' : 'Não quero mais receber'}</button></form>`);
+      }
       const ok = await rpc(q.acao === 'confirmar' ? 'avisos_confirmar' : 'avisos_sair', { p_token: t });
       if (!ok) return pagina(res, 404, 'Inscrição não encontrada', 'Não achamos esta inscrição. Ela pode ter sido removida.');
       return q.acao === 'confirmar'
@@ -134,12 +136,10 @@ module.exports = async (req, res) => {
     }
     // resumo semanal (agendamento) ou disparo pelo admin
     if (q.acao === 'enviar') {
-      const segredo = process.env.CRON_SECRET;
-      const enviada = (req.headers.authorization || '').replace(/^Bearer /, '') || String(q.chave || '');
-      const ok = (segredo && enviada === segredo) || (enviada.split('.').length === 3 && await ehAdmin(enviada));
-      if (!ok) return res.status(401).json({ erro: 'não autorizado' });
+      const agendado = ehAgendamento(req);
+      if (!agendado && !(await ehAdmin(req))) return res.status(401).json({ erro: 'não autorizado' });
       const token = process.env.ROBO_TOKEN;
-      const logId = await rpc('robo_log_inicio', { p_token: token, p_rota: 'avisos', p_parametros: 'resumo semanal', p_origem: segredo && enviada === segredo ? 'agendado' : 'admin' }).catch(() => null);
+      const logId = await rpc('robo_log_inicio', { p_token: token, p_rota: 'avisos', p_parametros: 'resumo semanal', p_origem: agendado ? 'agendado' : 'admin' }).catch(() => null);
       try {
         const r = await enviarResumos();
         r.servico_configurado = !!(process.env.RESEND_API_KEY && process.env.AVISOS_REMETENTE);
@@ -166,6 +166,8 @@ module.exports = async (req, res) => {
       const [ins] = (await rpc('robo_avisos_inscrever', { p_token: process.env.ROBO_TOKEN, p_email: email, p_cidade: cidade, p_lat: lat, p_lng: lng, p_raio: raio, p_dist: dist })) || [];
       if (!ins) throw new Error('inscrição não gravada');
       if (ins.confirmado) return res.status(200).json({ ok: true, ja_confirmado: true });
+      // no máximo 1 e-mail de confirmação por dia para o mesmo endereço (sem isso, o formulário vira canhão de spam contra terceiros)
+      if (ins.confirmacao_enviada_em && Date.now() - new Date(ins.confirmacao_enviada_em).getTime() < 864e5) return res.status(200).json({ ok: true, confirmacao_enviada: true });
       let enviado = false;
       try { const e = await emailConfirmacao(email, ins.token); enviado = !!e.enviado; } catch { /* o resumo diário tenta de novo */ }
       if (enviado) await rpc('robo_avisos_marcar', { p_token: process.env.ROBO_TOKEN, p_ids: [ins.id], p_tipo: 'confirmacao' }).catch(() => null);

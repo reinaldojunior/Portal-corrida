@@ -27,8 +27,11 @@ function htmlSeguro(s) {
   if (!s) return '';
   if (!/<[a-z]/i.test(s)) return s.split(/\n{1,}/).map((l) => l.trim()).filter(Boolean).map((l) => `<p>${esc(l)}</p>`).join('');
   return s.replace(/<(script|style)[\s\S]*?<\/\1>/gi, '').replace(/<(\/?)(p|h3|h4|ul|ol|li|strong|em|br)\b[^>]*>/gi, '\u0001$1$2\u0002')
-    .replace(/<[^>]*>/g, '').replace(/&(?!(amp|lt|gt|quot|#\d+|[a-z]+);)/gi, '&amp;').replace(/\u0001(\/?)(\w+)\u0002/g, '<$1$2>');
+    .replace(/<[^>]*>/g, '').replace(/&(?!(amp|lt|gt|quot|#\d+|[a-z]+);)/gi, '&amp;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;') // tag sem ">" (ex.: "<img src=x onerror=..." no fim) sobra da limpeza acima
+    .replace(/\u0001(\/?)(\w+)\u0002/g, '<$1$2>');
 }
+const linkSeguro = (u) => (/^https?:\/\//i.test(u || '') ? u : null);
 
 function lerModelo() {
   if (!modelo) modelo = fs.readFileSync(path.join(process.cwd(), 'index.html'), 'utf8');
@@ -55,6 +58,7 @@ function montar(html, c, base) {
   const imagem = c.imagem_url && /^https?:/i.test(c.imagem_url) ? c.imagem_url : null;
   const inicio = `${c.data}T${(c.horario || '07:00').slice(0, 5)}:00-03:00`;
   const precos = dists.filter((d) => d.preco != null).map((d) => +d.preco);
+  const inscricao = linkSeguro(c.link_inscricao);
   const ld = {
     '@context': 'https://schema.org', '@type': 'SportsEvent', name: c.nome, url, sport: 'Corrida de rua',
     startDate: inicio, eventStatus: 'https://schema.org/EventScheduled', eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
@@ -66,8 +70,8 @@ function montar(html, c, base) {
     },
     image: imagem ? [imagem] : undefined,
     organizer: c.organizador ? { '@type': 'Organization', name: c.organizador } : undefined,
-    offers: c.link_inscricao ? {
-      '@type': 'Offer', url: c.link_inscricao, priceCurrency: 'BRL', availability: c.inscricoes_abertas && !passou ? 'https://schema.org/InStock' : 'https://schema.org/SoldOut',
+    offers: inscricao ? {
+      '@type': 'Offer', url: inscricao, priceCurrency: 'BRL', availability: c.inscricoes_abertas && !passou ? 'https://schema.org/InStock' : 'https://schema.org/SoldOut',
       ...(precos.length ? { price: Math.min(...precos).toFixed(2) } : {})
     } : undefined
   };
@@ -82,7 +86,7 @@ function montar(html, c, base) {
   const corpo = `<div class="wrap pagina-corrida"><h1 class="display">${esc(c.nome)}</h1>
 <p>${esc(dataLonga(c.data))}${c.horario ? `, largada às ${esc(c.horario.slice(0, 5))}` : ''} · ${esc(c.cidade)}${c.estado ? ', ' + esc(c.estado) : ''}</p>
 ${c.local_largada ? `<p>Largada: ${esc(c.local_largada)}</p>` : ''}${rot.length ? `<p>Distâncias: ${esc(rot.join(', '))}</p>` : ''}
-${htmlSeguro(c.descricao)}${c.link_inscricao ? `<p><a href="${esc(c.link_inscricao)}" rel="noopener">Site da inscrição</a></p>` : ''}
+${htmlSeguro(c.descricao)}${inscricao ? `<p><a href="${esc(inscricao)}" rel="noopener">Site da inscrição</a></p>` : ''}
 ${c.estado && slugar(c.cidade) ? `<p><a href="/corridas/${esc(c.estado.toLowerCase())}/${slugar(c.cidade)}">Ver todas as corridas em ${esc(c.cidade)}/${esc(c.estado)}</a> · <a href="/corridas/${esc(c.estado.toLowerCase())}">Corridas em ${esc(c.estado)}</a></p>` : ''}
 <p><a href="/">Ver todas as corridas</a></p></div>`;
   return html
