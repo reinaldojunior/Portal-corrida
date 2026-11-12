@@ -121,7 +121,7 @@ function parsearEvento(ev, uf) {
     : null;
 
   return {
-    chave: `ts-${slug(nome)}-${data}`,
+    chave: `${slug(nome)}-${data}`,
     nome,
     cidade,
     estado,
