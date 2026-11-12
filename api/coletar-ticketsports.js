@@ -11,7 +11,9 @@ const SUPABASE_URL = 'https://ssfsxdmzbubvygctdjgf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-const QUANTIDADE_POR_PAGINA = 100;
+// Sem offset/page aparente no fetch real — tenta alta quantity de uma vez.
+// Se a API tiver paginação ela virá como campo "total" ou "hasMore" na resposta.
+const QUANTIDADE = 500;
 const MODALIDADES_CORRIDA = ['corrida-de-rua', 'corrida de rua', 'corrida'];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -38,32 +40,31 @@ async function rpc(nome, corpo) {
 
 // ─── BUSCA PAGINADA ───────────────────────────────────────────────────────────
 
-async function buscarPagina(offset = 0) {
+async function buscarEventos() {
   const params = new URLSearchParams({
-    quantity: String(QUANTIDADE_POR_PAGINA),
+    quantity: String(QUANTIDADE),
     atlheteId: '0',
     term: '',
     country: 'BR',
-    offset: String(offset),
   });
   const url = `${BASE_API_URL}/events/list?${params}`;
   const r = await fetch(url, {
     headers: {
       'user-agent': UA,
-      'accept': 'application/json',
-      'accept-language': 'pt-BR,pt;q=0.9',
-      'referer': 'https://www.ticketsports.com.br/calendar/filters?modalidade=corrida-de-rua'
+      'accept': '*/*',
+      'accept-language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+      'referer': 'https://www.ticketsports.com.br/calendar/filters?modalidade=corrida-de-rua&estado=SP'
     }
   });
   if (!r.ok) {
-    console.warn(`[TicketSports] offset ${offset}: HTTP ${r.status}`);
+    console.warn(`[TicketSports] HTTP ${r.status}`);
     return [];
   }
   const data = await r.json().catch(() => null);
   if (!data) return [];
 
-  if (process.env.DEBUG_TS && offset === 0) {
-    console.log('[TicketSports] Amostra da resposta:', JSON.stringify(data).slice(0, 1000));
+  if (process.env.DEBUG_TS) {
+    console.log('[TicketSports] Amostra da resposta:', JSON.stringify(data).slice(0, 1200));
   }
 
   // Suporta array direto ou objeto com wrapper
@@ -157,33 +158,17 @@ async function coletarTicketSports() {
   const inicio = Date.now();
   await rpc('robo_log_inicio', { p_fonte: 'ticketsports' });
 
+  const lista = await buscarEventos();
   const todos = [];
-  let offset = 0;
-  let paginas = 0;
 
-  while (true) {
-    const lista = await buscarPagina(offset);
-    if (!lista.length) break;
-
-    for (const ev of lista) {
-      // Filtrar apenas corridas de rua (a API retorna todas as modalidades)
-      if (!ehCorridaDeRua(ev)) continue;
-      const item = parsearEvento(ev);
-      if (item) todos.push(item);
-    }
-
-    paginas++;
-    console.log(`[TicketSports] p${paginas} offset=${offset}: ${lista.length} eventos brutos, ${todos.length} corridas acumuladas`);
-
-    if (lista.length < QUANTIDADE_POR_PAGINA) break; // última página
-    offset += QUANTIDADE_POR_PAGINA;
-    await dormir(500);
-
-    if (paginas > 50) { // proteção
-      console.warn('[TicketSports] Limite de 50 páginas atingido');
-      break;
-    }
+  for (const ev of lista) {
+    // Filtrar apenas corridas de rua (a API retorna todas as modalidades)
+    if (!ehCorridaDeRua(ev)) continue;
+    const item = parsearEvento(ev);
+    if (item) todos.push(item);
   }
+
+  console.log(`[TicketSports] ${lista.length} eventos brutos → ${todos.length} corridas`);
 
   if (!todos.length) {
     console.log('[TicketSports] Nenhuma corrida encontrada');
