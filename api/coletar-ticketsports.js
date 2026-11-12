@@ -2,15 +2,17 @@
 // Coleta provas de corrida de rua do calendário da plataforma.
 // API interna descoberta via DevTools (Fetch/XHR) na página /calendar/filters.
 //
-// TODO: preencher BASE_API_URL com a URL base da requisição "active-events" no DevTools.
-// Exemplo: 'https://api.ticketsports.com.br' ou 'https://bff.ticketagora.com.br'
-
 const { ehAgendamento } = require('./_seguranca.js');
 
 // ─── CONSTANTES ───────────────────────────────────────────────────────────────
 
-const BASE_API_URL = 'TODO_COLE_A_URL_BASE_AQUI'; // ex: 'https://api.ticketsports.com.br'
+const BASE_API_URL = 'https://www.ticketsports.com.br/api';
+// active-events retorna países com eventos ativos; Brasil = iD_Pais 33
+const ACTIVE_COUNTRIES_PATH = '/location/countries/active-events';
+// TODO: preencher com o endpoint que lista as corridas (rolar página no DevTools para descobrir)
+const EVENTS_LIST_PATH = 'TODO_ENDPOINT_DA_LISTA_DE_CORRIDAS';
 const MODALIDADE = 'corrida-de-rua';
+const ID_PAIS_BRASIL = 33;
 const UA = 'Mozilla/5.0 (compatible; MapmoveBot/1.0; +https://mapmove.com.br)';
 const SUPABASE_URL = 'https://ssfsxdmzbubvygctdjgf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
@@ -46,12 +48,16 @@ async function buscarEventos(estado, pagina = 1) {
   const params = new URLSearchParams({
     modalidade: MODALIDADE,
     estado,
-    page: pagina,
-    // Ajustar os params conforme a resposta real da API
+    page: String(pagina),
   });
-  const url = `${BASE_API_URL}/active-events?${params}`;
+  const url = `${BASE_API_URL}${ACTIVE_EVENTS_PATH}?${params}`;
   const r = await fetch(url, {
-    headers: { 'user-agent': UA, 'accept': 'application/json', 'accept-language': 'pt-BR,pt;q=0.9' }
+    headers: {
+      'user-agent': UA,
+      'accept': 'application/json',
+      'accept-language': 'pt-BR,pt;q=0.9',
+      'referer': `https://www.ticketsports.com.br/calendar/filters?modalidade=${MODALIDADE}&estado=${estado}`
+    }
   });
   if (!r.ok) {
     console.warn(`[TicketSports] ${estado} p${pagina}: HTTP ${r.status}`);
@@ -60,12 +66,14 @@ async function buscarEventos(estado, pagina = 1) {
   const data = await r.json().catch(() => null);
   if (!data) return [];
 
-  // ─── ADAPTAR CONFORME A ESTRUTURA REAL DO JSON ────────────────────────────
-  // Quando você colar a URL e ver o Response no DevTools, ajuste os campos abaixo.
-  // Estruturas comuns:
-  //   data.events, data.data, data.results, data.items, data (array direto)
+  // Primeira execução: imprimir estrutura para diagnóstico
+  if (pagina === 1 && estado === 'SP' && process.env.DEBUG_TS) {
+    console.log('[TicketSports] Estrutura da resposta:', JSON.stringify(data).slice(0, 800));
+  }
+
+  // Suporta array direto ou objeto com wrapper
   const lista = Array.isArray(data) ? data
-    : (data.events || data.data || data.results || data.items || []);
+    : (data.events || data.data || data.results || data.items || data.content || []);
 
   return lista;
 }
