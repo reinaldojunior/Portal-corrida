@@ -203,7 +203,19 @@ async function coletarTicketSports() {
   }
 }
 
-module.exports = { coletarTicketSports };
+// ─── HANDLER VERCEL ───────────────────────────────────────────────────────────
+
+module.exports = async (req, res) => {
+  if (!ehAgendamento(req)) return res.status(401).json({ erro: 'não autorizado' });
+  try {
+    const resultado = await coletarTicketSports();
+    res.status(200).json({ quando: new Date().toISOString(), ...resultado });
+  } catch (e) {
+    res.status(500).json({ erro: e.message });
+  }
+};
+
+module.exports.coletarTicketSports = coletarTicketSports;
 
 // Execução direta: DEBUG_TS=1 node api/coletar-ticketsports.js
 if (require.main === module) {
