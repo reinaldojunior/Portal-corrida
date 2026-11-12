@@ -6,7 +6,8 @@ const { ehAgendamento } = require('./_seguranca.js');
 
 // ─── CONSTANTES ───────────────────────────────────────────────────────────────
 
-const BASE_API_URL = 'https://www.ticketsports.com.br/api';
+// API real descoberta via CSP do site: connect-src aponta para api.ticketsports.com.br
+const BASE_API_URL = 'https://api.ticketsports.com.br';
 const SUPABASE_URL = 'https://ssfsxdmzbubvygctdjgf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
