@@ -14,7 +14,11 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 // Sem offset/page aparente no fetch real — tenta alta quantity de uma vez.
 // Se a API tiver paginação ela virá como campo "total" ou "hasMore" na resposta.
 const QUANTIDADE = 500;
-const MODALIDADES_CORRIDA = ['corrida-de-rua', 'corrida de rua', 'corrida'];
+// IDs de modalidade descobertos via /api/activities
+const ACTIVITY_CORRIDA_RUA = '1';   // corrida-de-rua
+const ACTIVITY_TRAIL_RUN   = '6';   // trail-run
+const ACTIVITY_NIGHT_RUN   = '7';   // night-run
+const ACTIVITIES_ALVO = [ACTIVITY_CORRIDA_RUA, ACTIVITY_TRAIL_RUN, ACTIVITY_NIGHT_RUN];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -40,12 +44,13 @@ async function rpc(nome, corpo) {
 
 // ─── BUSCA PAGINADA ───────────────────────────────────────────────────────────
 
-async function buscarEventos() {
+async function buscarEventos(activityId = ACTIVITY_CORRIDA_RUA) {
   const params = new URLSearchParams({
     quantity: String(QUANTIDADE),
     atlheteId: '0',
     term: '',
     country: 'BR',
+    activity: activityId, // filtro server-side: corrida-de-rua=1, trail-run=6, night-run=7
   });
   const url = `${BASE_API_URL}/events/list?${params}`;
   const r = await fetch(url, {
@@ -158,17 +163,19 @@ async function coletarTicketSports() {
   const inicio = Date.now();
   await rpc('robo_log_inicio', { p_fonte: 'ticketsports' });
 
-  const lista = await buscarEventos();
+  // Busca as 3 modalidades alvo em paralelo (corrida, trail, night run)
+  const listas = await Promise.all(ACTIVITIES_ALVO.map((id) => buscarEventos(id)));
   const todos = [];
 
-  for (const ev of lista) {
-    // Filtrar apenas corridas de rua (a API retorna todas as modalidades)
-    if (!ehCorridaDeRua(ev)) continue;
-    const item = parsearEvento(ev);
-    if (item) todos.push(item);
+  for (const lista of listas) {
+    for (const ev of lista) {
+      const item = parsearEvento(ev);
+      if (item) todos.push(item);
+    }
   }
 
-  console.log(`[TicketSports] ${lista.length} eventos brutos → ${todos.length} corridas`);
+  const total = listas.reduce((s, l) => s + l.length, 0);
+  console.log(`[TicketSports] ${total} eventos brutos → ${todos.length} corridas`);
 
   if (!todos.length) {
     console.log('[TicketSports] Nenhuma corrida encontrada');
