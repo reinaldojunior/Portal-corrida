@@ -138,55 +138,69 @@ function parsearEvento(ev, uf) {
 // ─── COLETA PRINCIPAL ─────────────────────────────────────────────────────────
 
 async function coletarTicketSports() {
+  const token = process.env.ROBO_TOKEN;
+  if (!token) throw new Error('ROBO_TOKEN não configurado');
+
   const inicio = Date.now();
-  await rpc('robo_log_inicio', { p_fonte: 'ticketsports' });
+  const logId = await rpc('robo_log_inicio', {
+    p_token: token,
+    p_rota: 'coletar-ticketsports',
+    p_parametros: 'padrão',
+    p_origem: 'agendado'
+  }).catch(() => null);
 
-  const todos = [];
+  const logFim = (ok, resultado, erro) => logId
+    ? rpc('robo_log_fim', { p_token: token, p_id: logId, p_ok: ok, p_resultado: resultado, p_erro: erro || null }).catch(() => null)
+    : null;
 
-  for (const uf of UFS) {
-    const lista = await buscarPorEstado(uf);
-    let corridas = 0;
+  try {
+    const todos = [];
 
-    for (const ev of lista) {
-      if (!ehCorridaDeRua(ev.title || '')) continue;
-      const item = parsearEvento(ev, uf);
-      if (item) { todos.push(item); corridas++; }
+    for (const uf of UFS) {
+      const lista = await buscarPorEstado(uf);
+      let corridas = 0;
+
+      for (const ev of lista) {
+        if (!ehCorridaDeRua(ev.title || '')) continue;
+        const item = parsearEvento(ev, uf);
+        if (item) { todos.push(item); corridas++; }
+      }
+
+      if (lista.length) {
+        console.log(`[TicketSports] ${uf}: ${lista.length} eventos → ${corridas} corridas`);
+      }
+
+      await dormir(300);
     }
 
-    if (lista.length) {
-      console.log(`[TicketSports] ${uf}: ${lista.length} eventos → ${corridas} corridas`);
+    if (!todos.length) {
+      console.log('[TicketSports] Nenhuma corrida encontrada');
+      await logFim(true, { coletados: 0, novos: 0 }, null);
+      return { coletados: 0, novos: 0 };
     }
 
-    await dormir(300);
+    // Deduplicação local por chave
+    const unicos = Object.values(Object.fromEntries(todos.map((e) => [e.chave, e])));
+    console.log(`[TicketSports] ${unicos.length} corridas únicas`);
+
+    // robo_novos: verifica nome+data+cidade (similaridade) E link_inscricao contra corridas e corridas_pendentes
+    const novosChaves = new Set(await rpc('robo_novos', {
+      p_token: token,
+      p_itens: unicos.map(({ chave, nome, cidade, data, link_inscricao }) => ({ chave, nome, cidade, data, link_inscricao }))
+    }));
+    const novos = unicos.filter((e) => novosChaves.has(e.chave));
+
+    const inseridas = novos.length
+      ? await rpc('robo_inserir_pendentes', { p_token: token, p_itens: novos })
+      : 0;
+
+    await logFim(true, { coletados: unicos.length, novos: inseridas }, null);
+    console.log(`[TicketSports] ${inseridas} novos de ${unicos.length} coletados`);
+    return { coletados: unicos.length, novos: inseridas };
+  } catch (e) {
+    await logFim(false, null, e.message);
+    throw e;
   }
-
-  if (!todos.length) {
-    console.log('[TicketSports] Nenhuma corrida encontrada');
-    await rpc('robo_log_fim', { p_fonte: 'ticketsports', p_coletados: 0, p_novos: 0, p_ms: Date.now() - inicio });
-    return { coletados: 0, novos: 0 };
-  }
-
-  // Deduplicação local por chave
-  const unicos = Object.values(Object.fromEntries(todos.map((e) => [e.chave, e])));
-  console.log(`[TicketSports] ${unicos.length} corridas únicas`);
-
-  const chaves = unicos.map((e) => e.chave);
-  const novosChaves = await rpc('robo_novos', { p_chaves: chaves, p_fonte: 'ticketsports' });
-  const novos = unicos.filter((e) => novosChaves.includes(e.chave));
-
-  if (novos.length) {
-    await rpc('robo_inserir_pendentes', { p_eventos: novos });
-  }
-
-  await rpc('robo_log_fim', {
-    p_fonte: 'ticketsports',
-    p_coletados: unicos.length,
-    p_novos: novos.length,
-    p_ms: Date.now() - inicio
-  });
-
-  console.log(`[TicketSports] ${novos.length} novos de ${unicos.length} coletados`);
-  return { coletados: unicos.length, novos: novos.length };
 }
 
 module.exports = { coletarTicketSports };
