@@ -1,25 +1,26 @@
 // Robô Ticket Sports (ticketsports.com.br / ticketagora)
-// Coleta provas de corrida de rua para o Brasil via API interna descoberta por DevTools.
-// Endpoint: GET /api/events/list?quantity=N&atlheteId=0&term=&country=BR[&offset=N]
+// Coleta provas de corrida de rua do calendário da plataforma.
+//
+// API descoberta por DevTools (Fetch/XHR na página /calendar/filters):
+//   GET /api/events/list?quantity=N&atlheteId=0&term=&country=BR&region=UF
+// A resposta NÃO inclui o tipo de modalidade — filtra-se pelo título.
+// Campos confirmados: title, date (DD/MM/YYYY), address ("Cidade, UF"),
+//                     organizer, uri (link), eventId, status
 
 const { ehAgendamento } = require('./_seguranca.js');
 
 // ─── CONSTANTES ───────────────────────────────────────────────────────────────
 
-// API real descoberta via CSP do site: connect-src aponta para api.ticketsports.com.br
-const BASE_API_URL = 'https://api.ticketsports.com.br';
+const BASE_API_URL = 'https://www.ticketsports.com.br/api';
 const SUPABASE_URL = 'https://ssfsxdmzbubvygctdjgf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-// Sem offset/page aparente no fetch real — tenta alta quantity de uma vez.
-// Se a API tiver paginação ela virá como campo "total" ou "hasMore" na resposta.
-const QUANTIDADE = 500;
-// IDs de modalidade descobertos via /api/activities
-const ACTIVITY_CORRIDA_RUA = '1';   // corrida-de-rua
-const ACTIVITY_TRAIL_RUN   = '6';   // trail-run
-const ACTIVITY_NIGHT_RUN   = '7';   // night-run
-const ACTIVITIES_ALVO = [ACTIVITY_CORRIDA_RUA, ACTIVITY_TRAIL_RUN, ACTIVITY_NIGHT_RUN];
+const QUANTIDADE = 300;
+const UFS = [
+  'AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT',
+  'PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'
+];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -43,15 +44,15 @@ async function rpc(nome, corpo) {
   return j;
 }
 
-// ─── BUSCA PAGINADA ───────────────────────────────────────────────────────────
+// ─── BUSCA POR ESTADO ─────────────────────────────────────────────────────────
 
-async function buscarEventos(activityId = ACTIVITY_CORRIDA_RUA) {
+async function buscarPorEstado(uf) {
   const params = new URLSearchParams({
     quantity: String(QUANTIDADE),
     atlheteId: '0',
     term: '',
     country: 'BR',
-    activity: activityId, // filtro server-side: corrida-de-rua=1, trail-run=6, night-run=7
+    region: uf,
   });
   const url = `${BASE_API_URL}/events/list?${params}`;
   const r = await fetch(url, {
@@ -59,102 +60,78 @@ async function buscarEventos(activityId = ACTIVITY_CORRIDA_RUA) {
       'user-agent': UA,
       'accept': '*/*',
       'accept-language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-      'referer': 'https://www.ticketsports.com.br/calendar/filters?modalidade=corrida-de-rua&estado=SP'
+      'referer': `https://www.ticketsports.com.br/calendar/filters?modalidade=corrida-de-rua&estado=${uf}`
     }
   });
   if (!r.ok) {
-    console.warn(`[TicketSports] HTTP ${r.status}`);
+    console.warn(`[TicketSports] ${uf}: HTTP ${r.status}`);
     return [];
   }
   const data = await r.json().catch(() => null);
   if (!data) return [];
 
-  if (process.env.DEBUG_TS) {
-    console.log('[TicketSports] Amostra da resposta:', JSON.stringify(data).slice(0, 1200));
+  if (process.env.DEBUG_TS && uf === 'SP') {
+    console.log(`[TicketSports] Amostra SP:`, JSON.stringify(data).slice(0, 600));
   }
 
-  // Suporta array direto ou objeto com wrapper
-  return Array.isArray(data) ? data
-    : (data.events || data.data || data.results || data.items || data.content || []);
+  return Array.isArray(data) ? data : [];
+}
+
+// ─── FILTRO DE MODALIDADE (pelo título, pois a API não retorna o tipo) ────────
+
+// Palavras que indicam corrida
+const RE_CORRIDA = /\b(corrida|run|trail|maratona|meia.?maratona|maratoninha|night|corrida|km)\b/i;
+// Palavras que indicam NÃO é corrida (evita falsos positivos)
+const RE_EXCLUIR = /\bnatação|natacao|ciclismo|beach.?tennis|futev[oô]lei|canoagem\b/i;
+
+function ehCorridaDeRua(titulo) {
+  if (RE_EXCLUIR.test(titulo)) return false;
+  return RE_CORRIDA.test(titulo);
 }
 
 // ─── PARSER DE EVENTO ─────────────────────────────────────────────────────────
-// NOTA: ajustar nomes de campo conforme a estrutura real da API.
-// Rodar DEBUG_TS=1 node api/coletar-ticketsports.js na primeira vez para ver os campos.
 
-function ehCorridaDeRua(ev) {
-  const campos = [
-    ev.modalidade, ev.modality, ev.category, ev.categoria,
-    ev.sport, ev.esporte, ev.type, ev.tipo, ev.name, ev.nome, ev.title
-  ];
-  const texto = campos.filter(Boolean).join(' ').toLowerCase();
-  return MODALIDADES_CORRIDA.some((m) => texto.includes(m))
-    || texto.includes('run') || texto.includes('km') || texto.includes('corrida');
-}
-
-function parsearEvento(ev) {
-  // Nome do evento
-  const nome = limpar(
-    ev.name || ev.nome || ev.title || ev.titulo || ev.eventName || ev.nomeEvento || ''
-  );
+function parsearEvento(ev, uf) {
+  const nome = limpar(ev.title || '');
   if (!nome) return null;
 
-  // Data: aceita "2025-03-15", "15/03/2025", timestamp ISO
-  let data = ev.date || ev.data || ev.start_date || ev.startDate || ev.dataInicio ||
-             ev.eventDate || ev.inicio || '';
-  if (!data) return null;
-  data = String(data);
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(data)) {
-    const [d, m, a] = data.split('/');
-    data = `${a}-${m}-${d}`;
-  }
-  if (/^\d{4}-\d{2}-\d{2}T/.test(data)) data = data.slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return null;
+  // Data: "14/11/2026" → "2026-11-14"
+  const dataBruta = String(ev.date || '');
+  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dataBruta)) return null;
+  const [d, m, a] = dataBruta.split('/');
+  const data = `${a}-${m}-${d}`;
 
   // Só provas futuras
   const hoje = new Date(Date.now() - 3 * 3600e3);
   if (new Date(data) < hoje) return null;
 
-  // Localização
-  const cidade = limpar(
-    ev.city || ev.cidade || ev.municipio || ev.municipality || ''
-  );
-  const estado = limpar(
-    ev.state || ev.estado || ev.uf || ev.stateAbbr || ''
-  );
+  // Só eventos abertos
+  if (ev.status && ev.status !== 'Aberto') return null;
 
-  // Distâncias
-  let distancias = null;
-  if (Array.isArray(ev.modalities || ev.modalidades || ev.distances || ev.distancias)) {
-    const arr = ev.modalities || ev.modalidades || ev.distances || ev.distancias;
-    distancias = arr.map((m) => {
-      if (typeof m === 'string') return limpar(m);
-      return limpar(m.distance || m.distancia || m.name || m.nome || '');
-    }).filter(Boolean).join(', ');
-  } else if (ev.distance || ev.distancia) {
-    distancias = limpar(ev.distance || ev.distancia);
-  }
+  // address: "São Paulo, SP" ou "Campinas, SP"
+  const addr = limpar(ev.address || '');
+  const separador = addr.lastIndexOf(',');
+  const cidade = separador > 0 ? addr.slice(0, separador).trim() : addr;
+  const estado = separador > 0 ? addr.slice(separador + 1).trim().toUpperCase() : uf;
 
-  // ID e link de inscrição
-  const id = ev.id || ev.eventId || ev.event_id || ev.iD_Evento || ev.iD_Event || '';
-  const slugEvento = ev.slug || ev.url_slug || ev.permalink || '';
-  const linkInscricao = ev.registration_url || ev.registrationUrl || ev.link_inscricao ||
-    ev.url || ev.link ||
-    (slugEvento ? `https://www.ticketsports.com.br/${slugEvento}` : null) ||
-    (id ? `https://www.ticketsports.com.br/e/${id}` : null);
+  // Distâncias: tentar extrair do título (ex: "5KM", "21K", "42K")
+  const distMatch = nome.match(/\b(\d+(?:[.,]\d+)?)\s*(?:KM?)\b/gi);
+  const distancias = distMatch
+    ? [...new Set(distMatch.map((d) => d.toUpperCase().replace(',', '.').replace(/KM$/, 'K')))].join(', ')
+    : null;
 
   return {
     chave: `ts-${slug(nome)}-${data}`,
     nome,
     cidade,
-    estado: estado.toUpperCase() || 'BR',
+    estado,
     data,
-    distancias: distancias || null,
-    local_largada: limpar(ev.venue || ev.local || ev.location || ev.localizacao || ''),
-    organizador: limpar(ev.organizer || ev.organizador || ev.organization || ev.promoter || ''),
-    link_inscricao: linkInscricao || null,
+    distancias,
+    local_largada: null,
+    organizador: limpar(ev.organizer || ''),
+    link_inscricao: limpar(ev.uri || '') || (ev.eventId ? `https://www.ticketsports.com.br/e/${ev.eventId}` : null),
     fonte: 'Ticket Sports',
-    fonte_url: `https://www.ticketsports.com.br/calendar/filters?modalidade=corrida-de-rua${estado ? '&estado=' + estado.toUpperCase() : ''}`
+    fonte_url: `https://www.ticketsports.com.br/calendar/filters?modalidade=corrida-de-rua&estado=${estado}`
   };
 }
 
@@ -164,19 +141,24 @@ async function coletarTicketSports() {
   const inicio = Date.now();
   await rpc('robo_log_inicio', { p_fonte: 'ticketsports' });
 
-  // Busca as 3 modalidades alvo em paralelo (corrida, trail, night run)
-  const listas = await Promise.all(ACTIVITIES_ALVO.map((id) => buscarEventos(id)));
   const todos = [];
 
-  for (const lista of listas) {
-    for (const ev of lista) {
-      const item = parsearEvento(ev);
-      if (item) todos.push(item);
-    }
-  }
+  for (const uf of UFS) {
+    const lista = await buscarPorEstado(uf);
+    let corridas = 0;
 
-  const total = listas.reduce((s, l) => s + l.length, 0);
-  console.log(`[TicketSports] ${total} eventos brutos → ${todos.length} corridas`);
+    for (const ev of lista) {
+      if (!ehCorridaDeRua(ev.title || '')) continue;
+      const item = parsearEvento(ev, uf);
+      if (item) { todos.push(item); corridas++; }
+    }
+
+    if (lista.length) {
+      console.log(`[TicketSports] ${uf}: ${lista.length} eventos → ${corridas} corridas`);
+    }
+
+    await dormir(300);
+  }
 
   if (!todos.length) {
     console.log('[TicketSports] Nenhuma corrida encontrada');
@@ -186,9 +168,8 @@ async function coletarTicketSports() {
 
   // Deduplicação local por chave
   const unicos = Object.values(Object.fromEntries(todos.map((e) => [e.chave, e])));
-  console.log(`[TicketSports] ${unicos.length} corridas únicas coletadas`);
+  console.log(`[TicketSports] ${unicos.length} corridas únicas`);
 
-  // Verifica quais são novas no banco
   const chaves = unicos.map((e) => e.chave);
   const novosChaves = await rpc('robo_novos', { p_chaves: chaves, p_fonte: 'ticketsports' });
   const novos = unicos.filter((e) => novosChaves.includes(e.chave));
