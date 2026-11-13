@@ -19,7 +19,7 @@
 |------|-----|--------|-------|
 | **Corridas BR** | corridasbr.com.br | ✅ | Fonte atual, HTML por estado |
 | **Ticket Sports** | ticketsports.com.br | 🔍 | Maior volume do Brasil |
-| **Minhas Inscrições** | minhasinscricoes.com.br | 🔍 | Citado no DF junto com Ticket |
+| **Minhas Inscrições** | minhasinscricoes.com.br | ✅ | JSON público em /api/eventos (24 por página), robô próprio |
 | **Ativo.com** | ativo.com | 🔍 | Plataforma nacional |
 | **Central da Corrida** | centraldacorrida.com.br | 🔍 | Reclamações no RA, mas tem volume |
 | **O2 Corre** | o2corre.com.br | 🔍 | Inscrições |

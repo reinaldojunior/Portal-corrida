@@ -90,6 +90,7 @@ ${corpo.html}
   <a href="#" data-cookies hidden>Cookies</a>
 </div></footer>
 <script src="/assets/analytics.js" defer></script>
+<script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>`;
 }
