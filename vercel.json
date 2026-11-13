@@ -48,7 +48,7 @@
     },
     {
       "path": "/api/coletar-minhasinscricoes",
-      "schedule": "20 15 * * *"
+      "schedule": "35 22 * * *"
     },
     {
       "path": "/api/enriquecer",
