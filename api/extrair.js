@@ -250,6 +250,14 @@ module.exports = async (req, res) => {
     const g = await geocodificar(endQ);
     return res.status(200).json(g ? { lat: g[0], lng: g[1], local: endQ.replace(/,\s*Brasil$/i, ''), aproximado: true } : { lat: null, lng: null });
   }
+  // modo centro da cidade: /api/extrair?cidade=...&uf=.. (pino aproximado para prova sem local exato)
+  const cidQ = String((req.query && req.query.cidade) || '').trim();
+  if (cidQ) {
+    if (cidQ.length > 80) return res.status(400).json({ erro: 'Cidade inválida.' });
+    const ufQ = String(req.query.uf || '');
+    const g = await centroCidade(cidQ, /^[A-Za-z]{2}$/.test(ufQ) ? ufQ.toUpperCase() : 'SP');
+    return res.status(200).json(g ? { lat: g[0], lng: g[1] } : { lat: null, lng: null });
+  }
   const url = urlValida(String((req.query && req.query.url) || ''));
   if (!url) return res.status(400).json({ erro: 'Link inválido.' });
   const q = req.query || {};
