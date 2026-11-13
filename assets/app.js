@@ -121,7 +121,7 @@ async function carregar() {
     [m, c, n] = await Promise.race([limite, Promise.all([
     sb.from('modulos').select('*').order('ordem'),
     todasPaginas(() => sb.from('corridas').select('*, corrida_distancias(*)').gte('data', hojeISO()).order('data').order('id')),
-    sb.from('noticias').select('*').eq('status', 'publicado').order('publicado_em', { ascending: false }).limit(20)
+    sb.from('noticias').select('*').eq('status', 'publicado').order('destaque', { ascending: false }).order('publicado_em', { ascending: false }).limit(20)
   ])]);
   } catch (e) { return modoDemo(e.message || e); }
   if (m.error || c.error) {
@@ -1847,7 +1847,7 @@ async function adminPendentes(recarregar = true) {
   <div class="tabela-wrap"><table class="tab"><thead><tr><th style="width:28px"></th><th>Data</th><th>Corrida</th><th>Cidade</th><th>Distâncias</th><th>Fonte</th><th><span class="muted" style="font-weight:400">Ações</span></th></tr></thead><tbody>
   ${lista.map((p) => { const [a, m, d] = p.data.split('-'); const fd = diasAte(p.data); return `<tr><td><input type="checkbox" class="sel-pend" value="${p.id}" aria-label="Selecionar ${esc(p.nome)}"></td><td>${d}/${m}/${a}<br><small class="${fd <= 7 ? 'pend-urgente' : 'muted'}">${fd <= 0 ? 'hoje' : fd === 1 ? 'amanhã' : `em ${fd} dias`}</small></td><td>${p.imagem_sugerida ? `<img class="pend-mini" src="${esc(p.imagem_sugerida)}" alt="" loading="lazy" onerror="this.remove()">` : ''}${seloNota(p)}<b>${esc(p.nome)}</b> <span class="selos-pend"><span class="selo-pend ${p.imagem_sugerida ? 'ok' : ''}">${p.imagem_sugerida ? '✓' : '✗'} imagem</span><span class="selo-pend ${p.lat != null ? 'ok' : ''}">${p.lat != null ? '✓' : '✗'} local</span></span>${p.descricao ? `<br><small>${esc(p.descricao.length > 140 ? p.descricao.slice(0, 140) + '…' : p.descricao)}</small>` : ''}${p.observacao ? `<br><small class="muted">${esc(p.observacao)}</small>` : ''}${p.lat != null ? '<br><small class="muted">Local exato encontrado' + (p.local_largada ? ': ' + esc(p.local_largada) : '') + '</small>' : ''}${p.percurso_url || p.percurso_info ? `<br><small class="tem-perc">Tem percurso${p.percurso_info ? ': ' + esc(p.percurso_info) : ''}${p.percurso_url ? ` · <a href="${esc(p.percurso_url)}" target="_blank" rel="noopener">abrir</a>` : ''}</small>` : ''}</td><td>${esc(p.cidade)}</td><td>${esc(p.distancias || '—')}</td>
     <td>${p.fonte_url ? `<a href="${esc(p.fonte_url)}" target="_blank" rel="noopener" style="color:var(--cone-txt);font-weight:600">${esc(p.fonte || 'ver fonte')}</a>` : esc(p.fonte || '—')}</td>
-    <td class="acoes"><button class="btn btn-escuro" data-revisar="${p.id}">Revisar e aprovar</button> <button class="btn btn-perigo" data-recusar="${p.id}">Recusar</button></td></tr>`; }).join('') || '<tr><td colspan="7" class="muted">Tudo revisado por aqui.</td></tr>'}
+    <td class="acoes"><button class="btn btn-cone" data-buscar-pend="${p.id}" ${p.link_inscricao ? '' : 'disabled title="Sem link de inscrição"'}>Buscar</button> <button class="btn btn-escuro" data-revisar="${p.id}">Revisar e aprovar</button> <button class="btn btn-perigo" data-recusar="${p.id}">Recusar</button></td></tr>`; }).join('') || '<tr><td colspan="7" class="muted">Tudo revisado por aqui.</td></tr>'}
   </tbody></table></div>`;
   const selUf = $('#filtroUfPend', box);
   if (selUf) selUf.addEventListener('change', () => { filtroUfPend = selUf.value; adminPendentes(false); });
@@ -1898,6 +1898,34 @@ async function adminPendentes(recarregar = true) {
       descricao: p.descricao, descricao_auto: p.descricao_auto, organizador: p.organizador, local_largada: p.local_largada, imagem_sugerida: p.imagem_sugerida,
       lat: temPonto ? p.lat : coord ? coord[0] : null, lng: temPonto ? p.lng : coord ? coord[1] : null, status: 'publicado', inscricoes_abertas: true,
       corrida_distancias: dists.length ? dists : [{}] }, p);
+  }));
+  $$('[data-buscar-pend]', box).forEach((b) => b.addEventListener('click', async () => {
+    const p = lista.find((x) => x.id === b.dataset.buscarPend);
+    if (!p?.link_inscricao) return;
+    b.disabled = true; b.textContent = '…';
+    try {
+      const r = await fetchAdmin(`/api/extrair?url=${encodeURIComponent(p.link_inscricao)}`);
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.erro || 'Erro ao ler a página');
+      const dados = {};
+      if (j.imagem) dados.imagem_sugerida = j.imagem;
+      if (j.lat != null) { dados.lat = j.lat; dados.lng = j.lng; }
+      if (j.local) dados.local_largada = j.local;
+      if (Object.keys(dados).length) {
+        dados.enriquecido_em = new Date().toISOString();
+        dados.tentativas_enriquecer = 0;
+        await sb.from('corridas_pendentes').update(dados).eq('id', p.id);
+        const achados = [j.imagem && 'imagem', j.lat != null && 'local'].filter(Boolean).join(' e ');
+        toast(`${p.nome}: ${achados} encontrado(s).`);
+        adminPendentes(false);
+      } else {
+        toast(`${p.nome}: não encontrei imagem nem local.`);
+        b.disabled = false; b.textContent = 'Buscar';
+      }
+    } catch (e) {
+      toast(`Erro: ${e.message}`);
+      b.disabled = false; b.textContent = 'Buscar';
+    }
   }));
 }
 

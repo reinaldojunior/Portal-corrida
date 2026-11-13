@@ -41,7 +41,7 @@
     },
     {
       "path": "/api/coletar-ticketsports",
-      "schedule": "10 20 * * *"
+      "schedule": "0 14 * * *"
     },
     {
       "path": "/api/enriquecer",
