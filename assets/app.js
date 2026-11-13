@@ -121,7 +121,7 @@ async function carregar() {
     [m, c, n] = await Promise.race([limite, Promise.all([
     sb.from('modulos').select('*').order('ordem'),
     todasPaginas(() => sb.from('corridas').select('*, corrida_distancias(*)').gte('data', hojeISO()).order('data').order('id')),
-    sb.from('noticias').select('*').eq('status', 'publicado').order('destaque', { ascending: false }).order('publicado_em', { ascending: false }).limit(20)
+    buscarNoticias()
   ])]);
   } catch (e) { return modoDemo(e.message || e); }
   if (m.error || c.error) {
@@ -135,9 +135,7 @@ async function carregar() {
   estado.listaModulos = m.data;
   estado.modulos = Object.fromEntries(m.data.map((x) => [x.chave, x.ativo]));
   estado.corridas = c.data;
-  const todasNoticias = n.error ? [] : n.data;
-  estado.dicas = todasNoticias.filter((x) => x.editoria === 'dica');
-  estado.noticias = todasNoticias.filter((x) => x.editoria !== 'dica');
+  guardarNoticias(n.error ? [] : n.data);
   estado.pos = lerPosSalva(); // quem já aceitou antes abre direto perto de si
   try { aplicarModulos(); montarHome(); rotear(); rotuloPerto(); localizacaoAutomatica(); }
   catch (e) { console.error('Mapmove: erro ao montar a página', e); $('#listaPerto').innerHTML = '<p class="vazio">Algo deu errado ao montar a página. Recarregue para tentar de novo.</p>'; }
@@ -2547,11 +2545,20 @@ async function adminInscritos() {
   });
 }
 
+// a manchete (destaque) vem primeiro para não ficar de fora do limite quando há 20 notícias mais novas
+function buscarNoticias() {
+  return sb.from('noticias').select('*').eq('status', 'publicado').order('destaque', { ascending: false }).order('publicado_em', { ascending: false }).limit(20);
+}
+function guardarNoticias(todas) {
+  estado.dicas = todas.filter((x) => x.editoria === 'dica');
+  estado.noticias = todas.filter((x) => x.editoria !== 'dica');
+}
+
 async function atualizarPublico() {
   const { data } = await sb.from('corridas').select('*, corrida_distancias(*)').gte('data', hojeISO()).order('data');
   if (data) estado.corridas = data;
-  const n = await sb.from('noticias').select('*').eq('status', 'publicado').order('publicado_em', { ascending: false }).limit(20);
-  if (!n.error) estado.noticias = n.data;
+  const n = await buscarNoticias();
+  if (!n.error) guardarNoticias(n.data);
   montarHome(); $('#vHome').hidden = rotaAtual() === '#admin' || rotaAtual().startsWith('#corrida/');
 }
 
