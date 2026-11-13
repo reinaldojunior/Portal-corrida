@@ -256,7 +256,7 @@ module.exports = async (req, res) => {
   // assistente do admin: ?url=...&aprender=1&img=<endereço da imagem>&local=<texto do local>
   if (q.aprender) {
     try {
-      const pg = await baixar(url);
+      const pg = await baixarEvento(url);
       if (!pg.ok) throw new Error(erroPagina(pg.status));
       const html = desfazer(pg.texto);
       return res.status(200).json({ img: sugerirMarcadores(html, q.img, 'img'), local: sugerirMarcadores(html, q.local, 'local'), desc: q.desc ? sugerirDescricao(html, q.desc) : null, tamanho: html.length });
@@ -356,12 +356,35 @@ function descricaoPorPadrao(html, padrao) {
   return t.slice(0, 6000);
 }
 
+// O goMI monta a página no navegador (o servidor devolve HTML vazio). O mesmo evento, quando está
+// no calendário público, é servido pronto em minhasinscricoes.com.br/eventos/<mesmo slug>.
+function espelhoGoMI(u) {
+  const m = String(u || '').match(/^https?:\/\/(?:www\.)?gominhasinscricoes\.com\.br\/evento\/([\w-]+)/i);
+  return m ? `https://www.minhasinscricoes.com.br/eventos/${m[1]}` : null;
+}
+async function baixarEvento(url) {
+  const espelho = espelhoGoMI(url);
+  if (!espelho) return baixar(url);
+  const pg = await baixar(espelho);
+  if (!pg.ok) throw new Error('O goMI monta a página no navegador e este evento não está no calendário público do Minhas Inscrições, então não há o que ler. Preencha a foto e o local à mão.');
+  return pg;
+}
+// Página de evento do Minhas Inscrições: a ficha traz "Local" (às vezes só a cidade); o nome do lugar
+// e o endereço, quando existem, ficam no texto livre de "Sobre o evento"
+function localMinhasInscricoes(html) {
+  const ficha = textoLimpo((html.match(/<dt>(?:Local|Cidade)<\/dt><dd>([^<]{3,200})<\/dd>/i) || [])[1]).replace(/,?\s*CEP\s*[\d.-]+$/i, '');
+  if (ficha.includes(',')) return ficha.slice(0, 200); // já tem rua
+  const campo = (rotulo) => { const m = html.match(new RegExp(`(?:<strong>\\s*)?${rotulo}\\s*:\\s*(?:</strong>)?\\s*:?((?:&nbsp;|[^<]){3,200})`, 'i')); return m ? textoLimpo(m[1]) : ''; };
+  const partes = [campo('Local(?: d[ae] (?:prova|largada))?'), campo('Endere[çc]o'), ficha].filter(Boolean);
+  return partes.length ? partes.join(', ').slice(0, 200) : null;
+}
+
 // Lê a página de inscrição e devolve imagem de divulgação e local (usado pelo botão do admin e pelo robô)
 async function analisar(url, padraoTeste, opcoes = {}) {
   url = urlValida(url);
   if (!url) throw new Error('Link inválido.');
   let pg;
-  try { pg = await baixar(url); } catch { throw new Error('Não consegui abrir a página da inscrição.'); }
+  try { pg = await baixarEvento(url); } catch (e) { throw new Error(/goMI/.test(e.message) ? e.message : 'Não consegui abrir a página da inscrição.'); }
   if (!pg.ok) throw new Error(erroPagina(pg.status));
   const html = desfazer(pg.texto);
   const padraoSite = padraoTeste !== undefined ? padraoTeste : padraoDoHost(await carregarPadroes(), hostDe(pg.url || url) || hostDe(url)) || padraoDoHost(await carregarPadroes(), hostDe(url));
@@ -382,6 +405,8 @@ async function analisar(url, padraoTeste, opcoes = {}) {
     const lo = textoLimpo(/^seletor:/i.test(padrao.local_antes || '') ? (porSeletor(html, padrao.local_antes.slice(8)) || {}).texto : entreMarcadores(html, padrao.local_antes, padrao.local_depois));
     if (lo && lo.length >= 3) localPadrao = lo.slice(0, 200);
   }
+  // padrão que captura um srcset inteiro ("url 640w, url 1024w"): fica a versão mais larga
+  if (imagem && /\s\d+w\s*(,|$)/.test(imagem)) imagem = imagem.split(',').map((p) => p.trim().split(/\s+/)).sort((x, y) => parseInt(y[1], 10) - parseInt(x[1], 10))[0][0];
   if (imagem && !/^https?:/i.test(imagem)) { try { imagem = new URL(imagem, pg.url || url).toString(); } catch { imagem = null; } }
 
   // links de mapa na página (inclusive dentro de JSON)
@@ -404,6 +429,8 @@ async function analisar(url, padraoTeste, opcoes = {}) {
   const endereco = (ender && ender[1]) || (lugar && lugar[1]) || null;
   if (!local && endereco) local = endereco.replace(/,\s*Brasil$/i, '').replace(/\s+/g, ' ').trim();
   if (localPadrao) local = localPadrao;
+  // no Minhas Inscrições o padrão só alcança a cidade; o endereço da largada, quando existe, vale mais
+  if (/(^|\.)minhasinscricoes\.com\.br$/.test(hostDe(pg.url || url))) local = localMinhasInscricoes(html) || local;
 
   // sem coordenadas: procura o endereço no OpenStreetMap
   if (lat == null && local) { const g = await geocodificar(local, cidadeEv && cidadeEv[1]); if (g) [lat, lng] = g; }
