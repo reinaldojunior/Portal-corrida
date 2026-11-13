@@ -1810,7 +1810,7 @@ function seloNota(p) {
   return `<span class="selo-nota ${cls}" title="Nota de confiança ${n}/100. ${esc(dica)}">${n}</span>`;
 }
 let filtroUfPend = '', ordemPend = 'proximas', prazoPend = '', situacaoPend = '', sitePend = '';
-const SITUACOES_PEND = { prontas: (p) => p.lat != null, auto: (p) => (p.nota_pendente || 0) >= NOTA_PUBLICA, quase: (p) => (p.nota_pendente || 0) >= 70 && (p.nota_pendente || 0) < NOTA_PUBLICA, sem_img: (p) => !p.imagem_sugerida, sem_local: (p) => p.lat == null };
+const SITUACOES_PEND = { prontas: (p) => p.lat != null, auto: (p) => (p.nota_pendente || 0) >= NOTA_PUBLICA, quase: (p) => (p.nota_pendente || 0) >= 70 && (p.nota_pendente || 0) < NOTA_PUBLICA, com_img: (p) => !!p.imagem_sugerida, sem_img: (p) => !p.imagem_sugerida, sem_local: (p) => p.lat == null };
 const diasAte = (iso) => { const [a, m, d] = iso.split('-').map(Number); const h = new Date(); return Math.round((new Date(a, m - 1, d) - new Date(h.getFullYear(), h.getMonth(), h.getDate())) / 864e5); };
 async function adminPendentes(recarregar = true) {
   const box = $('#conteudoAdmin');
@@ -1834,7 +1834,7 @@ async function adminPendentes(recarregar = true) {
   box.innerHTML = `<div class="barra-admin" style="flex-wrap:wrap;gap:8px"><span class="muted">${data.length ? `${lista.length} de ${data.length} corrida(s) encontrada(s) pela busca automática esperando revisão` : 'Nenhuma corrida esperando revisão. A busca automática roda todo dia de manhã.'}</span>
   <span style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto">
   <select class="campo" id="ordemPend" style="width:auto" title="Ordenar">${opc([['proximas', 'Data mais próxima primeiro'], ['distantes', 'Data mais distante primeiro'], ['recentes', 'Encontradas mais recentemente'], ['nota', 'Maior nota primeiro']], ordemPend)}</select>
-  <select class="campo" id="situacaoPend" style="width:auto" title="Situação">${opc([['', 'Qualquer situação'], ['prontas', `Prontas: com local (${prontas})`], ['quase', `Nota 70 a 89: quase prontas (${data.filter(SITUACOES_PEND.quase).length})`], ['auto', `Nota 90+: o robô publica (${data.filter(SITUACOES_PEND.auto).length})`], ['sem_img', 'Falta imagem'], ['sem_local', 'Falta local']], situacaoPend)}</select>
+  <select class="campo" id="situacaoPend" style="width:auto" title="Situação">${opc([['', 'Qualquer situação'], ['prontas', `Prontas: com local (${prontas})`], ['quase', `Nota 70 a 89: quase prontas (${data.filter(SITUACOES_PEND.quase).length})`], ['auto', `Nota 90+: o robô publica (${data.filter(SITUACOES_PEND.auto).length})`], ['com_img', `Com imagem (${data.filter(SITUACOES_PEND.com_img).length})`], ['sem_img', `Falta imagem (${data.filter(SITUACOES_PEND.sem_img).length})`], ['sem_local', `Falta local (${data.filter(SITUACOES_PEND.sem_local).length})`]], situacaoPend)}</select>
   <select class="campo" id="sitePend" style="width:auto" title="Site de inscrição"><option value="">Todos os sites</option>${sitesPend.map((d) => `<option value="${esc(d)}"${d === sitePend ? ' selected' : ''}>${esc(d)} (${contSites[d]})</option>`).join('')}</select>
   <select class="campo" id="prazoPend" style="width:auto" title="Período">${opc([['', 'Qualquer data'], ['7', 'Próximos 7 dias'], ['15', 'Próximos 15 dias'], ['30', 'Próximos 30 dias'], ['60', 'Próximos 60 dias']], prazoPend)}</select>
   ${ufs.length > 1 ? `<select class="campo" id="filtroUfPend" style="width:auto"><option value="">Todos os estados</option>${ufs.map((u) => `<option${u === filtroUfPend ? ' selected' : ''}>${u}</option>`).join('')}</select>` : ''}</span></div>
