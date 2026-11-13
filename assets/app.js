@@ -1864,12 +1864,30 @@ async function adminPendentes(recarregar = true) {
   $('#selTodasPend', box).addEventListener('change', (e) => { $$('.sel-pend', box).forEach((c) => { c.checked = e.target.checked; }); atualizarLote(); });
   $('#publicarSelPend', box).addEventListener('click', async (e) => {
     const ids = marcadas();
-    const incompletas = lista.filter((p) => ids.includes(p.id) && !SITUACOES_PEND.prontas(p)).length;
-    if (!confirm(`Publicar ${ids.length} corrida(s) no site agora?${incompletas ? `\n\n${incompletas} delas não têm local definido e serão puladas.` : ''}\n\nA imagem de divulgação entra com crédito ao organizador quando disponível. Corridas que já existem no site não são duplicadas.`)) return;
-    e.target.disabled = true; e.target.textContent = 'Publicando…';
+    const semLocal = lista.filter((p) => ids.includes(p.id) && !SITUACOES_PEND.prontas(p) && p.link_inscricao && p.cidade);
+    if (!confirm(`Publicar ${ids.length} corrida(s) no site agora?${semLocal.length ? `\n\n${semLocal.length} delas não têm local exato: o pino vai para o centro da cidade e, se não houver endereço, a página mostra "local exato a confirmar".` : ''}\n\nA imagem de divulgação entra com crédito ao organizador quando disponível. Corridas que já existem no site não são duplicadas.`)) return;
+    e.target.disabled = true;
+    // sem local exato: assume o centro da cidade (uma consulta por cidade, com pausa para não sobrecarregar o serviço de mapas)
+    const centros = new Map();
+    for (let i = 0; i < semLocal.length; i++) {
+      const p = semLocal[i], k = `${p.cidade}|${p.estado || 'SP'}`.toLowerCase();
+      e.target.textContent = `Localizando cidades ${i + 1}/${semLocal.length}…`;
+      if (!centros.has(k)) {
+        if (centros.size) await new Promise((ok) => setTimeout(ok, 1100));
+        let c = null;
+        try { const r = await fetchAdmin(`/api/extrair?cidade=${encodeURIComponent(p.cidade)}&uf=${encodeURIComponent(p.estado || 'SP')}`); const j = await r.json(); if (r.ok && j.lat != null) c = [j.lat, j.lng]; } catch { /* fica sem pino e é pulada */ }
+        centros.set(k, c);
+      }
+      const c = centros.get(k);
+      if (!c) continue;
+      const dados = { lat: c[0], lng: c[1] };
+      if (!String(p.local_largada || '').trim()) dados.local_largada = `${p.cidade}, ${p.estado || 'SP'} (local exato a confirmar)`;
+      await sb.from('corridas_pendentes').update(dados).eq('id', p.id);
+    }
+    e.target.textContent = 'Publicando…';
     const { data: r, error } = await sb.rpc('admin_publicar_pendentes', { p_ids: ids });
     if (error) { toast('Não foi possível publicar: ' + error.message); e.target.disabled = false; e.target.textContent = 'Publicar selecionadas'; return; }
-    toast(`${r.publicadas} publicada(s)${r.ja_existiam ? `, ${r.ja_existiam} já existiam no site` : ''}${r.incompletas ? `, ${r.incompletas} puladas por falta de local` : ''}.`);
+    toast(`${r.publicadas} publicada(s)${r.ja_existiam ? `, ${r.ja_existiam} já existiam no site` : ''}${r.incompletas ? `, ${r.incompletas} puladas (sem link ou cidade não localizada)` : ''}.`);
     adminPendentes(); atualizarPublico();
   });
   $('#recusarSelPend', box).addEventListener('click', async () => {
