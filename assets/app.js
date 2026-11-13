@@ -121,7 +121,7 @@ async function carregar() {
     [m, c, n] = await Promise.race([limite, Promise.all([
     sb.from('modulos').select('*').order('ordem'),
     todasPaginas(() => sb.from('corridas').select('*, corrida_distancias(*)').gte('data', hojeISO()).order('data').order('id')),
-    sb.from('noticias').select('*').eq('status', 'publicado').order('publicado_em', { ascending: false }).limit(20)
+    sb.from('noticias').select('*').eq('status', 'publicado').order('destaque', { ascending: false }).order('publicado_em', { ascending: false }).limit(20)
   ])]);
   } catch (e) { return modoDemo(e.message || e); }
   if (m.error || c.error) {
