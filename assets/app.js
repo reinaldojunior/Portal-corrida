@@ -1374,17 +1374,17 @@ function mostrarCorrida(slug, percIdx = 0) {
     ${c.data < hojeISO() ? `<div class="aviso aviso-passada"><b>Esta corrida já aconteceu</b> em ${dataLonga(c.data)}. <a href="#" data-ir="quadro">Ver as próximas corridas</a></div>` : ''}
     <div class="corrida-hero${c.imagem_url ? '' : ' sem-foto'}"${c.imagem_url ? ` style="background-image:url('${esc(c.imagem_url)}')"` : ''}>
       <div class="corrida-hero-overlay"></div>
-      <div class="corrida-hero-content">
-        ${c.estado ? `<nav class="corrida-breadcrumb" aria-label="Localidade"><a href="/corridas/${esc(String(c.estado).toLowerCase())}">Corridas em ${esc(c.estado)}</a>${c.cidade && slugify(c.cidade) ? ` · <a href="/corridas/${esc(String(c.estado).toLowerCase())}/${slugify(c.cidade)}">${esc(c.cidade)}</a>` : ''}</nav>` : ''}
-        <div class="corrida-badges">
-          <span class="corrida-badge badge-date">${dataLonga(c.data)}${c.horario ? ' · ' + c.horario.slice(0, 5) : ''}</span>
-          ${passou ? '<span class="corrida-badge badge-status badge-fechada">Já aconteceu</span>' : c.inscricoes_abertas ? '<span class="corrida-badge badge-status badge-aberta">Inscrições abertas</span>' : '<span class="corrida-badge badge-status badge-fechada">Inscrições encerradas</span>'}
-          ${dist.map((d) => `<span class="corrida-badge badge-dist">${esc(d.rotulo)}</span>`).join('')}
-        </div>
-        <h1 class="display">${esc(c.nome)}</h1>
-        <p class="corrida-local">${esc(c.cidade)}, ${esc(c.estado)}${c.organizador ? ' · ' + esc(c.organizador) : ''}</p>
-      </div>
       ${c.imagem_url && c.imagem_credito ? `<small class="corrida-hero-cred">${esc(c.imagem_credito)}</small>` : ''}
+    </div>
+    <div class="corrida-cab">
+      ${c.estado ? `<nav class="corrida-breadcrumb" aria-label="Localidade"><a href="/corridas/${esc(String(c.estado).toLowerCase())}">Corridas em ${esc(c.estado)}</a>${c.cidade && slugify(c.cidade) ? ` · <a href="/corridas/${esc(String(c.estado).toLowerCase())}/${slugify(c.cidade)}">${esc(c.cidade)}</a>` : ''}</nav>` : ''}
+      <div class="corrida-badges">
+        <span class="corrida-badge badge-date">${dataLonga(c.data)}${c.horario ? ' · ' + c.horario.slice(0, 5) : ''}</span>
+        ${passou ? '<span class="corrida-badge badge-status badge-fechada">Já aconteceu</span>' : c.inscricoes_abertas ? '<span class="corrida-badge badge-status badge-aberta">Inscrições abertas</span>' : '<span class="corrida-badge badge-status badge-fechada">Inscrições encerradas</span>'}
+        ${dist.map((d) => `<span class="corrida-badge badge-dist">${esc(d.rotulo)}</span>`).join('')}
+      </div>
+      <h1 class="display">${esc(c.nome)}</h1>
+      <p class="corrida-local">${esc(c.cidade)}, ${esc(c.estado)}${c.organizador ? ' · ' + esc(c.organizador) : ''}</p>
     </div>
     <div class="corpo-corrida">
     <div class="principal">
