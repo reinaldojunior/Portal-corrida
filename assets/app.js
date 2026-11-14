@@ -1980,7 +1980,7 @@ async function adminPendentes(recarregar = true) {
         }
       } catch { if (btn) { btn.disabled = false; btn.textContent = 'Buscar'; } }
       i++;
-      if (i < fila.length && !paraBuscaSeq) await new Promise((r) => setTimeout(r, 5000));
+      if (i < fila.length && !paraBuscaSeq) await new Promise((r) => setTimeout(r, 2000));
     }
     delete this.dataset.rodando;
     this.textContent = 'Buscar todas da lista';
