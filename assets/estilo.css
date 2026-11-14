@@ -1,6 +1,6 @@
 :root{
-  --asfalto:#1E2124; --concreto:#EDEEEA; --papel:#FFFFFF; --cone:#FF4D00; --cone-txt:#C23A00;
-  --texto2:#3B4044; --cinza:#5E6367; --linha:#D5D7D2; --linha2:#E3E5E0; --chip:#C9CCC6; --realce:#FFF1EA;
+  --asfalto:#1E2124; --concreto:#EDEEEA; --papel:#FFFFFF; --cone:#FF8000; --cone-txt:#D96500;
+  --texto2:#3B4044; --cinza:#5E6367; --linha:#D5D7D2; --linha2:#E3E5E0; --chip:#C9CCC6; --realce:#FFF3E6;
   --ok:#1D6B45; --erro:#B42318;
   --display:'Bebas Neue','Arial Narrow',sans-serif; --texto:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
 }
@@ -180,13 +180,13 @@ table.tab{width:100%;border-collapse:collapse;font-size:15px}
 
 /* ===== Design novo: noite + dia de prova ===== */
 .btn{height:44px;padding:0 20px;border:0;border-radius:6px;font-size:15px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
-:root{--noite:#15181B;--noite2:#1E2327;--noite3:#22272B;--linha-esc:#2A2F34;--borda-esc:#343A40;--cinza-esc:#80878D;--esc-2:#A9AFB4;--claro-esc:#C9CDCF;--mono:'JetBrains Mono',ui-monospace,monospace}
+:root{--noite:#0C0C12;--noite2:#12121A;--noite3:#1A1A24;--linha-esc:#22262C;--borda-esc:#2E333A;--cinza-esc:#80878D;--esc-2:#A9AFB4;--claro-esc:#C9CDCF;--mono:'JetBrains Mono',ui-monospace,monospace;--orbitron:'Orbitron',sans-serif}
 .mono{font-family:var(--mono)}
 
 /* topo escuro */
 .topo{background:var(--noite);border-bottom:1px solid var(--linha-esc);position:sticky;top:0;z-index:600;color:#fff}
 .topo .wrap{height:68px;display:flex;align-items:center;gap:32px}
-.logo{font-family:var(--display);font-size:38px;line-height:1;letter-spacing:1px;color:#fff}
+.logo{font-family:var(--orbitron,var(--display));font-size:21px;line-height:1;letter-spacing:4px;text-transform:uppercase;font-weight:900;color:#fff}
 .logo span{color:var(--cone)}
 .menu{display:flex;gap:24px;font-size:16px;font-weight:600;color:var(--claro-esc)}
 .menu a:hover{color:#fff}
@@ -1042,3 +1042,71 @@ a.q-linha:focus-visible .q-st::after{opacity:1}
 .proxima-info b{font-family:var(--display);font-weight:400;font-size:20px;line-height:1.2;display:block}
 .proxima-dists{font-size:13px;color:var(--texto2);margin-top:3px;display:block}
 .proxima-seta{color:var(--texto2);flex-shrink:0}
+
+/* ========== DARK PREMIUM HOMEPAGE ========== */
+
+/* Escurece a view inteira, texto herda branco */
+#vHome{background:var(--noite2);color:#fff}
+
+/* Painel lateral de corridas */
+#vHome .painel{background:var(--noite2);color:#fff}
+#vHome .alca{background:rgba(255,255,255,0.14)}
+#vHome .painel-cab h2,#vHome .painel-cab .editoria{color:#fff}
+#vHome .painel-sub{color:var(--esc-2)}
+#vHome .vazio{color:var(--esc-2);border-color:var(--linha-esc)}
+
+/* Botões de filtro */
+#vHome .filtro{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--claro-esc)}
+#vHome .filtro[aria-pressed="true"]{background:var(--cone);border-color:var(--cone);color:#fff}
+
+/* Cartões de corrida */
+#vHome .cartao{background:var(--noite3);border:1px solid var(--linha-esc);color:#fff;border-radius:4px}
+#vHome a.cartao:hover{border-color:var(--cone);color:#fff}
+#vHome .cartao::before,#vHome .cartao::after{display:none}
+#vHome .cartao-mes{color:var(--cone)}
+#vHome .cartao-enc{color:var(--cinza-esc)}
+#vHome .chip{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.14);color:var(--claro-esc)}
+
+/* Seção de notícias */
+#vHome .noticias-cab{color:#fff;border-bottom-color:rgba(255,255,255,0.12)}
+#vHome .noticias-cab span{color:var(--esc-2)}
+#vHome .manchete-foto{background:var(--noite3)}
+#vHome .manchete p{color:var(--esc-2)}
+#vHome .link-noticia{color:#fff}
+#vHome .link-noticia:hover{color:var(--cone)}
+#vHome .lista-num li{border-color:var(--linha-esc)}
+#vHome .lista-num .tit{color:#fff}
+#vHome .lista-num .editoria{color:var(--cone)}
+
+/* Seção de dicas */
+#vHome .dicas-cab p{color:var(--esc-2)}
+#vHome .dica-card{background:var(--noite3);border:1px solid var(--linha-esc);color:#fff}
+#vHome .dica-card:hover{border-color:var(--cone);box-shadow:0 4px 20px rgba(0,0,0,.4)}
+#vHome .dica-card p{color:var(--esc-2)}
+
+/* Seção de ranking */
+#vHome .rk-cab-sec{border-bottom-color:var(--linha-esc)}
+#vHome .rk-cab-sec p{color:var(--esc-2)}
+#vHome .rk-filtros{background:var(--noite3);border-color:var(--linha-esc)}
+#vHome .rk-filtros button{color:var(--claro-esc)}
+#vHome .rk-filtros button[aria-pressed="true"]{background:var(--cone);color:#fff}
+#vHome .rk-item{background:var(--noite3);border-color:var(--linha-esc);color:#fff}
+#vHome .rk-item.top{border-color:var(--cone)}
+#vHome .rk-nota{color:var(--cinza-esc)}
+
+/* Ferramentas */
+#vHome .ferr-calc{background:var(--noite3)}
+#vHome .ferr-calc .rot{color:var(--esc-2)}
+#vHome .ferr-calc input,#vHome .ferr-calc select{background:var(--noite2);border-color:var(--borda-esc);color:#fff}
+#vHome .ferr-aviso{background:var(--noite3)}
+#vHome .ferr-aviso .rot,.ferr-aviso h2,#vHome .ferr-aviso p:not(.msg){color:inherit}
+#vHome .ferr-aviso input,#vHome .ferr-aviso select{background:var(--noite2);border-color:var(--borda-esc);color:#fff}
+#vHome .btn-cone{background:var(--cone);color:#fff}
+#vHome label{color:var(--claro-esc)}
+
+/* Divisor SVG */
+#vHome + .divisor path{stroke:var(--linha-esc)!important}
+
+/* Correções de contraste */
+#vHome .ao-vivo{color:var(--cone)}
+#vHome .q-head{color:var(--cinza-esc)}
