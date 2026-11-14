@@ -1568,7 +1568,7 @@ document.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && location.hash === '#mapa') location.hash = ''; });
 
 /* ================== Admin ================== */
-let abaAdmin = 'corridas', mapaForm;
+let abaAdmin = (() => { try { return localStorage.getItem('mm_aba_admin') || 'corridas'; } catch { return 'corridas'; } })(), mapaForm;
 async function abrirAdmin() {
   if (estado.demo) { $('#adminBox').innerHTML = '<div class="login"><h1 class="display">Área do administrador</h1><div class="aviso erro">O admin precisa do banco de dados, que não está acessível nesta visualização. Abra o site pelo endereço publicado (Netlify) para entrar.</div><a href="#" class="btn btn-linha">Voltar para o site</a></div>'; return; }
   const { data: { session } } = await sb.auth.getSession();
@@ -1576,7 +1576,7 @@ async function abrirAdmin() {
   const { data: ehAdmin, error } = await sb.rpc('is_admin');
   if (error || !ehAdmin) return telaLogin('Esta conta entrou, mas não é administradora. No Supabase, rode o comando de admin do final do script com este e-mail.');
   estado.admin = true;
-  $('#btnEntrar').textContent = 'Admin';
+  $('#btnEntrar').textContent = 'Admin'; $('#btnEntrar').hidden = false;
   if (!editarAoAbrirAdmin) return pintarAdmin();
   // veio do botão "Editar" da página da corrida: abre direto o formulário (sem carregar a lista por cima)
   const id = editarAoAbrirAdmin; editarAoAbrirAdmin = null;
@@ -1719,8 +1719,8 @@ function pintarAdmin(semConteudo) {
       contarBusca();
     }, 250);
   });
-  $$('[data-aba]').forEach((b) => b.addEventListener('click', () => { abaAdmin = b.dataset.aba; pintarAdmin(); }));
-  $('#btnSair').addEventListener('click', async () => { await sb.auth.signOut(); estado.admin = false; $('#btnEntrar').textContent = 'Entrar'; irInicio(); });
+  $$('[data-aba]').forEach((b) => b.addEventListener('click', () => { abaAdmin = b.dataset.aba; try { localStorage.setItem('mm_aba_admin', abaAdmin); } catch {} pintarAdmin(); }));
+  $('#btnSair').addEventListener('click', async () => { await sb.auth.signOut(); estado.admin = false; $('#btnEntrar').textContent = 'Entrar'; $('#btnEntrar').hidden = true; irInicio(); });
   verificarRobo();
   if (semConteudo) return;
   if (buscaAdmin.trim()) prepararBusca();
@@ -2628,10 +2628,10 @@ async function atualizarPublico() {
 // se quem abriu o site é admin, libera os atalhos de editar/excluir nas páginas das corridas
 if (sb) sb.auth.getSession().then(async ({ data }) => {
   if (!data.session) return;
-  $('#btnEntrar').textContent = 'Admin';
   const { data: ehAdmin } = await sb.rpc('is_admin');
   if (!ehAdmin) return;
   estado.admin = true;
+  $('#btnEntrar').textContent = 'Admin'; $('#btnEntrar').hidden = false;
   const h = rotaAtual();
   if (h.startsWith('#corrida/') && !$('#vCorrida .admin-corrida')) mostrarCorrida(h.slice(9));
 }).catch(() => {});
