@@ -1369,13 +1369,25 @@ function mostrarCorrida(slug, percIdx = 0) {
         <div class="alt-inter" id="altInter">${svgAltimetria(comDistancia(c))}${marcasKm(c.km_oficial || c.percurso_km)}<div class="alt-dica" id="altDica" hidden></div></div>
         <small class="alt-ajuda">Passe o dedo ou o mouse sobre a altimetria para ver cada ponto no mapa. As setas mostram o sentido da prova.</small></div>
 ` : '';
-  const semTexto = !c.imagem_url && !c.descricao && !(c.kit_inclui || []).length && (temPerc || c.lat == null);
+  const semTexto = !c.descricao && !(c.kit_inclui || []).length && (temPerc || c.lat == null);
   v.innerHTML = `<div class="wrap pagina-corrida${semTexto ? ' sem-texto' : ''}">
     ${c.data < hojeISO() ? `<div class="aviso aviso-passada"><b>Esta corrida já aconteceu</b> em ${dataLonga(c.data)}. <a href="#" data-ir="quadro">Ver as próximas corridas</a></div>` : ''}
-    <div class="cab">${bib(c.data)}<div><span class="editoria">${dataLonga(c.data)}${c.horario ? ', largada às ' + c.horario.slice(0, 5) : ''}</span><h1 class="display">${esc(c.nome)}</h1><span class="muted" style="font-size:18px">${esc(c.cidade)}, ${esc(c.estado)}${c.organizador ? ' · Organização: ' + esc(c.organizador) : ''}</span>${c.estado && c.cidade && slugify(c.cidade) ? `<p class="ver-cidade"><a href="/corridas/${esc(String(c.estado).toLowerCase())}/${slugify(c.cidade)}">Ver todas as corridas em ${esc(c.cidade)}/${esc(c.estado)}</a> · <a href="/corridas/${esc(String(c.estado).toLowerCase())}">Corridas em ${esc(c.estado)}</a></p>` : ''}</div></div>
+    <div class="corrida-hero${c.imagem_url ? '' : ' sem-foto'}"${c.imagem_url ? ` style="background-image:url('${esc(c.imagem_url)}')"` : ''}>
+      <div class="corrida-hero-overlay"></div>
+      <div class="corrida-hero-content">
+        ${c.estado ? `<nav class="corrida-breadcrumb" aria-label="Localidade"><a href="/corridas/${esc(String(c.estado).toLowerCase())}">Corridas em ${esc(c.estado)}</a>${c.cidade && slugify(c.cidade) ? ` · <a href="/corridas/${esc(String(c.estado).toLowerCase())}/${slugify(c.cidade)}">${esc(c.cidade)}</a>` : ''}</nav>` : ''}
+        <div class="corrida-badges">
+          <span class="corrida-badge badge-date">${dataLonga(c.data)}${c.horario ? ' · ' + c.horario.slice(0, 5) : ''}</span>
+          ${passou ? '<span class="corrida-badge badge-status badge-fechada">Já aconteceu</span>' : c.inscricoes_abertas ? '<span class="corrida-badge badge-status badge-aberta">Inscrições abertas</span>' : '<span class="corrida-badge badge-status badge-fechada">Inscrições encerradas</span>'}
+          ${dist.map((d) => `<span class="corrida-badge badge-dist">${esc(d.rotulo)}</span>`).join('')}
+        </div>
+        <h1 class="display">${esc(c.nome)}</h1>
+        <p class="corrida-local">${esc(c.cidade)}, ${esc(c.estado)}${c.organizador ? ' · ' + esc(c.organizador) : ''}</p>
+      </div>
+      ${c.imagem_url && c.imagem_credito ? `<small class="corrida-hero-cred">${esc(c.imagem_credito)}</small>` : ''}
+    </div>
     <div class="corpo-corrida">
     <div class="principal">
-      <figure class="foto-cred"><div class="foto" style="height:360px">${c.imagem_url ? `<img src="${esc(c.imagem_url)}" alt="${esc(c.nome)}">` : placeholderImagem(c.nome, c.estado, rotulos(c).join(' · '), c.lat == null ? c.cidade : null, {w:800,h:360})}</div>${c.imagem_url && c.imagem_credito ? `<figcaption>${esc(c.imagem_credito)}</figcaption>` : ''}</figure>
       ${c.descricao ? `<div class="caixa"><h2 class="display">Sobre a corrida</h2><div class="texto-corrida">${textoRico(c.descricao)}</div></div>` : ''}
       ${temPerc ? '' :
       c.lat != null ? `<div class="caixa"><h2 class="display">Largada</h2><p style="margin:0 0 14px">${esc(c.local_largada || c.cidade)}</p><div id="mapaCorrida"></div></div>` : ''}
