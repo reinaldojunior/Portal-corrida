@@ -1810,6 +1810,7 @@ function seloNota(p) {
   return `<span class="selo-nota ${cls}" title="Nota de confiança ${n}/100. ${esc(dica)}">${n}</span>`;
 }
 let filtroUfPend = '', ordemPend = 'proximas', prazoPend = '', situacaoPend = '', sitePend = '';
+let paraBuscaSeq = false;
 const SITUACOES_PEND = { prontas: (p) => p.lat != null, auto: (p) => (p.nota_pendente || 0) >= NOTA_PUBLICA, quase: (p) => (p.nota_pendente || 0) >= 70 && (p.nota_pendente || 0) < NOTA_PUBLICA, com_img: (p) => !!p.imagem_sugerida, sem_img: (p) => !p.imagem_sugerida, sem_local: (p) => p.lat == null };
 const diasAte = (iso) => { const [a, m, d] = iso.split('-').map(Number); const h = new Date(); return Math.round((new Date(a, m - 1, d) - new Date(h.getFullYear(), h.getMonth(), h.getDate())) / 864e5); };
 async function adminPendentes(recarregar = true) {
@@ -1841,7 +1842,8 @@ async function adminPendentes(recarregar = true) {
   <div class="lote-pend" id="lotePend"><label><input type="checkbox" id="selTodasPend"> Selecionar todas as ${lista.length} da lista</label>
     <span class="muted" id="contSelPend">nenhuma selecionada</span>
     <button class="btn btn-escuro" type="button" id="publicarSelPend" disabled>Publicar selecionadas</button>
-    <button class="btn btn-perigo" type="button" id="recusarSelPend" disabled>Recusar selecionadas</button></div>
+    <button class="btn btn-perigo" type="button" id="recusarSelPend" disabled>Recusar selecionadas</button>
+    <button class="btn btn-cone" type="button" id="buscarTodasPend" title="Busca imagem e local em cada pendente da lista, uma a uma, com 5 segundos entre cada">Buscar todas da lista</button></div>
   <div class="tabela-wrap"><table class="tab"><thead><tr><th style="width:28px"></th><th>Data</th><th>Corrida</th><th>Cidade</th><th>Distâncias</th><th>Fonte</th><th><span class="muted" style="font-weight:400">Ações</span></th></tr></thead><tbody>
   ${lista.map((p) => { const [a, m, d] = p.data.split('-'); const fd = diasAte(p.data); return `<tr><td><input type="checkbox" class="sel-pend" value="${p.id}" aria-label="Selecionar ${esc(p.nome)}"></td><td>${d}/${m}/${a}<br><small class="${fd <= 7 ? 'pend-urgente' : 'muted'}">${fd <= 0 ? 'hoje' : fd === 1 ? 'amanhã' : `em ${fd} dias`}</small></td><td>${p.imagem_sugerida ? `<img class="pend-mini" src="${esc(p.imagem_sugerida)}" alt="" loading="lazy" onerror="this.remove()">` : ''}${seloNota(p)}<b>${esc(p.nome)}</b> <span class="selos-pend"><span class="selo-pend ${p.imagem_sugerida ? 'ok' : ''}">${p.imagem_sugerida ? '✓' : '✗'} imagem</span><span class="selo-pend ${p.lat != null ? 'ok' : ''}">${p.lat != null ? '✓' : '✗'} local</span></span>${p.descricao ? `<br><small>${esc(p.descricao.length > 140 ? p.descricao.slice(0, 140) + '…' : p.descricao)}</small>` : ''}${p.observacao ? `<br><small class="muted">${esc(p.observacao)}</small>` : ''}${p.lat != null ? '<br><small class="muted">Local exato encontrado' + (p.local_largada ? ': ' + esc(p.local_largada) : '') + '</small>' : ''}${p.percurso_url || p.percurso_info ? `<br><small class="tem-perc">Tem percurso${p.percurso_info ? ': ' + esc(p.percurso_info) : ''}${p.percurso_url ? ` · <a href="${esc(p.percurso_url)}" target="_blank" rel="noopener">abrir</a>` : ''}</small>` : ''}</td><td>${esc(p.cidade)}</td><td>${esc(p.distancias || '—')}</td>
     <td>${p.fonte_url ? `<a href="${esc(p.fonte_url)}" target="_blank" rel="noopener" style="color:var(--cone-txt);font-weight:600">${esc(p.fonte || 'ver fonte')}</a>` : esc(p.fonte || '—')}</td>
@@ -1943,6 +1945,48 @@ async function adminPendentes(recarregar = true) {
       b.disabled = false; b.textContent = 'Buscar';
     }
   }));
+
+  $('#buscarTodasPend', box).addEventListener('click', async function () {
+    if (this.dataset.rodando) { paraBuscaSeq = true; this.textContent = 'Parando…'; return; }
+    const fila = lista.filter((p) => p.link_inscricao && (!p.imagem_sugerida || p.lat == null));
+    if (!fila.length) { toast('Todas da lista já têm imagem e local.'); return; }
+    this.dataset.rodando = '1'; paraBuscaSeq = false;
+    let i = 0, achados = 0;
+    for (const p of fila) {
+      if (paraBuscaSeq) break;
+      this.textContent = `Parar (${i + 1}/${fila.length})`;
+      const btn = $(`[data-buscar-pend="${p.id}"]`, box);
+      if (btn) { btn.disabled = true; btn.textContent = '…'; }
+      try {
+        const r = await fetchAdmin(`/api/extrair?url=${encodeURIComponent(p.link_inscricao)}`);
+        const j = r.ok ? await r.json() : null;
+        if (j) {
+          const dados = {};
+          if (j.imagem && !p.imagem_sugerida) dados.imagem_sugerida = j.imagem;
+          if (j.lat != null && p.lat == null) { dados.lat = j.lat; dados.lng = j.lng; }
+          if (j.local && !p.local_largada) dados.local_largada = j.local;
+          if (Object.keys(dados).length) {
+            dados.enriquecido_em = new Date().toISOString();
+            dados.tentativas_enriquecer = 0;
+            await sb.from('corridas_pendentes').update(dados).eq('id', p.id);
+            Object.assign(p, dados);
+            achados++;
+            if (btn) btn.textContent = '✓';
+          } else {
+            if (btn) { btn.disabled = false; btn.textContent = 'Buscar'; }
+          }
+        } else {
+          if (btn) { btn.disabled = false; btn.textContent = 'Buscar'; }
+        }
+      } catch { if (btn) { btn.disabled = false; btn.textContent = 'Buscar'; } }
+      i++;
+      if (i < fila.length && !paraBuscaSeq) await new Promise((r) => setTimeout(r, 5000));
+    }
+    delete this.dataset.rodando;
+    this.textContent = 'Buscar todas da lista';
+    toast(`Busca concluída: ${achados} encontrado(s) de ${i} tentativa(s).`);
+    adminPendentes(false);
+  });
 }
 
 const percDist = new WeakMap();
