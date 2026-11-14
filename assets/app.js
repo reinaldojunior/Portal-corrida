@@ -1735,7 +1735,8 @@ let ordemCorr = 'proximas', prazoCorr = 'futuras', situacaoCorr = '', siteCorr =
 const SITUACOES_CORR = { completas: (c) => c.imagem_url && c.lat != null, sem_img: (c) => !c.imagem_url, sem_local: (c) => c.lat == null, sem_dist: (c) => !(c.corrida_distancias || []).length, sem_desc: (c) => !textoSimples(c.descricao), desc_auto: (c) => !!c.descricao_auto && !!textoSimples(c.descricao), desc_sua: (c) => !c.descricao_auto && !!textoSimples(c.descricao) };
 // descrição em texto puro (a descrição é guardada com formatação): usada para mostrar o começo na lista do admin
 function textoSimples(h) {
-  return String(h || '').replace(/<br\s*\/?>|<\/p>|<\/li>|<\/h\d>/gi, ' ').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/\s+/g, ' ').trim();
+  const s = String(h || '').replace(/\\u([0-9a-fA-F]{4})/g, (_, c) => String.fromCharCode(parseInt(c, 16)));
+  return s.replace(/<br\s*\/?>|<\/p>|<\/li>|<\/h\d>/gi, ' ').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/\s+/g, ' ').trim();
 }
 async function adminCorridas(recarregar = true) {
   const box = $('#conteudoAdmin');
