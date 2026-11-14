@@ -12,6 +12,9 @@
     "api/coletar-minhasinscricoes.js": {
       "maxDuration": 60
     },
+    "api/coletar-o2corre.js": {
+      "maxDuration": 60
+    },
     "api/extrair.js": {
       "maxDuration": 30
     },
@@ -49,6 +52,10 @@
     {
       "path": "/api/coletar-minhasinscricoes",
       "schedule": "35 22 * * *"
+    },
+    {
+      "path": "/api/coletar-o2corre",
+      "schedule": "50 22 * * *"
     },
     {
       "path": "/api/enriquecer",
