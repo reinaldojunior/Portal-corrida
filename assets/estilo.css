@@ -241,6 +241,7 @@ a.cartao:hover{color:var(--asfalto);border-color:var(--cone)}
 .cartao-corpo{padding:12px 16px 16px;display:flex;gap:12px;align-items:flex-start}
 .cartao-dia{font-family:var(--display);font-size:58px;line-height:.85}
 .cartao-info{display:flex;flex-direction:column;gap:6px;min-width:0}
+.cartao-cid{font-size:12px;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:.4px}
 .cartao-mes{font-size:13px;font-weight:700;color:var(--cone-txt)}
 .cartao-nome{font-size:15px;font-weight:600;line-height:1.2}
 .cartao-enc{font-size:12px;color:var(--cinza);padding:0 16px 12px}

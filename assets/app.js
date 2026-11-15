@@ -230,8 +230,8 @@ function cartao(c) {
   const p = partes(c.data);
   const [abre, fecha] = abreLink(c, 'cartao');
   const chips = rotulos(c).map((r) => `<span class="chip">${esc(r)}</span>`).join('');
-  return `${abre}<span class="cartao-faixa"><span>${p.sem.toUpperCase()}</span><span>${esc(c.cidade.toUpperCase())}</span></span>` +
-    `<span class="cartao-corpo"><span class="cartao-dia">${p.dia}</span><span class="cartao-info"><span class="cartao-mes">${p.mesL.charAt(0).toUpperCase() + p.mesL.slice(1)}${textoDist(c) ? ' · ' + textoDist(c) : ''}</span>` +
+  return `${abre}<span class="cartao-faixa"><span>${p.sem.toUpperCase()}</span></span>` +
+    `<span class="cartao-corpo"><span class="cartao-dia">${p.dia}</span><span class="cartao-info"><span class="cartao-cid">${esc(c.cidade)}</span><span class="cartao-mes">${p.mesL.charAt(0).toUpperCase() + p.mesL.slice(1)}${textoDist(c) ? ' · ' + textoDist(c) : ''}</span>` +
     `<span class="cartao-nome">${esc(c.nome)}</span>${chips ? `<span class="chips">${chips}</span>` : ''}</span></span>` +
     `${c.inscricoes_abertas ? '' : '<span class="cartao-enc">Inscrições encerradas</span>'}${fecha}`;
 }
