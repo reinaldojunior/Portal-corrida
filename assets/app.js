@@ -1,7 +1,7 @@
 /* ================== Configuração ================== */
 const SUPABASE_URL = 'https://ssfsxdmzbubvygctdjgf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
-const CENTRO = [-23.0903, -47.2181]; // Indaiatuba
+const CENTRO = [-23.5505, -46.6333]; // São Paulo
 const RAIO_KM = 30;
 const DOMINIO_ADMIN = 'admin.paceclub.app'; // o usuário "junior" entra como junior@admin.paceclub.app no Supabase
 
@@ -802,7 +802,7 @@ function desenharVoce() { // ponto azul "você está aqui" nos dois mapas
   });
 }
 function rotuloPerto() {
-  const sub = $('#painelSub'); if (sub) sub.textContent = estado.pos ? 'Raio de 30 km a partir da sua localização' : 'Raio de 30 km a partir de Indaiatuba';
+  const sub = $('#painelSub'); if (sub) sub.textContent = 'Raio de 30 km a partir da sua localização';
   $$('[data-perto]').forEach((b) => { b.setAttribute('aria-pressed', String(!!estado.pos)); b.textContent = estado.pos ? 'Perto de mim ✓' : (b.dataset.perto === 'home' ? 'Usar minha localização' : 'Perto de mim'); });
 }
 // Centraliza o mapa da tela inicial na posição da pessoa; repete depois que o mapa terminar de se ajustar à tela
