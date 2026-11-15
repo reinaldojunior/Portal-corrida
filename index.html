@@ -27,8 +27,6 @@
 </head>
 <body>
 
-<div class="tri-bar"></div>
-
 <header class="topo">
   <div class="wrap">
     <a href="#" class="logo" aria-label="Mapmove, página inicial">Map<span>move</span></a>
@@ -51,44 +49,21 @@
 <!-- HOME -->
 <main id="vHome">
   <section class="hero" aria-label="Corridas no mapa">
-    <div class="speed-lines" aria-hidden="true"></div>
-    <div class="hero-esq">
-      <span class="hero-tag"><span class="hero-tag-dot" aria-hidden="true"></span>Temporada 2026 · Corrida de Rua</span>
-      <h1 class="hero-titulo">
-        <span class="htl1">Domine</span>
-        <span class="htl2">as ruas</span>
-        <span class="htl3">Portal de Corridas do Brasil</span>
-      </h1>
-      <p class="hero-sub">Encontre corridas de rua, trilhas e eventos esportivos pelo Brasil. Mapa interativo, agenda completa.</p>
-      <div class="hero-btns">
-        <a href="#mapa" class="btn btn-cone" data-mod="mapa">Ver corridas</a>
-        <a href="#" class="btn btn-sec-h" data-mod="agenda" data-ir="quadro">Agenda completa</a>
-      </div>
+    <div class="hero-mapa">
+      <div id="mapaHero" aria-hidden="true"></div>
+      <div class="hero-veu"></div>
       <div class="contagem" id="contagem" hidden>
         <span class="ao-vivo">Próxima largada na região</span>
+        <h1 class="display hero-tit">Ache a sua próxima corrida no mapa</h1>
         <div class="relogio" id="contRelogio" aria-live="polite"></div>
         <a class="cont-nome" id="contLink"><span id="contNome"></span></a>
         <span class="cont-info" id="contInfo"></span>
       </div>
-    </div>
-    <div class="hero-dir">
-      <div id="mapaHero" aria-hidden="true"></div>
-      <div class="hero-veu"></div>
       <a href="#mapa" class="hero-abrir" data-mod="mapa">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-        Clique para expandir
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        Abrir mapa completo
       </a>
     </div>
-  </section>
-
-  <div class="stats-strip">
-    <div class="stat-item"><span class="stat-num">48+</span><span class="stat-label">Corridas cadastradas</span></div>
-    <div class="stat-item"><span class="stat-num">15</span><span class="stat-label">Cidades cobertas</span></div>
-    <div class="stat-item"><span class="stat-num">5K · 21K · 42K</span><span class="stat-label">Distâncias disponíveis</span></div>
-    <div class="stat-item"><span class="stat-num">100%</span><span class="stat-label">Gratuito para atletas</span></div>
-  </div>
-
-  <div class="painel-sec">
     <div class="painel" id="perto" data-mod="agenda">
       <div class="alca" aria-hidden="true"></div>
       <div class="painel-cab">
@@ -100,20 +75,6 @@
       <div class="filtros" id="filtrosPainel" role="group" aria-label="Filtrar por distância"></div>
       <div class="cartoes" id="listaPerto"><p class="vazio">Carregando corridas…</p></div>
     </div>
-  </div>
-
-  <div class="banner-wrap banner-leaderboard">
-    <div class="wrap"><div class="banner-ph">Publicidade · 728 × 90</div></div>
-  </div>
-
-  <section class="promo-sec">
-    <div class="promo-foto promo-foto-1" role="img" aria-label="Atleta em corrida de rua"></div>
-    <div class="promo-content">
-      <span class="section-label">▶ Seu próximo desafio</span>
-      <h2 class="promo-titulo">Está aqui</h2>
-      <p>De 5K ao ultramaratona — encontre a prova certa para o seu nível e o seu momento.</p>
-      <a href="#mapa" class="btn btn-cone" data-mod="mapa">Buscar corridas</a>
-    </div>
   </section>
 
   <svg class="divisor" viewBox="0 0 1440 48" preserveAspectRatio="none" aria-hidden="true">
@@ -122,50 +83,15 @@
 
   <div class="wrap grade-home" id="gradeHome">
     <section class="quadro" id="quadro" data-mod="agenda" aria-labelledby="quadroTit">
-      <span class="section-label">▶ Agenda</span>
       <div class="quadro-cab"><h2 class="display" id="quadroTit">Quadro de largadas</h2><span>PRÓXIMAS PROVAS</span></div>
       <div class="q-head" aria-hidden="true"><span class="q-data">DATA</span><span class="q-nome">PROVA</span><span class="q-dist">DIST</span><span class="q-st">INSCRIÇÃO</span></div>
       <div id="quadroLinhas"></div>
     </section>
     <section class="noticias" id="noticias" hidden aria-labelledby="noticiasTit">
-      <span class="section-label">▶ Notícias</span>
       <div class="noticias-cab"><h2 class="display" id="noticiasTit">Notícias</h2><span id="noticiasConta"></span></div>
       <div class="noticias-corpo" id="noticiasConteudo"></div>
     </section>
   </div>
-
-  <div class="banner-wrap banner-billboard">
-    <div class="wrap"><div class="banner-ph">Publicidade · 970 × 250</div></div>
-  </div>
-
-  <section class="promo-grade">
-    <div class="wrap">
-      <span class="section-label">▶ Por que usar o Mapmove</span>
-      <div class="promo-cards">
-        <div class="promo-card">
-          <div class="promo-card-foto promo-card-foto-1"></div>
-          <div class="promo-card-info">
-            <h3>Mapa interativo</h3>
-            <p>Encontre corridas próximas a você com localização em tempo real e filtros por distância.</p>
-          </div>
-        </div>
-        <div class="promo-card">
-          <div class="promo-card-foto promo-card-foto-2"></div>
-          <div class="promo-card-info">
-            <h3>Agenda completa</h3>
-            <p>Calendário atualizado com as principais corridas de rua do Brasil.</p>
-          </div>
-        </div>
-        <div class="promo-card">
-          <div class="promo-card-foto promo-card-foto-3"></div>
-          <div class="promo-card-info">
-            <h3>Ferramentas grátis</h3>
-            <p>Calculadora de pace, zonas de FC, pulseira de ritmo e muito mais para o corredor.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
 
   <section class="wrap dicas-sec" id="dicas" data-mod="dicas" hidden aria-labelledby="dicasTit">
     <div class="dicas-cab">
@@ -312,18 +238,6 @@
         <button class="btn btn-cone" type="submit">Quero receber</button>
       </form>
       <p class="msg" id="avisoMsg" role="status"></p>
-    </div>
-  </section>
-
-  <section class="promo-cta">
-    <div class="promo-cta-bg" aria-hidden="true"></div>
-    <div class="promo-cta-content">
-      <div class="wrap">
-        <span class="section-label">▶ Comece agora</span>
-        <h2 class="promo-cta-titulo">Pronto para o<br>próximo nível?</h2>
-        <p>O maior portal de corridas de rua do Brasil. Gratuito para atletas.</p>
-        <a href="#mapa" class="btn btn-cone" data-mod="mapa">Encontrar corridas</a>
-      </div>
     </div>
   </section>
 </main>
