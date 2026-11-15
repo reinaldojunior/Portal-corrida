@@ -1016,6 +1016,7 @@ a.q-linha:focus-visible .q-st::after{opacity:1}
 .lp-links a:hover{border-color:var(--cone)}
 .lp-links span{font-size:12px;color:var(--cinza);white-space:nowrap}
 .lp-mais{margin-top:14px;font-size:14px}
+.lp-sobre{margin-top:32px;padding-top:24px;border-top:1px solid var(--linha)}.lp-sobre h2{font-size:18px;font-weight:700;margin-bottom:10px}.lp-sobre p{font-size:15px;line-height:1.65;color:var(--cinza-txt,var(--fg));max-width:720px}
 @media (max-width:760px){.lp h1{font-size:40px}.lp .wrap{padding-bottom:110px}}
 
 .ver-cidade{margin:6px 0 0;font-size:14px}.ver-cidade a{color:var(--cone-txt);text-decoration:underline}
