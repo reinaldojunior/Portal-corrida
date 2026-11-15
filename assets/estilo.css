@@ -232,6 +232,7 @@ a.cont-nome:hover{color:#fff;border-bottom-color:var(--cone)}
 .filtros{display:flex;flex-wrap:wrap;gap:8px}
 .filtro{height:36px;padding:0 14px;border-radius:18px;border:1.5px solid var(--chip);background:var(--papel);font-size:14px;font-weight:600}
 .filtro[aria-pressed="true"]{background:var(--asfalto);border-color:var(--asfalto);color:#fff}
+.cidade-manual{display:flex;gap:6px;margin-bottom:10px}.cidade-manual input{flex:1;height:36px;padding:0 10px;border-radius:18px;border:1.5px solid var(--chip);background:var(--papel);font-size:13px;min-width:0}.cidade-manual button{height:36px;width:36px;border-radius:50%;border:1.5px solid var(--chip);background:var(--papel);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}.cidade-manual button:hover{border-color:var(--cone)}
 .cartoes{display:flex;gap:12px;margin-top:16px}
 .cartao{display:flex;flex-direction:column;border:1.5px solid var(--asfalto);border-radius:6px;overflow:hidden;background:#fff;position:relative;color:var(--asfalto)}
 a.cartao:hover{color:var(--asfalto);border-color:var(--cone)}
