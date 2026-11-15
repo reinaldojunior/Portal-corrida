@@ -99,7 +99,7 @@ function modoDemo(motivo) {
   aviso.style.cssText = 'background:#FFF1D6;color:#6B4000;font-size:14px;padding:10px 20px;text-align:center;position:relative;z-index:650';
   aviso.textContent = 'Modo demonstração: esta visualização não consegue acessar o banco de dados, então mostra corridas de exemplo. Publicado num endereço real, o site usa os dados do Supabase.';
   document.body.prepend(aviso);
-  estado.pos = lerPosSalva();
+  estado.pos = lerPosSalva(); if (!estado.pos) lerCidadeSalva();
   aplicarModulos(); montarHome(); rotear(); rotuloPerto(); localizacaoAutomatica();
 }
 // O banco devolve no máximo 1000 linhas por consulta: busca em páginas até acabar.
@@ -136,7 +136,7 @@ async function carregar() {
   estado.modulos = Object.fromEntries(m.data.map((x) => [x.chave, x.ativo]));
   estado.corridas = c.data;
   guardarNoticias(n.error ? [] : n.data);
-  estado.pos = lerPosSalva(); // quem já aceitou antes abre direto perto de si
+  estado.pos = lerPosSalva(); if (!estado.pos) lerCidadeSalva(); // quem já aceitou antes abre direto perto de si
   try { aplicarModulos(); montarHome(); rotear(); rotuloPerto(); localizacaoAutomatica(); }
   catch (e) { console.error('Mapmove: erro ao montar a página', e); $('#listaPerto').innerHTML = '<p class="vazio">Algo deu errado ao montar a página. Recarregue para tentar de novo.</p>'; }
 }
@@ -792,6 +792,9 @@ function lerPosSalva() {
   try { const v = JSON.parse(localStorage.getItem('mm_pos') || 'null'); if (v && NO_BRASIL(v[0], v[1])) return v; } catch { /* sem armazenamento */ }
   return null;
 }
+function lerCidadeSalva() {
+  try { const v = JSON.parse(localStorage.getItem('mm_cidade') || 'null'); if (v?.nome && v?.pos) { estado.cidadeManual = v.nome; estado.posCidade = v.pos; } } catch { /* segue */ }
+}
 function desenharVoce() { // ponto azul "você está aqui" nos dois mapas
   vocePino.forEach((m) => m.remove()); vocePino = [];
   if (estado.pos) [mapaGrande, mapaCompacto].forEach((m) => {
@@ -835,6 +838,7 @@ function lerLocalizacao(manual) {
     if (!NO_BRASIL(la, ln)) { if (manual) toast('Sua localização está fora do Brasil. Escolha a cidade no filtro.'); return; }
     estado.pos = [la, ln];
     estado.cidadeManual = null; estado.posCidade = null;
+    try { localStorage.removeItem('mm_cidade'); } catch { /* segue */ }
     lsSet('mm_pos', JSON.stringify([+la.toFixed(2), +ln.toFixed(2)]));
     try { localStorage.removeItem('mm_pos_off'); } catch { /* segue */ }
     desenharPos(true);
@@ -864,6 +868,7 @@ async function buscarCidadeManual(nome) {
     estado.pos = null;
     estado.cidadeManual = nomeCurto;
     estado.posCidade = [+lat, +lon];
+    lsSet('mm_cidade', JSON.stringify({ nome: nomeCurto, pos: [+lat, +lon] }));
     desenharPos(true);
     toast(`Mostrando corridas perto de ${nomeCurto}`);
   } catch { toast('Não foi possível buscar a cidade. Tente novamente.'); }
