@@ -152,7 +152,7 @@ function aplicarModulos() {
 
 /* ================== Home ================== */
 let mapaCompacto, timerContagem;
-const origem = () => estado.pos || CENTRO;
+const origem = () => estado.pos || estado.posCidade || CENTRO;
 const pertoLista = () => {
   const o = origem();
   const l = publicadas().filter((c) => c.lat == null || distKm(o, [c.lat, c.lng]) <= RAIO_KM);
@@ -802,8 +802,9 @@ function desenharVoce() { // ponto azul "você está aqui" nos dois mapas
   });
 }
 function rotuloPerto() {
-  const sub = $('#painelSub'); if (sub) sub.textContent = 'Raio de 30 km a partir da sua localização';
+  const sub = $('#painelSub'); if (sub) sub.textContent = estado.cidadeManual ? `Raio de 30 km a partir de ${estado.cidadeManual}` : 'Raio de 30 km a partir da sua localização';
   $$('[data-perto]').forEach((b) => { b.setAttribute('aria-pressed', String(!!estado.pos)); b.textContent = estado.pos ? 'Perto de mim ✓' : (b.dataset.perto === 'home' ? 'Usar minha localização' : 'Perto de mim'); });
+  const fm = $('#formCidadeManual'); if (fm) fm.hidden = !!estado.pos;
 }
 // Centraliza o mapa da tela inicial na posição da pessoa; repete depois que o mapa terminar de se ajustar à tela
 function centralizarCompacto() {
@@ -833,6 +834,7 @@ function lerLocalizacao(manual) {
     const la = r.coords.latitude, ln = r.coords.longitude;
     if (!NO_BRASIL(la, ln)) { if (manual) toast('Sua localização está fora do Brasil. Escolha a cidade no filtro.'); return; }
     estado.pos = [la, ln];
+    estado.cidadeManual = null; estado.posCidade = null;
     lsSet('mm_pos', JSON.stringify([+la.toFixed(2), +ln.toFixed(2)]));
     try { localStorage.removeItem('mm_pos_off'); } catch { /* segue */ }
     desenharPos(true);
@@ -851,6 +853,22 @@ function pedirLocalizacao() {
   toast('Procurando a sua localização…');
   lerLocalizacao(true);
 }
+async function buscarCidadeManual(nome) {
+  if (!nome.trim()) return;
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(nome.trim() + ', Brasil')}&countrycodes=br&limit=1&accept-language=pt-BR`, { signal: AbortSignal.timeout(6000) });
+    const j = await r.json();
+    if (!j.length) { toast('Cidade não encontrada. Tente com estado, ex.: "Campinas SP"'); return; }
+    const { lat, lon, display_name } = j[0];
+    const nomeCurto = display_name.split(',')[0].trim();
+    estado.pos = null;
+    estado.cidadeManual = nomeCurto;
+    estado.posCidade = [+lat, +lon];
+    desenharPos(true);
+    toast(`Mostrando corridas perto de ${nomeCurto}`);
+  } catch { toast('Não foi possível buscar a cidade. Tente novamente.'); }
+}
+
 // Ao abrir a página inicial: usa a localização se já foi permitida; senão pergunta uma vez (e só de novo depois de 7 dias)
 function localizacaoAutomatica() {
   if (estado.pos || !navigator.geolocation || location.pathname !== '/' || lsGet('mm_pos_off')) return;
@@ -864,6 +882,12 @@ function localizacaoAutomatica() {
   } else perguntar();
 }
 document.addEventListener('click', (e) => { if (e.target.closest('[data-perto]')) pedirLocalizacao(); });
+document.addEventListener('submit', (e) => {
+  if (e.target.id === 'formCidadeManual') {
+    e.preventDefault();
+    buscarCidadeManual($('#inputCidadeManual').value);
+  }
+});
 
 let grupoCompacto;
 // Agrupa os pinos próximos numa bolinha com o número de corridas; ao aproximar o zoom (ou clicar) eles se separam
