@@ -237,14 +237,14 @@ a.cont-nome:hover{color:#fff;border-bottom-color:var(--cone)}
 a.cartao:hover{color:var(--asfalto);border-color:var(--cone)}
 .cartao::before,.cartao::after{content:"";position:absolute;top:38px;width:6px;height:6px;border-radius:50%;border:1px solid var(--cinza-esc)}
 .cartao::before{left:6px}.cartao::after{right:6px}
-.cartao-faixa{background:var(--cone);padding:8px 16px;display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:700;letter-spacing:.5px}
-.cartao-corpo{padding:12px 16px 16px;display:flex;gap:12px;align-items:flex-start}
-.cartao-dia{font-family:var(--display);font-size:58px;line-height:.85}
-.cartao-info{display:flex;flex-direction:column;gap:6px;min-width:0}
-.cartao-cid{font-size:12px;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:.4px}
-.cartao-mes{font-size:13px;font-weight:700;color:var(--cone-txt)}
-.cartao-nome{font-size:15px;font-weight:600;line-height:1.2}
-.cartao-enc{font-size:12px;color:var(--cinza);padding:0 16px 12px}
+.cartao-faixa{background:var(--cone);padding:6px 8px;display:flex;justify-content:center;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.5px}
+.cartao-corpo{padding:8px 12px 10px;display:flex;gap:10px;align-items:flex-start}
+.cartao-dia{font-family:var(--display);font-size:44px;line-height:.85}
+.cartao-info{display:flex;flex-direction:column;gap:3px;min-width:0}
+.cartao-cid{font-size:11px;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:.4px}
+.cartao-mes{font-size:12px;font-weight:700;color:var(--cone-txt)}
+.cartao-nome{font-size:13px;font-weight:600;line-height:1.2}
+.cartao-enc{font-size:11px;color:var(--cinza);padding:0 12px 8px}
 .cartoes .vazio{border-top:0;padding:8px 0}
 
 /* divisor de altimetria */
@@ -525,11 +525,10 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
   .alca{display:none}
   .cartoes{flex-direction:column}
   .cartao{flex-direction:row;align-items:stretch}
-  .cartao-faixa{writing-mode:vertical-rl;transform:rotate(180deg);padding:10px 6px;justify-content:space-between}
+  .cartao-faixa{writing-mode:vertical-rl;transform:rotate(180deg);padding:10px 5px;justify-content:center;width:28px}
   .cartao::before,.cartao::after{display:none}
-  .cartao-corpo{padding:10px 14px;align-items:center}
-  .cartao-dia{font-size:44px}
-  .cartao-enc{padding:0 14px 10px}
+  .cartao-corpo{padding:8px 12px;align-items:center}
+  .cartao-enc{padding:0 12px 8px}
 }
 
 /* ===== celular e tablet ===== */
