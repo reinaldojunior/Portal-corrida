@@ -1,6 +1,6 @@
 :root{
-  --asfalto:#1E2124; --concreto:#EDEEEA; --papel:#FFFFFF; --cone:#FF8000; --cone-txt:#D96500;
-  --texto2:#3B4044; --cinza:#5E6367; --linha:#D5D7D2; --linha2:#E3E5E0; --chip:#C9CCC6; --realce:#FFF3E6;
+  --asfalto:#1E2124; --concreto:#EDEEEA; --papel:#FFFFFF; --cone:#FF4D00; --cone-txt:#C23A00;
+  --texto2:#3B4044; --cinza:#5E6367; --linha:#D5D7D2; --linha2:#E3E5E0; --chip:#C9CCC6; --realce:#FFF1EA;
   --ok:#1D6B45; --erro:#B42318;
   --display:'Bebas Neue','Arial Narrow',sans-serif; --texto:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
 }
@@ -61,7 +61,7 @@ img{max-width:100%;display:block}
 .tela-mapa{position:fixed;inset:0;z-index:1000;background:var(--concreto);display:flex;flex-direction:column}
 .tela-mapa .barra{height:72px;flex-shrink:0;background:var(--papel);border-bottom:1px solid var(--linha);display:flex;align-items:center;gap:20px;padding:0 32px}
 .tela-mapa .barra .logo{font-size:36px}
-.busca{display:flex;align-items:center;gap:10px;height:44px;width:380px;max-width:100%;padding:0 16px;border:1px solid var(--chip);border-radius:3px;background:var(--papel)}
+.busca{display:flex;align-items:center;gap:10px;height:44px;width:380px;max-width:100%;padding:0 16px;border:1px solid var(--chip);border-radius:22px;background:var(--papel)}
 .busca input{border:0;outline:0;flex:1;font-size:16px;background:transparent;min-width:0}
 .tela-mapa .corpo{flex:1;display:flex;min-height:0}
 .tela-mapa aside{width:420px;flex-shrink:0;background:var(--papel);border-right:1px solid var(--linha);padding:24px 28px;overflow-y:auto}
@@ -73,7 +73,7 @@ img{max-width:100%;display:block}
 .barra-chips .filtros{flex-wrap:nowrap}
 .barra-chips .filtro{flex-shrink:0}
 .barra-chips .sep{width:1px;height:26px;background:var(--linha);flex-shrink:0}
-.sel-cidade{height:36px;padding:0 34px 0 14px;border-radius:3px;border:1.5px solid var(--chip);background:var(--papel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%231E2124' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 13px center;appearance:none;font-size:14px;font-weight:600;max-width:240px;flex-shrink:0}
+.sel-cidade{height:36px;padding:0 34px 0 14px;border-radius:18px;border:1.5px solid var(--chip);background:var(--papel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%231E2124' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 13px center;appearance:none;font-size:14px;font-weight:600;max-width:240px;flex-shrink:0}
 .tela-mapa aside{width:min(56%,860px)}
 .grade-mapa{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:26px 18px}
 .cartao-mapa{display:flex;flex-direction:column;gap:5px;min-width:0;border-radius:10px;padding:6px;margin:-6px;transition:background .15s}
@@ -179,21 +179,21 @@ table.tab{width:100%;border-collapse:collapse;font-size:15px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--asfalto);color:#fff;padding:12px 20px;border-radius:4px;z-index:3000;font-weight:600}
 
 /* ===== Design novo: noite + dia de prova ===== */
-.btn{height:44px;padding:0 20px;border:0;border-radius:3px;font-size:14px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;text-transform:uppercase;letter-spacing:.8px}
-:root{--noite:#0C0C12;--noite2:#14141C;--noite3:#1A1A24;--linha-esc:#222230;--borda-esc:#2E2E3E;--cinza-esc:#80878D;--esc-2:#A9AFB4;--claro-esc:#C9CDCF;--mono:'JetBrains Mono',ui-monospace,monospace;--orbitron:'Orbitron',sans-serif}
+.btn{height:44px;padding:0 20px;border:0;border-radius:6px;font-size:15px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+:root{--noite:#15181B;--noite2:#1E2327;--noite3:#22272B;--linha-esc:#2A2F34;--borda-esc:#343A40;--cinza-esc:#80878D;--esc-2:#A9AFB4;--claro-esc:#C9CDCF;--mono:'JetBrains Mono',ui-monospace,monospace}
 .mono{font-family:var(--mono)}
 
 /* topo escuro */
 .topo{background:var(--noite);border-bottom:1px solid var(--linha-esc);position:sticky;top:0;z-index:600;color:#fff}
 .topo .wrap{height:68px;display:flex;align-items:center;gap:32px}
-.logo{font-family:var(--orbitron);font-size:18px;line-height:1;letter-spacing:4px;text-transform:uppercase;font-weight:900;color:#fff}
+.logo{font-family:var(--display);font-size:38px;line-height:1;letter-spacing:1px;color:#fff}
 .logo span{color:var(--cone)}
-.menu{display:flex;gap:24px;font-size:13px;font-weight:700;color:var(--claro-esc);text-transform:uppercase;letter-spacing:1.5px}
+.menu{display:flex;gap:24px;font-size:16px;font-weight:600;color:var(--claro-esc)}
 .menu a:hover{color:#fff}
 .spacer{flex:1}
-.busca-viagem{height:44px;width:340px;display:flex;align-items:center;gap:10px;padding:0 18px;border:1px solid #3A4046;border-radius:3px;background:var(--noite3);color:var(--esc-2);font-size:15px}
+.busca-viagem{height:44px;width:340px;display:flex;align-items:center;gap:10px;padding:0 18px;border:1px solid #3A4046;border-radius:22px;background:var(--noite3);color:var(--esc-2);font-size:15px}
 .busca-viagem:hover{color:#fff;border-color:#5A6168}
-.topo .btn-entrar{height:44px;padding:0 20px;border-radius:3px;background:#fff;color:var(--noite);font-weight:700;display:inline-flex;align-items:center;text-transform:uppercase;letter-spacing:1px;font-size:13px}
+.topo .btn-entrar{height:44px;padding:0 20px;border-radius:22px;background:#fff;color:var(--noite);font-weight:700;display:inline-flex;align-items:center}
 .topo .btn-entrar:hover{background:#E7E9E6;color:var(--noite)}
 
 /* hero com mapa */
@@ -214,7 +214,7 @@ table.tab{width:100%;border-collapse:collapse;font-size:15px}
 .cont-nome{display:inline-block;margin-top:16px;font-size:18px;font-weight:600;color:#fff;border-bottom:1px solid transparent}
 a.cont-nome:hover{color:#fff;border-bottom-color:var(--cone)}
 .cont-info{display:block;margin-top:2px;font-size:15px;color:var(--esc-2)}
-.hero-abrir{position:absolute;z-index:3;height:44px;padding:0 18px;display:inline-flex;align-items:center;gap:8px;background:rgba(12,12,18,.85);border:1px solid #3A4046;border-radius:3px;color:#fff;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+.hero-abrir{position:absolute;z-index:3;height:44px;padding:0 18px;display:inline-flex;align-items:center;gap:8px;background:rgba(21,24,27,.85);border:1px solid #3A4046;border-radius:22px;color:#fff;font-size:14px;font-weight:700}
 .hero-abrir:hover{color:#fff;border-color:var(--cone)}
 
 /* pino pulsante */
@@ -230,12 +230,12 @@ a.cont-nome:hover{color:#fff;border-bottom-color:var(--cone)}
 .painel-cab .editoria{white-space:nowrap}
 .painel-sub{margin:4px 0 12px;font-size:14px;color:var(--cinza)}
 .filtros{display:flex;flex-wrap:wrap;gap:8px}
-.filtro{height:36px;padding:0 14px;border-radius:3px;border:1.5px solid var(--chip);background:var(--papel);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.6px}
+.filtro{height:36px;padding:0 14px;border-radius:18px;border:1.5px solid var(--chip);background:var(--papel);font-size:14px;font-weight:600}
 .filtro[aria-pressed="true"]{background:var(--asfalto);border-color:var(--asfalto);color:#fff}
 .cartoes{display:flex;gap:12px;margin-top:16px}
-.cartao{display:flex;flex-direction:column;border:1.5px solid var(--asfalto);border-radius:2px;overflow:hidden;background:#fff;position:relative;color:var(--asfalto)}
+.cartao{display:flex;flex-direction:column;border:1.5px solid var(--asfalto);border-radius:6px;overflow:hidden;background:#fff;position:relative;color:var(--asfalto)}
 a.cartao:hover{color:var(--asfalto);border-color:var(--cone)}
-.cartao::before,.cartao::after{display:none}
+.cartao::before,.cartao::after{content:"";position:absolute;top:38px;width:6px;height:6px;border-radius:50%;border:1px solid var(--cinza-esc)}
 .cartao::before{left:6px}.cartao::after{right:6px}
 .cartao-faixa{background:var(--cone);padding:8px 16px;display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:700;letter-spacing:.5px}
 .cartao-corpo{padding:12px 16px 16px;display:flex;gap:12px;align-items:flex-start}
@@ -256,7 +256,7 @@ a.cartao:hover{color:var(--asfalto);border-color:var(--cone)}
 .grade-home.so-quadro .quadro{grid-column:span 12}
 
 /* quadro de largadas */
-.quadro{background:var(--noite);border-radius:3px;padding:24px;color:#fff;border-top:3px solid var(--cone)}
+.quadro{background:var(--noite);border-radius:12px;padding:24px;color:#fff}
 .quadro-cab{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}
 .quadro-cab h2{font-size:40px}
 .quadro-cab span{font-family:var(--mono);font-size:12px;color:var(--cone);white-space:nowrap}
@@ -506,9 +506,9 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
 }
 
 /* rodapé */
-.rodape{background:var(--noite);color:var(--cinza-esc);border-top:3px solid transparent;border-image:linear-gradient(to right,#FF8000 33.3%,#1E41FF 33.3% 66.6%,#C0C0C0 66.6%) 1}
+.rodape{background:var(--noite);color:var(--cinza-esc)}
 .rodape .wrap{padding-top:28px;padding-bottom:28px;display:flex;align-items:center;gap:28px;flex-wrap:wrap;font-size:14px}
-.rodape .logo{font-size:14px;letter-spacing:3px}
+.rodape .logo{font-size:28px}
 .rodape a:hover{color:#fff}
 
 /* barra de app (celular) */
