@@ -516,7 +516,7 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
 
 /* ===== computador ===== */
 @media (min-width:1000px){
-  .hero{height:612px}
+  .hero{height:calc(100vh - 68px)}
   .hero-mapa{position:absolute;inset:0}
   .contagem{left:max(48px,calc((100% - 1440px)/2 + 48px));top:110px;width:460px}
   .hero-abrir{left:max(48px,calc((100% - 1440px)/2 + 48px));bottom:28px}
