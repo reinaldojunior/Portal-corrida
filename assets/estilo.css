@@ -206,12 +206,12 @@ table.tab{width:100%;border-collapse:collapse;font-size:15px}
 .ao-vivo{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:var(--cone)}
 .ao-vivo::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--cone);animation:pisca 1.4s steps(1) infinite}
 @keyframes pisca{50%{opacity:.3}}
-.hero-tit{font-size:76px;color:#fff;margin-top:16px;max-width:460px}
-.relogio{display:flex;gap:8px;margin-top:24px}
+.hero-tit{font-size:64px;color:#fff;margin-top:12px;max-width:460px}
+.relogio{display:flex;gap:8px;margin-top:14px}
 .dig{display:flex;flex-direction:column;align-items:center;gap:4px}
 .dig b{font-family:var(--mono);font-weight:700;font-size:48px;line-height:1;background:var(--noite3);border:1px solid var(--borda-esc);border-radius:6px;padding:10px 12px;min-width:84px;text-align:center}
 .dig small{font-size:13px;font-weight:600;color:var(--cinza-esc)}
-.cont-nome{display:inline-block;margin-top:16px;font-size:18px;font-weight:600;color:#fff;border-bottom:1px solid transparent}
+.cont-nome{display:inline-block;margin-top:10px;font-size:18px;font-weight:600;color:#fff;border-bottom:1px solid transparent}
 a.cont-nome:hover{color:#fff;border-bottom-color:var(--cone)}
 .cont-info{display:block;margin-top:2px;font-size:15px;color:var(--esc-2)}
 .hero-abrir{position:absolute;z-index:3;height:44px;padding:0 18px;display:inline-flex;align-items:center;gap:8px;background:rgba(21,24,27,.85);border:1px solid #3A4046;border-radius:22px;color:#fff;font-size:14px;font-weight:700}
@@ -519,7 +519,7 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
 @media (min-width:1000px){
   .hero{height:calc(100vh - 68px)}
   .hero-mapa{position:absolute;inset:0}
-  .contagem{left:max(48px,calc((100% - 1440px)/2 + 48px));top:110px;width:460px}
+  .contagem{left:max(48px,calc((100% - 1440px)/2 + 48px));top:40px;width:460px}
   .hero-abrir{left:max(48px,calc((100% - 1440px)/2 + 48px));bottom:28px}
   .painel{position:absolute;right:max(48px,calc((100% - 1440px)/2 + 48px));top:96px;width:390px;max-height:560px;overflow:auto;border-radius:14px;padding:22px}
   .alca{display:none}
