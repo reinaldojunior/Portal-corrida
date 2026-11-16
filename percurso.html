@@ -248,6 +248,7 @@ async function importKML(kmlText){
   const newHydra=[];
   placemarks.forEach(pm=>{
     const name=(pm.querySelector('name')?.textContent||'').trim();
+    if(/^\d+\.?\d*\s*km$/i.test(name))return;
     const ptCoords=pm.querySelector('Point coordinates');
     if(!ptCoords)return;
     const parts=ptCoords.textContent.trim().split(/[\s,]+/);
@@ -338,7 +339,8 @@ function dot(x,y,color,label){
 function hydDot(x,y,num,km,name){
   const r=9*dpr;cx.save();cx.shadowColor='#29b6f6';cx.shadowBlur=10*dpr;
   cx.beginPath();cx.arc(x,y,r,0,Math.PI*2);cx.fillStyle='#29b6f6';cx.fill();cx.restore();
-  cx.fillStyle='#fff';cx.font=`bold ${8*dpr}px Inter,sans-serif`;cx.textAlign='center';cx.textBaseline='middle';cx.fillText(num,x,y);
+  const dotLabel=name&&name.length<=4?name:('H'+num);
+  cx.fillStyle='#fff';cx.font=`bold ${8*dpr}px Inter,sans-serif`;cx.textAlign='center';cx.textBaseline='middle';cx.fillText(dotLabel,x,y);
   const lbl=name||(km!=null?`km ${km.toFixed(1)}`:`#${num}`);
   const fh=10*dpr,pad2=5*dpr;
   cx.font=`${fh}px Inter,sans-serif`;
