@@ -109,6 +109,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     <button class="cb" id="btn-cam3d" title="3D tilt">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
     </button>
+    <button class="cb" id="btn-camchase" title="Chase cam (estilo Strava)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+    </button>
     <div class="csep"></div>
     <button class="cb" id="btn-up">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -334,6 +337,15 @@ function pause(){
 // km avançados por frame = speed × 0.004 (≈ speed km/min a 60fps)
 const KM_PER_SPEED = 0.004;
 
+// desloca [lng,lat] em km na direção bearingDeg (norte=0, leste=90)
+function geoOffset(lng,lat,bearingDeg,km){
+  const R=6371,d=km/R,b=bearingDeg*Math.PI/180;
+  const la1=lat*Math.PI/180,lo1=lng*Math.PI/180;
+  const la2=Math.asin(Math.sin(la1)*Math.cos(d)+Math.cos(la1)*Math.sin(d)*Math.cos(b));
+  const lo2=lo1+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(la1),Math.cos(d)-Math.sin(la1)*Math.sin(la2));
+  return[lo2*180/Math.PI,la2*180/Math.PI];
+}
+
 function distToIdx(d){
   // retorna o índice do ponto mais próximo da distância d (km)
   let lo=0,hi=S.cumKm.length-1;
@@ -357,6 +369,12 @@ function animate(){
     const pi=Math.max(0,ci-8);const[plo,pla]=S.raw[pi];
     const bearing=Math.atan2(lo-plo,la-pla)*180/Math.PI;
     map.easeTo({center:[lo,la],bearing,pitch:65,duration:80,easing:t=>t});
+  }else if(S.camMode==='chase'){
+    const pi=Math.max(0,ci-10);const[plo,pla]=S.raw[pi];
+    const bearing=Math.atan2(lo-plo,la-pla)*180/Math.PI;
+    // desloca centro 250 m à frente do dot → dot fica na parte inferior
+    const fwd=geoOffset(lo,la,bearing,0.25);
+    map.easeTo({center:fwd,bearing,pitch:72,zoom:15.5,duration:80,easing:t=>t});
   }
   updateStats();
   document.getElementById('elev-progress').style.width=(total?(S.distKm/total)*100:0)+'%';
@@ -430,8 +448,9 @@ function setupTerrain(){
 
 function setCamMode(mode){
   S.camMode=mode;
-  document.querySelectorAll('#btn-cam2d,#btn-camfollow,#btn-cam3d').forEach(b=>b.classList.remove('on'));
-  document.getElementById(mode==='2d'?'btn-cam2d':mode==='follow'?'btn-camfollow':'btn-cam3d').classList.add('on');
+  document.querySelectorAll('#btn-cam2d,#btn-camfollow,#btn-cam3d,#btn-camchase').forEach(b=>b.classList.remove('on'));
+  const idMap={2d:'btn-cam2d',follow:'btn-camfollow','3d':'btn-cam3d',chase:'btn-camchase'};
+  document.getElementById(idMap[mode]||'btn-cam2d').classList.add('on');
   if(mode==='3d'){if(map.isStyleLoaded())setupTerrain();map.easeTo({pitch:65,duration:600});}
   else{if(map.getTerrain())map.setTerrain(null);map.easeTo({pitch:0,bearing:0,duration:600});}
 }
@@ -467,6 +486,7 @@ document.querySelectorAll('.stbtn').forEach(btn=>{
 document.getElementById('btn-cam2d').addEventListener('click',()=>setCamMode('2d'));
 document.getElementById('btn-camfollow').addEventListener('click',()=>setCamMode('follow'));
 document.getElementById('btn-cam3d').addEventListener('click',()=>setCamMode('3d'));
+document.getElementById('btn-camchase').addEventListener('click',()=>{setCamMode('chase');setupTerrain();});
 
 window.addEventListener('resize',()=>drawElevProfile());
 
