@@ -66,16 +66,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 </style>
 </head>
 <body>
-<input type="file" id="gpx-file" accept=".gpx,.kmz,.kml">
-<input type="file" id="kml-file" accept=".kmz,.kml">
+<input type="file" id="gpx-file" accept=".gpx,.kmz,.kml,application/gpx+xml,application/vnd.google-earth.kmz,application/vnd.google-earth.kml+xml,application/octet-stream,*/*">
+<input type="file" id="kml-file" accept=".kmz,.kml,application/vnd.google-earth.kmz,application/vnd.google-earth.kml+xml,*/*">
 <div id="map"></div>
 
 <div id="empty">
-  <button class="up-btn" id="btn-up-main">
+  <label class="up-btn" id="btn-up-main" for="gpx-file" style="cursor:pointer">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
     Importar GPX / KMZ
-  </button>
-  <span class="up-hint">Arraste o arquivo ou clique para importar</span>
+  </label>
+  <span class="up-hint">Toque para importar</span>
   <span class="up-formats">GPX · KMZ · KML · Google Maps</span>
 </div>
 
@@ -113,9 +113,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
     </button>
     <div class="csep"></div>
-    <button class="cb" id="btn-up">
+    <label class="cb" id="btn-up" for="gpx-file" title="Importar arquivo" style="cursor:pointer">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-    </button>
+    </label>
   </div>
   <div class="ctrl-row">
     <div id="presets">
@@ -191,9 +191,26 @@ map.on('load',()=>{
 function handleFile(f){
   if(!f)return;
   const n=f.name.toLowerCase();
-  if(n.endsWith('.gpx')){const r=new FileReader();r.onload=ev=>loadGPX(ev.target.result);r.readAsText(f);}
-  else if(n.endsWith('.kmz')){loadKMZ(f);}
-  else if(n.endsWith('.kml')){const r=new FileReader();r.onload=ev=>importKML(ev.target.result);r.readAsText(f);}
+  const isGpx=n.endsWith('.gpx')||f.type==='application/gpx+xml';
+  const isKmz=n.endsWith('.kmz')||f.type==='application/vnd.google-earth.kmz';
+  const isKml=n.endsWith('.kml')||f.type==='application/vnd.google-earth.kml+xml';
+  if(isGpx){const r=new FileReader();r.onload=ev=>loadGPX(ev.target.result);r.readAsText(f);}
+  else if(isKmz){loadKMZ(f);}
+  else if(isKml){const r=new FileReader();r.onload=ev=>importKML(ev.target.result);r.readAsText(f);}
+  else{
+    // tenta detectar pelo conteúdo (iOS às vezes não preserva a extensão)
+    const r=new FileReader();
+    r.onload=ev=>{
+      const txt=ev.target.result;
+      if(txt.includes('<gpx')){loadGPX(txt);}
+      else if(txt.includes('<kml')||txt.includes('<Placemark')){importKML(txt);}
+      else{
+        // pode ser KMZ (zip) — tenta
+        const r2=new FileReader();r2.onload=e2=>loadKMZ(new Blob([e2.target.result]));r2.readAsArrayBuffer(f);
+      }
+    };
+    r.readAsText(f);
+  }
 }
 
 function loadGPX(txt){
@@ -467,8 +484,7 @@ document.getElementById('spd').addEventListener('input',e=>{S.speed=parseInt(e.t
 document.getElementById('btn-km').addEventListener('click',()=>{S.showKm=!S.showKm;document.getElementById('btn-km').classList.toggle('on',S.showKm);renderKmMarkers();});
 document.getElementById('btn-hydra').addEventListener('click',()=>{S.hydraMode=!S.hydraMode;document.getElementById('btn-hydra').classList.toggle('on',S.hydraMode);document.getElementById('hydra-tip').hidden=!S.hydraMode;map.getCanvas().style.cursor=S.hydraMode?'crosshair':'';});
 document.getElementById('btn-kml').addEventListener('click',()=>document.getElementById('kml-file').click());
-document.getElementById('btn-up').addEventListener('click',()=>document.getElementById('gpx-file').click());
-document.getElementById('btn-up-main').addEventListener('click',()=>document.getElementById('gpx-file').click());
+// btn-up e btn-up-main são <label for="gpx-file"> — disparam o input nativamente
 document.getElementById('gpx-file').addEventListener('change',e=>{handleFile(e.target.files[0]);e.target.value='';});
 document.getElementById('kml-file').addEventListener('change',e=>{handleFile(e.target.files[0]);e.target.value='';});
 document.addEventListener('dragover',e=>e.preventDefault());
