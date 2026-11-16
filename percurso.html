@@ -232,12 +232,15 @@ async function importKML(kmlText){
     const url=nlHref.textContent.trim();
     showToast('🔄 Buscando dados do Google Maps…');
     try{
-      const resp=await fetch(url);
+      const fetchUrl=url.startsWith('https://www.google.com/maps/d/kml')
+        ?'/api/kml-proxy?url='+encodeURIComponent(url)
+        :url;
+      const resp=await fetch(fetchUrl);
       if(!resp.ok)throw new Error('HTTP '+resp.status);
       const linked=await resp.text();
       return importKML(linked);
     }catch(e){
-      showToast('⚠️ Não foi possível carregar o NetworkLink.\n\nPara importar os pontos do Google Maps:\n1. Abra o mapa no Google Maps\n2. ⋮ → Exportar KML\n3. Desmarque "manter atualizado"\n4. Envie o arquivo .kml gerado',9000);
+      showToast('⚠️ Não foi possível carregar o mapa do Google Maps.\n\nPara exportar manualmente:\n1. Abra o mapa no Google Maps\n2. ⋮ → Exportar KML\n3. Desmarque "manter atualizado"\n4. Envie o arquivo .kml gerado',9000);
       return;
     }
   }
