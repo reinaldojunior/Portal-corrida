@@ -58,6 +58,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .pset:hover,.pset.on{opacity:1;transform:scale(1.2)}
 #color-wrap{width:22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,.25);position:relative;overflow:hidden;cursor:pointer;flex-shrink:0}
 #color-pick{position:absolute;inset:-4px;opacity:0;cursor:pointer;width:calc(100% + 8px);height:calc(100% + 8px)}
+#bg-wrap{width:22px;height:22px;border-radius:50%;border:2px dashed rgba(255,255,255,.25);position:relative;overflow:hidden;cursor:pointer;flex-shrink:0}
+#bg-pick{position:absolute;inset:-4px;opacity:0;cursor:pointer;width:calc(100% + 8px);height:calc(100% + 8px)}
+#bg-opa{-webkit-appearance:none;appearance:none;width:48px;height:3px;border-radius:2px;background:var(--border);outline:none;flex-shrink:0}
+#bg-opa::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--muted);cursor:pointer}
 .hbtn{background:rgba(41,182,246,.12);border:1px solid var(--hydra);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--hydra);cursor:pointer;flex-shrink:0;font-family:'Inter',sans-serif;transition:background .15s;white-space:nowrap}
 .hbtn.on{background:rgba(41,182,246,.28)}
 .tbtn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--muted);cursor:pointer;flex-shrink:0;white-space:nowrap;transition:background .15s}
@@ -127,6 +131,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     <div id="color-wrap" style="background:#e63946">
       <input type="color" id="color-pick" value="#e63946">
     </div>
+    <div id="bg-wrap" style="background:#09090f" title="Cor do fundo">
+      <input type="color" id="bg-pick" value="#09090f">
+    </div>
+    <input type="range" id="bg-opa" min="10" max="100" value="100" title="Opacidade do fundo">
     <div class="csep"></div>
     <button class="hbtn" id="btn-hydra">💧 Hidratação</button>
     <div class="csep"></div>
@@ -152,7 +160,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 
 <script>
 const cv=document.getElementById('map'),cx=cv.getContext('2d'),dpr=window.devicePixelRatio||1;
-const S={raw:[],proj:[],elev:[],cumKm:[],hydra:[],idx:0,playing:false,color:'#e63946',speed:3,hydraMode:false,showKm:true,raf:null,bounds:null,asp:null};
+const S={raw:[],proj:[],elev:[],cumKm:[],hydra:[],idx:0,playing:false,color:'#e63946',speed:3,hydraMode:false,showKm:true,raf:null,bounds:null,asp:null,bgColor:'#09090f',bgOpacity:1};
 
 function resize(){
   const w=window.innerWidth,ctrl=document.getElementById('ctrl').offsetHeight||64;
@@ -290,9 +298,7 @@ function xyToLonlat(px,py){
 function redraw(){
   if(!S.raw.length)return;
   cx.clearRect(0,0,cv.width,cv.height);
-  const g=cx.createRadialGradient(cv.width/2,cv.height/2,0,cv.width/2,cv.height/2,Math.max(cv.width,cv.height)*.65);
-  g.addColorStop(0,'#111120');g.addColorStop(1,'#09090f');
-  cx.fillStyle=g;cx.fillRect(0,0,cv.width,cv.height);
+  cx.globalAlpha=S.bgOpacity;cx.fillStyle=S.bgColor;cx.fillRect(0,0,cv.width,cv.height);cx.globalAlpha=1;
   cx.strokeStyle='rgba(255,255,255,0.025)';cx.lineWidth=1;
   for(let i=0;i<=10;i++){const x=cv.width/10*i,y=cv.height/10*i;cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,cv.height);cx.stroke();cx.beginPath();cx.moveTo(0,y);cx.lineTo(cv.width,y);cx.stroke();}
   const n=S.idx;
@@ -387,6 +393,9 @@ document.querySelectorAll('.pset').forEach(btn=>{
 document.getElementById('color-pick').addEventListener('input',e=>{setColor(e.target.value);document.querySelectorAll('.pset').forEach(b=>b.classList.remove('on'));});
 
 function setColor(c){S.color=c;document.getElementById('color-wrap').style.background=c;document.getElementById('color-pick').value=c;if(S.raw.length){drawElevProfile();redraw();}}
+function setBg(c,o){S.bgColor=c;S.bgOpacity=o;document.getElementById('bg-wrap').style.background=c;document.getElementById('bg-pick').value=c;document.body.style.background=c;if(S.raw.length)redraw();}
+document.getElementById('bg-pick').addEventListener('input',e=>setBg(e.target.value,S.bgOpacity));
+document.getElementById('bg-opa').addEventListener('input',e=>setBg(S.bgColor,parseInt(e.target.value)/100));
 
 document.getElementById('btn-hydra').addEventListener('click',()=>{S.hydraMode=!S.hydraMode;document.getElementById('btn-hydra').classList.toggle('on',S.hydraMode);document.getElementById('hydra-tip').hidden=!S.hydraMode;cv.style.cursor=S.hydraMode?'crosshair':'default';});
 cv.addEventListener('click',e=>{if(!S.hydraMode||!S.raw.length)return;const rect=cv.getBoundingClientRect();const px=(e.clientX-rect.left)*dpr,py=(e.clientY-rect.top)*dpr;const[lo,la]=xyToLonlat(px,py);let best=Infinity,bestKm=0;S.raw.forEach(([rlo,rla],i)=>{const d=Math.hypot(rlo-lo,rla-la);if(d<best){best=d;bestKm=S.cumKm[i];}});S.hydra.push({lo,la,km:bestKm});redraw();});
@@ -394,7 +403,7 @@ cv.addEventListener('contextmenu',e=>{e.preventDefault();if(S.hydra.length){S.hy
 
 function showToast(msg,duration=4000){document.querySelectorAll('.toast').forEach(t=>t.remove());const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),duration);}
 
-(function bg(){cx.clearRect(0,0,cv.width,cv.height);const g=cx.createRadialGradient(cv.width/2,cv.height/2,0,cv.width/2,cv.height/2,Math.max(cv.width,cv.height)*.65);g.addColorStop(0,'#111120');g.addColorStop(1,'#09090f');cx.fillStyle=g;cx.fillRect(0,0,cv.width,cv.height);cx.strokeStyle='rgba(255,255,255,0.025)';cx.lineWidth=1;for(let i=0;i<=10;i++){const x=cv.width/10*i,y=cv.height/10*i;cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,cv.height);cx.stroke();cx.beginPath();cx.moveTo(0,y);cx.lineTo(cv.width,y);cx.stroke();}})();
+(function bg(){cx.clearRect(0,0,cv.width,cv.height);cx.fillStyle=S.bgColor;cx.fillRect(0,0,cv.width,cv.height);cx.strokeStyle='rgba(255,255,255,0.025)';cx.lineWidth=1;for(let i=0;i<=10;i++){const x=cv.width/10*i,y=cv.height/10*i;cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,cv.height);cx.stroke();cx.beginPath();cx.moveTo(0,y);cx.lineTo(cv.width,y);cx.stroke();}})();
 </script>
 </body>
 </html>
