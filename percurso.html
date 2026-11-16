@@ -136,27 +136,18 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     </g>
     <!-- PESCOÇO -->
     <rect x="25" y="21" width="10" height="7" rx="4" fill="#FFCCBC"/>
-    <!-- CABEÇA -->
+    <!-- CABEÇA (vista de trás) -->
     <g id="av-head">
+      <!-- pele da nuca -->
       <circle cx="30" cy="13" r="13" fill="#FFCCBC"/>
-      <!-- cabelo -->
-      <path d="M17 10 Q30 0 43 10 Q40 2 30 1 Q20 2 17 10Z" fill="#2C1810"/>
-      <rect x="17" y="7" width="26" height="6" rx="3" fill="#2C1810"/>
-      <!-- faixa na cabeça -->
+      <!-- cabelo cobrindo a parte de trás da cabeça -->
+      <ellipse cx="30" cy="10" rx="13" ry="12" fill="#2C1810"/>
+      <!-- pele aparecendo na nuca (base da cabeça) -->
+      <ellipse cx="30" cy="23" rx="7" ry="4.5" fill="#FFCCBC"/>
+      <!-- faixa na cabeça (costas) -->
       <path d="M17 10 Q30 6 43 10" stroke="#FDD835" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-      <!-- olhos -->
-      <ellipse cx="25" cy="13" rx="2.8" ry="3.2" fill="#1A1A2E"/>
-      <ellipse cx="35" cy="13" rx="2.8" ry="3.2" fill="#1A1A2E"/>
-      <circle cx="26" cy="11.5" r="1.1" fill="white"/>
-      <circle cx="36" cy="11.5" r="1.1" fill="white"/>
-      <!-- sobrancelhas levantadas (expressão de esforço) -->
-      <path d="M21.5 8.5 Q25 6.5 28.5 8.5" stroke="#2C1810" stroke-width="1.6" fill="none" stroke-linecap="round"/>
-      <path d="M31.5 8.5 Q35 6.5 38.5 8.5" stroke="#2C1810" stroke-width="1.6" fill="none" stroke-linecap="round"/>
-      <!-- boca aberta de esforço -->
-      <path d="M25.5 19 Q30 23.5 34.5 19" stroke="#C07050" stroke-width="1.5" fill="rgba(180,80,50,.3)" stroke-linecap="round"/>
-      <!-- gotas de suor -->
-      <ellipse cx="41" cy="8" rx="2" ry="3" fill="#64B5F6" opacity=".8" transform="rotate(20 41 8)"/>
-      <ellipse cx="44" cy="13" rx="1.5" ry="2.2" fill="#64B5F6" opacity=".6" transform="rotate(15 44 13)"/>
+      <!-- gotas de suor nas laterais (ainda visíveis de costas) -->
+      <ellipse cx="16" cy="12" rx="1.5" ry="2.2" fill="#64B5F6" opacity=".7" transform="rotate(-20 16 12)"/>
     </g>
   </g>
 </svg>
@@ -494,9 +485,9 @@ function animate(){
   }else if(S.camMode==='chase'){
     const pi=Math.max(0,ci-10);const[plo,pla]=S.raw[pi];
     const bearing=Math.atan2(lo-plo,la-pla)*180/Math.PI;
-    // desloca centro 250 m à frente do dot → dot fica na parte inferior
-    const fwd=geoOffset(lo,la,bearing,0.25);
-    map.easeTo({center:fwd,bearing,pitch:72,zoom:15.5,duration:80,easing:t=>t});
+    // street view: câmera atrás do corredor olhando para frente
+    const fwd=geoOffset(lo,la,bearing,0.04);
+    map.easeTo({center:fwd,bearing,pitch:80,zoom:17,duration:80,easing:t=>t});
   }
   updateStats();
   document.getElementById('elev-progress').style.width=(total?(S.distKm/total)*100:0)+'%';
@@ -574,7 +565,7 @@ function setCamMode(mode){
   const idMap={'2d':'btn-cam2d',follow:'btn-camfollow','3d':'btn-cam3d',chase:'btn-camchase'};
   document.getElementById(idMap[mode]||'btn-cam2d').classList.add('on');
   if(mode==='3d'){if(map.isStyleLoaded())setupTerrain();map.easeTo({pitch:65,duration:600});}
-  else if(mode==='chase'){if(map.isStyleLoaded())setupTerrain();map.easeTo({pitch:72,duration:600});}
+  else if(mode==='chase'){if(map.isStyleLoaded())setupTerrain();map.easeTo({pitch:80,zoom:17,duration:600});}
   else{if(map.getTerrain())map.setTerrain(null);map.easeTo({pitch:0,bearing:0,duration:600});}
   // avatar: só aparece no modo chase
   const av=document.getElementById('avatar');
