@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Percurso Animado – MapMove</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;900&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root {
+  --bg: #09090f;
+  --surface: #0f0f1b;
+  --border: rgba(255,255,255,0.08);
+  --route: #e63946;
+  --hydra: #29b6f6;
+  --start: #69f0ae;
+  --finish: #ff9800;
+  --text: #f0f0f8;
+  --muted: #64647e;
+  --elev-h: 100px;
+  --ctrl-h: 64px;
+  color-scheme: dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;overflow:hidden}
+#map{position:fixed;top:0;left:0;right:0;bottom:calc(var(--elev-h)+var(--ctrl-h));display:block;width:100%;height:100%;cursor:default}
+#hdr{position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;padding:10px max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));background:linear-gradient(to bottom,rgba(9,9,15,.92) 70%,transparent);display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:20;pointer-events:none}
+#race-name{pointer-events:auto;background:none;border:none;outline:none;font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:900;letter-spacing:-.4px;text-transform:uppercase;color:var(--text);flex:1;min-width:0}
+#race-name::placeholder{color:var(--muted)}
+#stats{display:flex;gap:14px;flex-shrink:0}
+.sv{text-align:right}
+.sv-n{display:block;font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.sv-u{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+#empty{position:fixed;top:0;left:0;right:0;bottom:calc(var(--elev-h)+var(--ctrl-h));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:15;pointer-events:none}
+#empty.gone{display:none}
+.up-btn{pointer-events:auto;background:var(--route);color:#fff;border:none;border-radius:24px;padding:12px 28px;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px}
+.up-btn:hover{filter:brightness(1.12)}
+.up-hint{font-size:13px;color:var(--muted)}
+.up-formats{font-size:11px;color:var(--muted);opacity:.6}
+#elev-panel{position:fixed;bottom:var(--ctrl-h);left:0;right:0;height:var(--elev-h);background:var(--surface);border-top:1px solid var(--border);overflow:hidden}
+#elev-label{position:absolute;top:7px;left:12px;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+#elev-gain{position:absolute;top:7px;right:12px;font-size:11px;color:var(--start);font-family:'Space Grotesk',sans-serif;font-weight:500}
+#elev-svg{position:absolute;bottom:0;left:0;right:0;height:76px;overflow:visible}
+#elev-progress{position:absolute;top:0;left:0;width:0;height:2px;background:var(--route);z-index:2}
+#ctrl{position:fixed;bottom:env(safe-area-inset-bottom,0px);left:0;right:0;min-height:var(--ctrl-h);background:var(--surface);border-top:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;gap:0;padding:6px max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}
+.ctrl-row{display:flex;align-items:center;gap:6px;width:100%}
+.ctrl-row+.ctrl-row{margin-top:4px}
+.cb{background:rgba(255,255,255,.07);border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text);flex-shrink:0;transition:background .15s}
+.cb:hover{background:rgba(255,255,255,.13)}
+.cb.prime{background:var(--route);width:40px;height:40px}
+.cb.prime:hover{filter:brightness(1.12)}
+.csep{width:1px;height:20px;background:var(--border);flex-shrink:0}
+#spd{-webkit-appearance:none;appearance:none;width:56px;height:3px;border-radius:2px;background:var(--border);outline:none;flex-shrink:0}
+#spd::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--route);cursor:pointer}
+#spd-lbl{font-size:11px;color:var(--muted);min-width:22px;font-variant-numeric:tabular-nums}
+#presets{display:flex;gap:5px;flex-shrink:0}
+.pset{width:18px;height:18px;border-radius:50%;border:none;cursor:pointer;opacity:.6;transition:opacity .15s,transform .15s;flex-shrink:0}
+.pset:hover,.pset.on{opacity:1;transform:scale(1.2)}
+#color-wrap{width:22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,.25);position:relative;overflow:hidden;cursor:pointer;flex-shrink:0}
+#color-pick{position:absolute;inset:-4px;opacity:0;cursor:pointer;width:calc(100% + 8px);height:calc(100% + 8px)}
+.hbtn{background:rgba(41,182,246,.12);border:1px solid var(--hydra);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--hydra);cursor:pointer;flex-shrink:0;font-family:'Inter',sans-serif;transition:background .15s;white-space:nowrap}
+.hbtn.on{background:rgba(41,182,246,.28)}
+.tbtn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--muted);cursor:pointer;flex-shrink:0;white-space:nowrap;transition:background .15s}
+.tbtn.on{background:rgba(255,255,255,.15);color:var(--text);border-color:rgba(255,255,255,.25)}
+.csp{flex:1}
+#hydra-tip{position:fixed;bottom:calc(var(--ctrl-h)+var(--elev-h)+10px);left:50%;transform:translateX(-50%);background:rgba(41,182,246,.92);color:#fff;padding:6px 16px;border-radius:20px;font-size:12px;font-weight:500;pointer-events:none;z-index:30;white-space:nowrap}
+#legend{position:fixed;bottom:calc(var(--ctrl-h)+var(--elev-h)+10px);right:max(12px,env(safe-area-inset-right,0px));display:none;flex-direction:column;gap:5px;z-index:10}
+.li{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted)}
+.ld{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.toast{position:fixed;bottom:calc(var(--ctrl-h)+var(--elev-h)+52px);left:50%;transform:translateX(-50%);background:rgba(15,15,27,.95);border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:20px;font-size:12px;z-index:50;white-space:pre-wrap;max-width:88vw;text-align:center;pointer-events:none;line-height:1.4}
+#gpx-file,#kml-file{display:none}
+</style>
+</head>
+<body>
+
+<input type="file" id="gpx-file" accept=".gpx,.kmz,.kml">
+<input type="file" id="kml-file" accept=".kmz,.kml">
+<canvas id="map"></canvas>
+
+<div id="empty">
+  <div style="font-size:40px;opacity:.25">🏃</div>
+  <div style="font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;color:#555">Carregue seu percurso</div>
+  <div class="up-hint">GPX da rota principal</div>
+  <button class="up-btn" id="up-btn">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Upload GPX
+  </button>
+  <div class="up-formats">Também aceita KMZ / KML do Google Maps</div>
+</div>
+
+<div id="elev-panel">
+  <div id="elev-progress"></div>
+  <span id="elev-label">Perfil de Elevação</span>
+  <span id="elev-gain">+0 m</span>
+  <svg id="elev-svg" preserveAspectRatio="none"></svg>
+</div>
+
+<div id="ctrl">
+  <div class="ctrl-row">
+    <button class="cb prime" id="btn-play" aria-label="Play">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+    </button>
+    <button class="cb" id="btn-rst" aria-label="Reiniciar">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5.5"/></svg>
+    </button>
+    <div class="csep"></div>
+    <input type="range" id="spd" min="1" max="8" value="3">
+    <span id="spd-lbl">3×</span>
+    <div class="csep"></div>
+    <button class="tbtn on" id="btn-km">📍 km</button>
+    <div class="csp"></div>
+    <button class="cb" id="btn-up" aria-label="Upload">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    </button>
+  </div>
+  <div class="ctrl-row">
+    <div id="presets">
+      <button class="pset on" style="background:#e63946" data-color="#e63946"></button>
+      <button class="pset" style="background:#ff9f1c" data-color="#ff9f1c"></button>
+      <button class="pset" style="background:#ffd60a" data-color="#ffd60a"></button>
+      <button class="pset" style="background:#06d6a0" data-color="#06d6a0"></button>
+      <button class="pset" style="background:#4cc9f0" data-color="#4cc9f0"></button>
+      <button class="pset" style="background:#f72585" data-color="#f72585"></button>
+      <button class="pset" style="background:#e9c46a" data-color="#e9c46a"></button>
+      <button class="pset" style="background:#ffffff" data-color="#ffffff"></button>
+    </div>
+    <div id="color-wrap" style="background:#e63946">
+      <input type="color" id="color-pick" value="#e63946">
+    </div>
+    <div class="csep"></div>
+    <button class="hbtn" id="btn-hydra">💧 Hidratação</button>
+    <div class="csep"></div>
+    <button class="tbtn" id="btn-kml">📂 KMZ</button>
+  </div>
+</div>
+
+<header id="hdr">
+  <input id="race-name" type="text" placeholder="Nome da Corrida" maxlength="40">
+  <div id="stats">
+    <div class="sv"><span class="sv-n" id="s-km">—</span><span class="sv-u">KM</span></div>
+    <div class="sv"><span class="sv-n" id="s-el">—</span><span class="sv-u">m ↑</span></div>
+  </div>
+</header>
+
+<div id="legend">
+  <div class="li"><div class="ld" style="background:var(--start)"></div>Largada</div>
+  <div class="li"><div class="ld" style="background:var(--finish)"></div>Chegada</div>
+  <div class="li"><div class="ld" style="background:var(--hydra)"></div>Hidratação</div>
+</div>
+
+<div id="hydra-tip" hidden>Toque no percurso para marcar hidratação · Long press remove</div>
+
+<script>
+const cv=document.getElementById('map'),cx=cv.getContext('2d'),dpr=window.devicePixelRatio||1;
+const S={raw:[],proj:[],elev:[],cumKm:[],hydra:[],idx:0,playing:false,color:'#e63946',speed:3,hydraMode:false,showKm:true,raf:null,bounds:null,asp:null};
+
+function resize(){
+  const w=window.innerWidth,ctrl=document.getElementById('ctrl').offsetHeight||64;
+  const el=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--elev-h'))||100;
+  const h=window.innerHeight-ctrl-el;
+  cv.width=w*dpr;cv.height=h*dpr;cv.style.width=w+'px';cv.style.height=h+'px';
+  document.documentElement.style.setProperty('--ctrl-h',ctrl+'px');
+  if(S.raw.length){drawElevProfile();redraw();}
+}
+window.addEventListener('resize',resize);resize();
+
+function triggerUpload(){document.getElementById('gpx-file').click();}
+document.getElementById('up-btn').addEventListener('click',triggerUpload);
+document.getElementById('btn-up').addEventListener('click',triggerUpload);
+document.getElementById('gpx-file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;handleFile(f);e.target.value='';});
+document.getElementById('kml-file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;handleFile(f);e.target.value='';});
+document.getElementById('btn-kml').addEventListener('click',()=>document.getElementById('kml-file').click());
+
+function handleFile(file){
+  const n=file.name.toLowerCase();
+  if(n.endsWith('.gpx')){const r=new FileReader();r.onload=ev=>loadGPX(ev.target.result);r.readAsText(file);}
+  else if(n.endsWith('.kmz')){loadKMZ(file);}
+  else if(n.endsWith('.kml')){const r=new FileReader();r.onload=ev=>importKML(ev.target.result);r.readAsText(file);}
+}
+
+function loadGPX(txt){
+  const doc=new DOMParser().parseFromString(txt,'text/xml');
+  const pts=doc.querySelectorAll('trkpt');
+  const raw=[];
+  pts.forEach(p=>{const la=parseFloat(p.getAttribute('lat')),lo=parseFloat(p.getAttribute('lon')),el=parseFloat(p.querySelector('ele')?.textContent||'0');if(!isNaN(la)&&!isNaN(lo))raw.push([lo,la,isNaN(el)?0:el]);});
+  if(!raw.length)return showToast('⚠️ Nenhum ponto encontrado no GPX');
+  const nm=doc.querySelector('name'),inp=document.getElementById('race-name');
+  if(nm&&!inp.value)inp.value=nm.textContent.trim();
+  init(raw);
+}
+
+function init(raw){
+  S.raw=raw;S.hydra=[];S.idx=0;S.playing=false;
+  let lo0=Infinity,lo1=-Infinity,la0=Infinity,la1=-Infinity;
+  raw.forEach(([lo,la])=>{lo0=Math.min(lo0,lo);lo1=Math.max(lo1,lo);la0=Math.min(la0,la);la1=Math.max(la1,la);});
+  const dlo=lo1-lo0||1e-5,dla=la1-la0||1e-5,cosLat=Math.cos((la0+la1)/2*Math.PI/180);
+  S.bounds={lo0,lo1,la0,la1,dlo,dla,cosLat};S.asp={data:(dlo*cosLat)/dla};
+  S.proj=raw.map(([lo,la])=>[(lo-lo0)/dlo,1-(la-la0)/dla]);
+  S.elev=raw.map(p=>p[2]);
+  S.cumKm=[0];for(let i=1;i<raw.length;i++)S.cumKm.push(S.cumKm[i-1]+haversine(raw[i-1],raw[i])/1000);
+  const totKm=S.cumKm[S.cumKm.length-1];
+  let gain=0;for(let i=1;i<S.elev.length;i++){const d=S.elev[i]-S.elev[i-1];if(d>0)gain+=d;}
+  document.getElementById('s-km').textContent=totKm.toFixed(1);
+  document.getElementById('s-el').textContent=Math.round(gain);
+  document.getElementById('elev-gain').textContent='+'+Math.round(gain)+' m';
+  document.getElementById('empty').classList.add('gone');
+  document.getElementById('legend').style.display='flex';
+  drawElevProfile();redraw();setTimeout(play,400);
+}
+
+function haversine([lo1,la1],[lo2,la2]){
+  const R=6371000,f=Math.PI/180,dLa=(la2-la1)*f,dLo=(lo2-lo1)*f;
+  const a=Math.sin(dLa/2)**2+Math.cos(la1*f)*Math.cos(la2*f)*Math.sin(dLo/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+async function loadKMZ(file){
+  if(typeof JSZip==='undefined'){showToast('⚠️ JSZip não carregou, recarregue a página');return;}
+  try{
+    const zip=await JSZip.loadAsync(file);
+    const kmlFiles=Object.keys(zip.files).filter(n=>n.match(/\.kml$/i));
+    if(!kmlFiles.length){showToast('⚠️ Nenhum KML no KMZ');return;}
+    const kmlText=await zip.files[kmlFiles[0]].async('text');
+    await importKML(kmlText);
+  }catch(e){showToast('⚠️ Erro ao ler KMZ:\n'+e.message);}
+}
+
+async function importKML(kmlText){
+  const doc=new DOMParser().parseFromString(kmlText,'text/xml');
+  const nlHref=doc.querySelector('NetworkLink Link href, NetworkLink href');
+  if(nlHref){
+    const url=nlHref.textContent.trim();
+    showToast('🔄 Buscando dados do Google Maps…');
+    try{
+      const resp=await fetch(url);
+      if(!resp.ok)throw new Error('HTTP '+resp.status);
+      const linked=await resp.text();
+      return importKML(linked);
+    }catch(e){
+      showToast('⚠️ Não foi possível carregar o NetworkLink.\n\nPara importar os pontos do Google Maps:\n1. Abra o mapa no Google Maps\n2. ⋮ → Exportar KML\n3. Desmarque "manter atualizado"\n4. Envie o arquivo .kml gerado',9000);
+      return;
+    }
+  }
+  const placemarks=doc.querySelectorAll('Placemark');
+  const newHydra=[];
+  placemarks.forEach(pm=>{
+    const name=(pm.querySelector('name')?.textContent||'').trim();
+    const ptCoords=pm.querySelector('Point coordinates');
+    if(!ptCoords)return;
+    const parts=ptCoords.textContent.trim().split(/[\s,]+/);
+    const lo=parseFloat(parts[0]),la=parseFloat(parts[1]);
+    if(isNaN(lo)||isNaN(la))return;
+    newHydra.push({lo,la,km:null,name});
+  });
+  if(!newHydra.length){showToast('⚠️ Nenhum ponto (Placemark) encontrado no KML');return;}
+  if(S.raw.length){
+    newHydra.forEach(h=>{
+      let best=Infinity,bestKm=0;
+      S.raw.forEach(([rlo,rla],i)=>{const d=Math.hypot(rlo-h.lo,rla-h.la);if(d<best){best=d;bestKm=S.cumKm[i];}});
+      h.km=bestKm;
+    });
+  }
+  S.hydra.push(...newHydra);
+  redraw();
+  showToast('✅ '+newHydra.length+' ponto(s) importado(s) do KML');
+}
+
+function toXY(nx,ny){
+  const pad=0.11,cAsp=cv.width/cv.height,dAsp=S.asp.data;
+  let sx,sy,ox,oy;
+  if(dAsp>cAsp){sx=cv.width*(1-pad*2);sy=sx/dAsp;ox=cv.width*pad;oy=(cv.height-sy)/2;}
+  else{sy=cv.height*(1-pad*2);sx=sy*dAsp;ox=(cv.width-sx)/2;oy=cv.height*pad;}
+  return[ox+nx*sx,oy+ny*sy];
+}
+function lonlatToXY(lo,la){const{lo0,dlo,la0,dla}=S.bounds;return toXY((lo-lo0)/dlo,1-(la-la0)/dla);}
+function xyToLonlat(px,py){
+  const pad=0.11,cAsp=cv.width/cv.height,dAsp=S.asp.data;
+  let sx,sy,ox,oy;
+  if(dAsp>cAsp){sx=cv.width*(1-pad*2);sy=sx/dAsp;ox=cv.width*pad;oy=(cv.height-sy)/2;}
+  else{sy=cv.height*(1-pad*2);sx=sy*dAsp;ox=(cv.width-sx)/2;oy=cv.height*pad;}
+  const nx=(px-ox)/sx,ny=(py-oy)/sy;
+  const{lo0,dlo,la0,dla}=S.bounds;
+  return[lo0+nx*dlo,la0+(1-ny)*dla];
+}
+
+function redraw(){
+  if(!S.raw.length)return;
+  cx.clearRect(0,0,cv.width,cv.height);
+  const g=cx.createRadialGradient(cv.width/2,cv.height/2,0,cv.width/2,cv.height/2,Math.max(cv.width,cv.height)*.65);
+  g.addColorStop(0,'#111120');g.addColorStop(1,'#09090f');
+  cx.fillStyle=g;cx.fillRect(0,0,cv.width,cv.height);
+  cx.strokeStyle='rgba(255,255,255,0.025)';cx.lineWidth=1;
+  for(let i=0;i<=10;i++){const x=cv.width/10*i,y=cv.height/10*i;cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,cv.height);cx.stroke();cx.beginPath();cx.moveTo(0,y);cx.lineTo(cv.width,y);cx.stroke();}
+  const n=S.idx;
+  if(n>0){cx.beginPath();S.proj.forEach(([nx,ny],i)=>{const[x,y]=toXY(nx,ny);i===0?cx.moveTo(x,y):cx.lineTo(x,y);});cx.strokeStyle='rgba(255,255,255,0.05)';cx.lineWidth=2*dpr;cx.lineJoin='round';cx.lineCap='round';cx.stroke();}
+  if(n>1){
+    cx.save();cx.shadowColor=S.color;cx.shadowBlur=16*dpr;
+    cx.beginPath();for(let i=0;i<n;i++){const[x,y]=toXY(S.proj[i][0],S.proj[i][1]);i===0?cx.moveTo(x,y):cx.lineTo(x,y);}
+    cx.strokeStyle=S.color;cx.lineWidth=3.5*dpr;cx.lineJoin='round';cx.lineCap='round';cx.stroke();cx.restore();
+    cx.beginPath();for(let i=0;i<n;i++){const[x,y]=toXY(S.proj[i][0],S.proj[i][1]);i===0?cx.moveTo(x,y):cx.lineTo(x,y);}
+    cx.strokeStyle=S.color;cx.lineWidth=2.5*dpr;cx.lineJoin='round';cx.lineCap='round';cx.stroke();
+  }
+  if(S.showKm)drawKmMarkers();
+  if(S.proj.length){const[x,y]=toXY(S.proj[0][0],S.proj[0][1]);dot(x,y,'#69f0ae','S');}
+  if(n>=S.proj.length&&S.proj.length){const[x,y]=toXY(S.proj[S.proj.length-1][0],S.proj[S.proj.length-1][1]);dot(x,y,'#ff9800','F');}
+  if(n>0&&n<S.proj.length){const[x,y]=toXY(S.proj[n-1][0],S.proj[n-1][1]);cx.save();cx.shadowColor=S.color;cx.shadowBlur=24*dpr;cx.beginPath();cx.arc(x,y,7*dpr,0,Math.PI*2);cx.fillStyle='#fff';cx.fill();cx.restore();}
+  S.hydra.forEach((h,i)=>{const[x,y]=lonlatToXY(h.lo,h.la);hydDot(x,y,i+1,h.km,h.name);});
+  const pct=S.raw.length?(n/S.raw.length)*100:0;
+  document.getElementById('elev-progress').style.width=pct+'%';
+  updateCursor(pct);
+}
+
+function drawKmMarkers(){
+  if(!S.cumKm.length)return;
+  const total=S.cumKm[S.cumKm.length-1];
+  const interval=total<=10?1:total<=21?2:5;
+  for(let km=interval;km<=Math.floor(total);km+=interval){
+    const idx=S.cumKm.findIndex(d=>d>=km);
+    if(idx<0||idx>=S.proj.length||idx>S.idx)continue;
+    const[x,y]=toXY(S.proj[idx][0],S.proj[idx][1]);
+    const r=7*dpr;
+    cx.save();cx.shadowColor='rgba(0,0,0,.5)';cx.shadowBlur=4*dpr;
+    cx.beginPath();cx.arc(x,y,r,0,Math.PI*2);
+    cx.fillStyle='rgba(255,255,255,.12)';cx.strokeStyle='rgba(255,255,255,.35)';cx.lineWidth=1;cx.fill();cx.stroke();cx.restore();
+    cx.font=`bold ${7*dpr}px Inter,sans-serif`;cx.fillStyle='rgba(255,255,255,.65)';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(km,x,y);
+  }
+}
+
+function dot(x,y,color,label){
+  const r=10*dpr;cx.save();cx.shadowColor=color;cx.shadowBlur=12*dpr;
+  cx.beginPath();cx.arc(x,y,r,0,Math.PI*2);cx.fillStyle=color;cx.fill();cx.restore();
+  cx.fillStyle='#000';cx.font=`bold ${10*dpr}px Inter,sans-serif`;cx.textAlign='center';cx.textBaseline='middle';cx.fillText(label,x,y);
+}
+
+function hydDot(x,y,num,km,name){
+  const r=9*dpr;cx.save();cx.shadowColor='#29b6f6';cx.shadowBlur=10*dpr;
+  cx.beginPath();cx.arc(x,y,r,0,Math.PI*2);cx.fillStyle='#29b6f6';cx.fill();cx.restore();
+  cx.fillStyle='#fff';cx.font=`bold ${8*dpr}px Inter,sans-serif`;cx.textAlign='center';cx.textBaseline='middle';cx.fillText(num,x,y);
+  const lbl=name||(km!=null?`km ${km.toFixed(1)}`:`#${num}`);
+  const fh=10*dpr,pad2=5*dpr;
+  cx.font=`${fh}px Inter,sans-serif`;
+  const tw=cx.measureText(lbl).width;
+  cx.fillStyle='rgba(0,0,0,.7)';
+  cx.beginPath();
+  if(cx.roundRect)cx.roundRect(x-tw/2-pad2,y-r-fh-pad2*2,tw+pad2*2,fh+pad2,4*dpr);
+  else cx.rect(x-tw/2-pad2,y-r-fh-pad2*2,tw+pad2*2,fh+pad2);
+  cx.fill();
+  cx.fillStyle='#4fc3f7';cx.textAlign='center';cx.textBaseline='top';cx.fillText(lbl,x,y-r-fh-pad2);
+}
+
+function drawElevProfile(){
+  if(!S.elev.length)return;
+  const svg=document.getElementById('elev-svg');
+  const W=document.getElementById('elev-panel').offsetWidth||window.innerWidth,H=76;
+  const mn=Math.min(...S.elev),mx=Math.max(...S.elev),rng=(mx-mn)||1,pad=5;
+  const pts=S.elev.map((e,i)=>{const x=(i/(S.elev.length-1))*W,y=H-pad-((e-mn)/rng)*(H-pad*3);return `${x.toFixed(1)},${y.toFixed(1)}`;});
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.setAttribute('width',W);svg.setAttribute('height',H);
+  svg.innerHTML=`<defs><linearGradient id="eg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${S.color}" stop-opacity=".45"/><stop offset="100%" stop-color="${S.color}" stop-opacity=".04"/></linearGradient></defs>
+  <polygon points="0,${H} ${pts.join(' ')} ${W},${H}" fill="url(#eg)"/>
+  <polyline points="${pts.join(' ')}" fill="none" stroke="${S.color}" stroke-width="1.5" stroke-linejoin="round"/>
+  <line id="ecur" x1="0" y1="0" x2="0" y2="${H}" stroke="rgba(255,255,255,.25)" stroke-width="1.5" stroke-dasharray="3,3"/>`;
+}
+
+function updateCursor(pct){
+  const cur=document.getElementById('ecur');if(!cur)return;
+  const W=document.getElementById('elev-panel').offsetWidth||window.innerWidth;
+  cur.setAttribute('x1',(pct/100)*W);cur.setAttribute('x2',(pct/100)*W);
+}
+
+function play(){if(!S.raw.length)return;if(S.idx>=S.raw.length)S.idx=0;S.playing=true;document.getElementById('btn-play').innerHTML=`<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;loop();}
+function pause(){S.playing=false;cancelAnimationFrame(S.raf);document.getElementById('btn-play').innerHTML=`<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`;}
+function loop(){if(!S.playing)return;const step=Math.max(1,Math.ceil(S.raw.length/(900/S.speed)));S.idx=Math.min(S.idx+step,S.raw.length);redraw();if(S.idx>=S.raw.length){pause();return;}S.raf=requestAnimationFrame(loop);}
+
+document.getElementById('btn-play').addEventListener('click',()=>{S.playing?pause():play();});
+document.getElementById('btn-rst').addEventListener('click',()=>{pause();S.idx=0;redraw();setTimeout(play,100);});
+document.getElementById('spd').addEventListener('input',e=>{S.speed=parseInt(e.target.value);document.getElementById('spd-lbl').textContent=S.speed+'×';});
+document.getElementById('btn-km').addEventListener('click',()=>{S.showKm=!S.showKm;document.getElementById('btn-km').classList.toggle('on',S.showKm);if(S.raw.length)redraw();});
+
+document.querySelectorAll('.pset').forEach(btn=>{
+  btn.addEventListener('click',()=>{setColor(btn.dataset.color);document.querySelectorAll('.pset').forEach(b=>b.classList.remove('on'));btn.classList.add('on');});
+});
+document.getElementById('color-pick').addEventListener('input',e=>{setColor(e.target.value);document.querySelectorAll('.pset').forEach(b=>b.classList.remove('on'));});
+
+function setColor(c){S.color=c;document.getElementById('color-wrap').style.background=c;document.getElementById('color-pick').value=c;if(S.raw.length){drawElevProfile();redraw();}}
+
+document.getElementById('btn-hydra').addEventListener('click',()=>{S.hydraMode=!S.hydraMode;document.getElementById('btn-hydra').classList.toggle('on',S.hydraMode);document.getElementById('hydra-tip').hidden=!S.hydraMode;cv.style.cursor=S.hydraMode?'crosshair':'default';});
+cv.addEventListener('click',e=>{if(!S.hydraMode||!S.raw.length)return;const rect=cv.getBoundingClientRect();const px=(e.clientX-rect.left)*dpr,py=(e.clientY-rect.top)*dpr;const[lo,la]=xyToLonlat(px,py);let best=Infinity,bestKm=0;S.raw.forEach(([rlo,rla],i)=>{const d=Math.hypot(rlo-lo,rla-la);if(d<best){best=d;bestKm=S.cumKm[i];}});S.hydra.push({lo,la,km:bestKm});redraw();});
+cv.addEventListener('contextmenu',e=>{e.preventDefault();if(S.hydra.length){S.hydra.pop();redraw();}});
+
+function showToast(msg,duration=4000){document.querySelectorAll('.toast').forEach(t=>t.remove());const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),duration);}
+
+(function bg(){cx.clearRect(0,0,cv.width,cv.height);const g=cx.createRadialGradient(cv.width/2,cv.height/2,0,cv.width/2,cv.height/2,Math.max(cv.width,cv.height)*.65);g.addColorStop(0,'#111120');g.addColorStop(1,'#09090f');cx.fillStyle=g;cx.fillRect(0,0,cv.width,cv.height);cx.strokeStyle='rgba(255,255,255,0.025)';cx.lineWidth=1;for(let i=0;i<=10;i++){const x=cv.width/10*i,y=cv.height/10*i;cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,cv.height);cx.stroke();cx.beginPath();cx.moveTo(0,y);cx.lineTo(cv.width,y);cx.stroke();}})();
+</script>
+</body>
+</html>
