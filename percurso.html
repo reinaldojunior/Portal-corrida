@@ -157,7 +157,7 @@ let map;
 function startMap(){
 map=new mapboxgl.Map({container:'map',style:'mapbox://styles/mapbox/dark-v11',center:[-47.25,-23.12],zoom:11,pitch:0,bearing:0,antialias:true});
 
-const S={raw:[],elev:[],cumKm:[],hydra:[],idx:0,playing:false,color:'#e63946',speed:3,hydraMode:false,showKm:true,camMode:'2d',raf:null,dotMarker:null,startMarker:null,finishMarker:null,kmMarkers:[],hydraMarkers:[]};
+const S={raw:[],elev:[],cumKm:[],hydra:[],idx:0,distKm:0,playing:false,color:'#e63946',speed:3,hydraMode:false,showKm:true,camMode:'2d',raf:null,dotMarker:null,startMarker:null,finishMarker:null,kmMarkers:[],hydraMarkers:[]};
 
 function emptyLine(){return{type:'Feature',geometry:{type:'LineString',coordinates:[]}};}
 
@@ -252,7 +252,7 @@ async function importKML(kmlText){
 
 // ── INIT ROUTE ─────────────────────────────────────────────────────────────────
 function init(raw,elev){
-  S.raw=raw;S.elev=elev||[];S.hydra=[];S.idx=0;S.playing=false;
+  S.raw=raw;S.elev=elev||[];S.hydra=[];S.idx=0;S.distKm=0;S.playing=false;
   S.cumKm=[0];
   for(let i=1;i<raw.length;i++){
     const[lo1,la1]=raw[i-1],[lo2,la2]=raw[i];
@@ -317,7 +317,8 @@ function renderHydraMarkers(){
 // ── ANIMATION ──────────────────────────────────────────────────────────────────
 function play(){
   if(!S.raw.length)return;
-  if(S.idx>=S.raw.length)S.idx=0;
+  const total=S.cumKm[S.cumKm.length-1]||0;
+  if(S.distKm>=total)S.distKm=0;
   S.playing=true;
   document.getElementById('btn-play').innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
   if(S.raf)cancelAnimationFrame(S.raf);
@@ -330,12 +331,24 @@ function pause(){
   document.getElementById('btn-play').innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>';
 }
 
+// km avançados por frame = speed × 0.004 (≈ speed km/min a 60fps)
+const KM_PER_SPEED = 0.004;
+
+function distToIdx(d){
+  // retorna o índice do ponto mais próximo da distância d (km)
+  let lo=0,hi=S.cumKm.length-1;
+  while(lo<hi){const mid=(lo+hi)>>1;if(S.cumKm[mid]<d)lo=mid+1;else hi=mid;}
+  return lo;
+}
+
 function animate(){
   if(!S.playing)return;
-  S.idx=Math.min(S.idx+S.speed,S.raw.length);
-  const coords=S.raw.slice(0,S.idx).map(([lo,la])=>[lo,la]);
+  const total=S.cumKm[S.cumKm.length-1]||0;
+  S.distKm=Math.min(S.distKm+S.speed*KM_PER_SPEED,total);
+  const ci=distToIdx(S.distKm);
+  S.idx=ci;
+  const coords=S.raw.slice(0,ci+1).map(([lo,la])=>[lo,la]);
   map.getSource('route-prog')?.setData({type:'Feature',geometry:{type:'LineString',coordinates:coords}});
-  const ci=Math.min(S.idx,S.raw.length-1);
   const[lo,la]=S.raw[ci];
   S.dotMarker?.setLngLat([lo,la]);
   if(S.camMode==='follow'){
@@ -346,8 +359,8 @@ function animate(){
     map.easeTo({center:[lo,la],bearing,pitch:65,duration:80,easing:t=>t});
   }
   updateStats();
-  document.getElementById('elev-progress').style.width=(S.raw.length?(S.idx/S.raw.length)*100:0)+'%';
-  if(S.idx>=S.raw.length){pause();return;}
+  document.getElementById('elev-progress').style.width=(total?(S.distKm/total)*100:0)+'%';
+  if(S.distKm>=total){pause();return;}
   S.raf=requestAnimationFrame(animate);
 }
 
@@ -426,7 +439,7 @@ function setCamMode(mode){
 // ── CONTROLS ───────────────────────────────────────────────────────────────────
 document.getElementById('btn-play').addEventListener('click',()=>S.playing?pause():play());
 document.getElementById('btn-rst').addEventListener('click',()=>{
-  pause();S.idx=0;
+  pause();S.idx=0;S.distKm=0;
   map.getSource('route-prog')?.setData(emptyLine());
   if(S.dotMarker&&S.raw.length)S.dotMarker.setLngLat(S.raw[0]);
   updateStats();document.getElementById('elev-progress').style.width='0';
