@@ -571,7 +571,7 @@ function setupTerrain(){
 function setCamMode(mode){
   S.camMode=mode;
   document.querySelectorAll('#btn-cam2d,#btn-camfollow,#btn-cam3d,#btn-camchase').forEach(b=>b.classList.remove('on'));
-  const idMap={2d:'btn-cam2d',follow:'btn-camfollow','3d':'btn-cam3d',chase:'btn-camchase'};
+  const idMap={'2d':'btn-cam2d',follow:'btn-camfollow','3d':'btn-cam3d',chase:'btn-camchase'};
   document.getElementById(idMap[mode]||'btn-cam2d').classList.add('on');
   if(mode==='3d'){if(map.isStyleLoaded())setupTerrain();map.easeTo({pitch:65,duration:600});}
   else if(mode==='chase'){if(map.isStyleLoaded())setupTerrain();map.easeTo({pitch:72,duration:600});}
