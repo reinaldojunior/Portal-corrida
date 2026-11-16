@@ -1,7 +1,7 @@
 /* ================== Configuração ================== */
 const SUPABASE_URL = 'https://ssfsxdmzbubvygctdjgf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
-const CENTRO = [-23.0903, -47.2181]; // Indaiatuba
+const CENTRO = [-23.5505, -46.6333]; // São Paulo
 const RAIO_KM = 30;
 const DOMINIO_ADMIN = 'admin.paceclub.app'; // o usuário "junior" entra como junior@admin.paceclub.app no Supabase
 
@@ -99,7 +99,7 @@ function modoDemo(motivo) {
   aviso.style.cssText = 'background:#FFF1D6;color:#6B4000;font-size:14px;padding:10px 20px;text-align:center;position:relative;z-index:650';
   aviso.textContent = 'Modo demonstração: esta visualização não consegue acessar o banco de dados, então mostra corridas de exemplo. Publicado num endereço real, o site usa os dados do Supabase.';
   document.body.prepend(aviso);
-  estado.pos = lerPosSalva();
+  estado.pos = lerPosSalva(); if (!estado.pos) lerCidadeSalva();
   aplicarModulos(); montarHome(); rotear(); rotuloPerto(); localizacaoAutomatica();
 }
 // O banco devolve no máximo 1000 linhas por consulta: busca em páginas até acabar.
@@ -136,7 +136,7 @@ async function carregar() {
   estado.modulos = Object.fromEntries(m.data.map((x) => [x.chave, x.ativo]));
   estado.corridas = c.data;
   guardarNoticias(n.error ? [] : n.data);
-  estado.pos = lerPosSalva(); // quem já aceitou antes abre direto perto de si
+  estado.pos = lerPosSalva(); if (!estado.pos) lerCidadeSalva(); // quem já aceitou antes abre direto perto de si
   try { aplicarModulos(); montarHome(); rotear(); rotuloPerto(); localizacaoAutomatica(); }
   catch (e) { console.error('Mapmove: erro ao montar a página', e); $('#listaPerto').innerHTML = '<p class="vazio">Algo deu errado ao montar a página. Recarregue para tentar de novo.</p>'; }
 }
@@ -152,7 +152,7 @@ function aplicarModulos() {
 
 /* ================== Home ================== */
 let mapaCompacto, timerContagem;
-const origem = () => estado.pos || CENTRO;
+const origem = () => estado.pos || estado.posCidade || CENTRO;
 const pertoLista = () => {
   const o = origem();
   const l = publicadas().filter((c) => c.lat == null || distKm(o, [c.lat, c.lng]) <= RAIO_KM);
@@ -230,8 +230,8 @@ function cartao(c) {
   const p = partes(c.data);
   const [abre, fecha] = abreLink(c, 'cartao');
   const chips = rotulos(c).map((r) => `<span class="chip">${esc(r)}</span>`).join('');
-  return `${abre}<span class="cartao-faixa"><span>${p.sem.toUpperCase()}</span><span>${esc(c.cidade.toUpperCase())}</span></span>` +
-    `<span class="cartao-corpo"><span class="cartao-dia">${p.dia}</span><span class="cartao-info"><span class="cartao-mes">${p.mesL.charAt(0).toUpperCase() + p.mesL.slice(1)}${textoDist(c) ? ' · ' + textoDist(c) : ''}</span>` +
+  return `${abre}<span class="cartao-faixa"><span>${p.sem.toUpperCase()}</span></span>` +
+    `<span class="cartao-corpo"><span class="cartao-dia">${p.dia}</span><span class="cartao-info"><span class="cartao-cid">${esc(c.cidade)}</span><span class="cartao-mes">${p.mesL.charAt(0).toUpperCase() + p.mesL.slice(1)}${textoDist(c) ? ' · ' + textoDist(c) : ''}</span>` +
     `<span class="cartao-nome">${esc(c.nome)}</span>${chips ? `<span class="chips">${chips}</span>` : ''}</span></span>` +
     `${c.inscricoes_abertas ? '' : '<span class="cartao-enc">Inscrições encerradas</span>'}${fecha}`;
 }
@@ -792,6 +792,9 @@ function lerPosSalva() {
   try { const v = JSON.parse(localStorage.getItem('mm_pos') || 'null'); if (v && NO_BRASIL(v[0], v[1])) return v; } catch { /* sem armazenamento */ }
   return null;
 }
+function lerCidadeSalva() {
+  try { const v = JSON.parse(localStorage.getItem('mm_cidade') || 'null'); if (v?.nome && v?.pos) { estado.cidadeManual = v.nome; estado.posCidade = v.pos; } } catch { /* segue */ }
+}
 function desenharVoce() { // ponto azul "você está aqui" nos dois mapas
   vocePino.forEach((m) => m.remove()); vocePino = [];
   if (estado.pos) [mapaGrande, mapaCompacto].forEach((m) => {
@@ -802,8 +805,9 @@ function desenharVoce() { // ponto azul "você está aqui" nos dois mapas
   });
 }
 function rotuloPerto() {
-  const sub = $('#painelSub'); if (sub) sub.textContent = estado.pos ? 'Raio de 30 km a partir da sua localização' : 'Raio de 30 km a partir de Indaiatuba';
+  const sub = $('#painelSub'); if (sub) sub.textContent = estado.cidadeManual ? `Raio de 30 km a partir de ${estado.cidadeManual}` : 'Raio de 30 km a partir da sua localização';
   $$('[data-perto]').forEach((b) => { b.setAttribute('aria-pressed', String(!!estado.pos)); b.textContent = estado.pos ? 'Perto de mim ✓' : (b.dataset.perto === 'home' ? 'Usar minha localização' : 'Perto de mim'); });
+  const fm = $('#formCidadeManual'); if (fm) fm.hidden = !!estado.pos;
 }
 // Centraliza o mapa da tela inicial na posição da pessoa; repete depois que o mapa terminar de se ajustar à tela
 function centralizarCompacto() {
@@ -833,6 +837,8 @@ function lerLocalizacao(manual) {
     const la = r.coords.latitude, ln = r.coords.longitude;
     if (!NO_BRASIL(la, ln)) { if (manual) toast('Sua localização está fora do Brasil. Escolha a cidade no filtro.'); return; }
     estado.pos = [la, ln];
+    estado.cidadeManual = null; estado.posCidade = null;
+    try { localStorage.removeItem('mm_cidade'); } catch { /* segue */ }
     lsSet('mm_pos', JSON.stringify([+la.toFixed(2), +ln.toFixed(2)]));
     try { localStorage.removeItem('mm_pos_off'); } catch { /* segue */ }
     desenharPos(true);
@@ -851,6 +857,23 @@ function pedirLocalizacao() {
   toast('Procurando a sua localização…');
   lerLocalizacao(true);
 }
+async function buscarCidadeManual(nome) {
+  if (!nome.trim()) return;
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(nome.trim() + ', Brasil')}&countrycodes=br&limit=1&accept-language=pt-BR`, { signal: AbortSignal.timeout(6000) });
+    const j = await r.json();
+    if (!j.length) { toast('Cidade não encontrada. Tente com estado, ex.: "Campinas SP"'); return; }
+    const { lat, lon, display_name } = j[0];
+    const nomeCurto = display_name.split(',')[0].trim();
+    estado.pos = null;
+    estado.cidadeManual = nomeCurto;
+    estado.posCidade = [+lat, +lon];
+    lsSet('mm_cidade', JSON.stringify({ nome: nomeCurto, pos: [+lat, +lon] }));
+    desenharPos(true);
+    toast(`Mostrando corridas perto de ${nomeCurto}`);
+  } catch { toast('Não foi possível buscar a cidade. Tente novamente.'); }
+}
+
 // Ao abrir a página inicial: usa a localização se já foi permitida; senão pergunta uma vez (e só de novo depois de 7 dias)
 function localizacaoAutomatica() {
   if (estado.pos || !navigator.geolocation || location.pathname !== '/' || lsGet('mm_pos_off')) return;
@@ -864,6 +887,12 @@ function localizacaoAutomatica() {
   } else perguntar();
 }
 document.addEventListener('click', (e) => { if (e.target.closest('[data-perto]')) pedirLocalizacao(); });
+document.addEventListener('submit', (e) => {
+  if (e.target.id === 'formCidadeManual') {
+    e.preventDefault();
+    buscarCidadeManual($('#inputCidadeManual').value);
+  }
+});
 
 let grupoCompacto;
 // Agrupa os pinos próximos numa bolinha com o número de corridas; ao aproximar o zoom (ou clicar) eles se separam
@@ -1374,17 +1403,17 @@ function mostrarCorrida(slug, percIdx = 0) {
     ${c.data < hojeISO() ? `<div class="aviso aviso-passada"><b>Esta corrida já aconteceu</b> em ${dataLonga(c.data)}. <a href="#" data-ir="quadro">Ver as próximas corridas</a></div>` : ''}
     <div class="corrida-hero${c.imagem_url ? '' : ' sem-foto'}"${c.imagem_url ? ` style="background-image:url('${esc(c.imagem_url)}')"` : ''}>
       <div class="corrida-hero-overlay"></div>
-      <div class="corrida-hero-content">
-        ${c.estado ? `<nav class="corrida-breadcrumb" aria-label="Localidade"><a href="/corridas/${esc(String(c.estado).toLowerCase())}">Corridas em ${esc(c.estado)}</a>${c.cidade && slugify(c.cidade) ? ` · <a href="/corridas/${esc(String(c.estado).toLowerCase())}/${slugify(c.cidade)}">${esc(c.cidade)}</a>` : ''}</nav>` : ''}
-        <div class="corrida-badges">
-          <span class="corrida-badge badge-date">${dataLonga(c.data)}${c.horario ? ' · ' + c.horario.slice(0, 5) : ''}</span>
-          ${passou ? '<span class="corrida-badge badge-status badge-fechada">Já aconteceu</span>' : c.inscricoes_abertas ? '<span class="corrida-badge badge-status badge-aberta">Inscrições abertas</span>' : '<span class="corrida-badge badge-status badge-fechada">Inscrições encerradas</span>'}
-          ${dist.map((d) => `<span class="corrida-badge badge-dist">${esc(d.rotulo)}</span>`).join('')}
-        </div>
-        <h1 class="display">${esc(c.nome)}</h1>
-        <p class="corrida-local">${esc(c.cidade)}, ${esc(c.estado)}${c.organizador ? ' · ' + esc(c.organizador) : ''}</p>
-      </div>
       ${c.imagem_url && c.imagem_credito ? `<small class="corrida-hero-cred">${esc(c.imagem_credito)}</small>` : ''}
+    </div>
+    <div class="corrida-cab">
+      ${c.estado ? `<nav class="corrida-breadcrumb" aria-label="Localidade"><a href="/corridas/${esc(String(c.estado).toLowerCase())}">Corridas em ${esc(c.estado)}</a>${c.cidade && slugify(c.cidade) ? ` · <a href="/corridas/${esc(String(c.estado).toLowerCase())}/${slugify(c.cidade)}">${esc(c.cidade)}</a>` : ''}</nav>` : ''}
+      <div class="corrida-badges">
+        <span class="corrida-badge badge-date">${dataLonga(c.data)}${c.horario ? ' · ' + c.horario.slice(0, 5) : ''}</span>
+        ${passou ? '<span class="corrida-badge badge-status badge-fechada">Já aconteceu</span>' : c.inscricoes_abertas ? '<span class="corrida-badge badge-status badge-aberta">Inscrições abertas</span>' : '<span class="corrida-badge badge-status badge-fechada">Inscrições encerradas</span>'}
+        ${dist.map((d) => `<span class="corrida-badge badge-dist">${esc(d.rotulo)}</span>`).join('')}
+      </div>
+      <h1 class="display">${esc(c.nome)}</h1>
+      <p class="corrida-local">${esc(c.cidade)}, ${esc(c.estado)}${c.organizador ? ' · ' + esc(c.organizador) : ''}</p>
     </div>
     <div class="corpo-corrida">
     <div class="principal">
