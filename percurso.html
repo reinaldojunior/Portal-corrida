@@ -485,9 +485,15 @@ function animate(){
   }else if(S.camMode==='chase'){
     const pi=Math.max(0,ci-10);const[plo,pla]=S.raw[pi];
     const bearing=Math.atan2(lo-plo,la-pla)*180/Math.PI;
-    // street view: câmera atrás do corredor olhando para frente
-    const fwd=geoOffset(lo,la,bearing,0.04);
+    const fwd=geoOffset(lo,la,bearing,0.08);
     map.easeTo({center:fwd,bearing,pitch:80,zoom:17,duration:80,easing:t=>t});
+    // posiciona avatar exatamente na projeção do corredor na tela (a cada frame)
+    const pt=map.project([lo,la]);
+    const av=document.getElementById('avatar');
+    av.style.bottom='auto';
+    av.style.left=Math.round(pt.x)+'px';
+    av.style.top=Math.round(pt.y)+'px';
+    av.style.transform='translate(-50%,-100%)';
   }
   updateStats();
   document.getElementById('elev-progress').style.width=(total?(S.distKm/total)*100:0)+'%';
@@ -570,7 +576,12 @@ function setCamMode(mode){
   // avatar: só aparece no modo chase
   const av=document.getElementById('avatar');
   av.hidden=(mode!=='chase');
-  if(mode==='chase')updateAvatarSpeed();
+  if(mode==='chase'){
+    updateAvatarSpeed();
+  }else{
+    // reseta posicionamento dinâmico ao sair do modo chase
+    av.style.left='';av.style.top='';av.style.bottom='';av.style.transform='';
+  }
 }
 
 function updateAvatarSpeed(){
