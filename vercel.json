@@ -1,6 +1,9 @@
 {
   "cleanUrls": true,
   "functions": {
+    "api/kml-proxy.js": {
+      "maxDuration": 20
+    },
     "api/coletar.js": {
       "maxDuration": 60
     },
