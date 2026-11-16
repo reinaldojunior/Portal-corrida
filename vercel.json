@@ -4,6 +4,9 @@
     "api/kml-proxy.js": {
       "maxDuration": 20
     },
+    "api/mapbox-token.js": {
+      "maxDuration": 5
+    },
     "api/coletar.js": {
       "maxDuration": 60
     },
