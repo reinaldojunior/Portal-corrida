@@ -287,30 +287,37 @@ function handleFile(f){
   const isGpx=n.endsWith('.gpx')||f.type==='application/gpx+xml';
   const isKmz=n.endsWith('.kmz')||f.type==='application/vnd.google-earth.kmz';
   const isKml=n.endsWith('.kml')||f.type==='application/vnd.google-earth.kml+xml';
-  if(isGpx){const r=new FileReader();r.onload=ev=>loadGPX(ev.target.result);r.onerror=()=>showToast('⚠️ Erro ao ler GPX');r.readAsText(f);}
+  if(isGpx){const r=new FileReader();r.onload=ev=>loadGPX(ev.target.result);r.onerror=()=>showToast('⚠️ Erro ao ler GPX');r.readAsText(f,'UTF-8');}
   else if(isKmz){loadKMZ(f);}
-  else if(isKml){const r=new FileReader();r.onload=ev=>importKML(ev.target.result);r.onerror=()=>showToast('⚠️ Erro ao ler KML');r.readAsText(f);}
+  else if(isKml){const r=new FileReader();r.onload=ev=>importKML(ev.target.result);r.onerror=()=>showToast('⚠️ Erro ao ler KML');r.readAsText(f,'UTF-8');}
   else{
     const r=new FileReader();
     r.onload=ev=>{
       const txt=ev.target.result;
-      if(txt.includes('<gpx')){loadGPX(txt);}
+      if(txt.includes('<gpx')||txt.includes('<GPX')){loadGPX(txt);}
       else if(txt.includes('<kml')||txt.includes('<Placemark')){importKML(txt);}
       else{
         const r2=new FileReader();r2.onload=e2=>loadKMZ(new Blob([e2.target.result]));r2.readAsArrayBuffer(f);
       }
     };
     r.onerror=()=>showToast('⚠️ Erro ao ler arquivo');
-    r.readAsText(f);
+    r.readAsText(f,'UTF-8');
   }
 }
 
 function loadGPX(txt){
   const doc=new DOMParser().parseFromString(txt,'text/xml');
-  const pts=doc.querySelectorAll('trkpt,rtept,wpt');
+  // getElementsByTagName funciona com namespace (xmlns=...); querySelectorAll pode falhar
+  const all=[...doc.getElementsByTagName('trkpt'),...doc.getElementsByTagName('rtept'),...doc.getElementsByTagName('wpt')];
+  const pts=all.length?all:[...doc.querySelectorAll('[lat][lon]')];
   const raw=[],elev=[];
-  pts.forEach(p=>{const lo=parseFloat(p.getAttribute('lon')),la=parseFloat(p.getAttribute('lat')),el=parseFloat(p.querySelector('ele')?.textContent||0);if(!isNaN(lo)&&!isNaN(la)){raw.push([lo,la]);elev.push(isNaN(el)?0:el);}});
-  if(!raw.length){showToast('⚠️ Nenhum ponto encontrado no GPX\n(verifique se o arquivo tem <trkpt> ou <wpt>)');return;}
+  pts.forEach(p=>{
+    const lo=parseFloat(p.getAttribute('lon')),la=parseFloat(p.getAttribute('lat'));
+    const eleEl=p.getElementsByTagName('ele')[0];
+    const el=parseFloat(eleEl?.textContent||0);
+    if(!isNaN(lo)&&!isNaN(la)){raw.push([lo,la]);elev.push(isNaN(el)?0:el);}
+  });
+  if(!raw.length){showToast('⚠️ Nenhum ponto encontrado no GPX');return;}
   init(raw,elev);
 }
 
@@ -376,6 +383,8 @@ function init(raw,elev){
   const coords=raw.map(([lo,la])=>[lo,la]);
   if(map.isStyleLoaded())setupRoute(coords);else map.once('style.load',()=>setupRoute(coords));
   drawElevProfile();updateStats();
+  const totalKm=S.cumKm[S.cumKm.length-1];
+  showToast('✅ '+raw.length+' pontos · '+totalKm.toFixed(1)+' km',3000);
 }
 
 function setupRoute(coords){
