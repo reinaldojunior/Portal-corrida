@@ -283,6 +283,7 @@ map.on('load',()=>{
 // ── FILE HANDLING ──────────────────────────────────────────────────────────────
 function handleFile(f){
   if(!f){showToast('⚠️ Nenhum arquivo recebido');return;}
+  showToast('📂 '+f.name+' ('+Math.round(f.size/1024)+'kb)',4000);
   const n=f.name.toLowerCase();
   const isGpx=n.endsWith('.gpx')||f.type==='application/gpx+xml';
   const isKmz=n.endsWith('.kmz')||f.type==='application/vnd.google-earth.kmz';
@@ -310,6 +311,7 @@ function loadGPX(txt){
   // getElementsByTagName funciona com namespace (xmlns=...); querySelectorAll pode falhar
   const all=[...doc.getElementsByTagName('trkpt'),...doc.getElementsByTagName('rtept'),...doc.getElementsByTagName('wpt')];
   const pts=all.length?all:[...doc.querySelectorAll('[lat][lon]')];
+  showToast('🗺 '+pts.length+' pontos GPX',3000);
   const raw=[],elev=[];
   pts.forEach(p=>{
     const lo=parseFloat(p.getAttribute('lon')),la=parseFloat(p.getAttribute('lat'));
