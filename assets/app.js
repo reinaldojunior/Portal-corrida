@@ -1747,7 +1747,7 @@ async function adminRobo() {
 function pintarAdmin(semConteudo) {
   const abas = [['corridas', 'Corridas'], ['pendentes', 'Pendentes'], ['padroes', 'Padrões de busca'], ['robo', 'Robô'], ['noticias', 'Notícias'], ['modulos', 'Módulos'], ['inscritos', 'Inscritos']];
   $('#adminBox').innerHTML = `
-    <div class="barra-admin"><h1 class="display" style="margin:0">Painel</h1><div style="display:flex;gap:10px"><a href="#" class="btn btn-linha">Ver o site</a><button class="btn btn-linha" id="btnSair">Sair</button></div></div>
+    <div class="barra-admin"><h1 class="display" style="margin:0">Painel</h1><div style="display:flex;gap:10px"><a href="#" class="btn btn-linha">Ver o site</a><a href="/percurso" target="_blank" class="btn btn-linha">Percurso Animado</a><button class="btn btn-linha" id="btnSair">Sair</button></div></div>
     <div class="busca-admin"><input type="search" class="campo-busca" id="buscaAdmin" placeholder="Localizar corrida em todo o painel: nome, cidade, local ou organizador…" value="${esc(buscaAdmin)}" aria-label="Localizar corrida"><span class="muted" id="buscaAdminInfo"></span></div>
     <div class="abas" role="tablist">${abas.map(([k, n]) => `<button role="tab" data-aba="${k}" aria-selected="${abaAdmin === k}"><span>${n}</span><b class="cont-aba" data-cont="${k}"></b></button>`).join('')}</div>
     <div id="conteudoAdmin"></div>`;
