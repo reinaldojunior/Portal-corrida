@@ -189,26 +189,26 @@ map.on('load',()=>{
 
 // ── FILE HANDLING ──────────────────────────────────────────────────────────────
 function handleFile(f){
-  if(!f)return;
+  if(!f){showToast('⚠️ Nenhum arquivo recebido');return;}
   const n=f.name.toLowerCase();
+  showToast('📂 Lendo: '+f.name+'\nTipo: '+(f.type||'?')+'\nTam: '+(f.size||0)+' bytes',8000);
   const isGpx=n.endsWith('.gpx')||f.type==='application/gpx+xml';
   const isKmz=n.endsWith('.kmz')||f.type==='application/vnd.google-earth.kmz';
   const isKml=n.endsWith('.kml')||f.type==='application/vnd.google-earth.kml+xml';
-  if(isGpx){const r=new FileReader();r.onload=ev=>loadGPX(ev.target.result);r.readAsText(f);}
+  if(isGpx){const r=new FileReader();r.onload=ev=>loadGPX(ev.target.result);r.onerror=()=>showToast('⚠️ Erro ao ler GPX');r.readAsText(f);}
   else if(isKmz){loadKMZ(f);}
-  else if(isKml){const r=new FileReader();r.onload=ev=>importKML(ev.target.result);r.readAsText(f);}
+  else if(isKml){const r=new FileReader();r.onload=ev=>importKML(ev.target.result);r.onerror=()=>showToast('⚠️ Erro ao ler KML');r.readAsText(f);}
   else{
-    // tenta detectar pelo conteúdo (iOS às vezes não preserva a extensão)
     const r=new FileReader();
     r.onload=ev=>{
       const txt=ev.target.result;
       if(txt.includes('<gpx')){loadGPX(txt);}
       else if(txt.includes('<kml')||txt.includes('<Placemark')){importKML(txt);}
       else{
-        // pode ser KMZ (zip) — tenta
         const r2=new FileReader();r2.onload=e2=>loadKMZ(new Blob([e2.target.result]));r2.readAsArrayBuffer(f);
       }
     };
+    r.onerror=()=>showToast('⚠️ Erro ao ler arquivo');
     r.readAsText(f);
   }
 }
@@ -216,9 +216,10 @@ function handleFile(f){
 function loadGPX(txt){
   const doc=new DOMParser().parseFromString(txt,'text/xml');
   const pts=doc.querySelectorAll('trkpt,rtept,wpt');
+  showToast('🗺️ GPX: '+pts.length+' pontos encontrados',6000);
   const raw=[],elev=[];
   pts.forEach(p=>{const lo=parseFloat(p.getAttribute('lon')),la=parseFloat(p.getAttribute('lat')),el=parseFloat(p.querySelector('ele')?.textContent||0);if(!isNaN(lo)&&!isNaN(la)){raw.push([lo,la]);elev.push(isNaN(el)?0:el);}});
-  if(!raw.length){showToast('⚠️ Nenhum ponto encontrado no GPX');return;}
+  if(!raw.length){showToast('⚠️ Nenhum ponto encontrado no GPX\n(verifique se o arquivo tem <trkpt> ou <wpt>)');return;}
   init(raw,elev);
 }
 
