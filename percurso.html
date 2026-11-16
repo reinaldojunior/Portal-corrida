@@ -317,7 +317,7 @@ function redraw(){
 function drawKmMarkers(){
   if(!S.cumKm.length)return;
   const total=S.cumKm[S.cumKm.length-1];
-  const interval=total<=10?1:total<=21?2:5;
+  const interval=total<=21.5?1:total<=42.5?2:5;
   for(let km=interval;km<=Math.floor(total);km+=interval){
     const idx=S.cumKm.findIndex(d=>d>=km);
     if(idx<0||idx>=S.proj.length||idx>S.idx)continue;
