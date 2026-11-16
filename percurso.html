@@ -284,7 +284,6 @@ map.on('load',()=>{
 function handleFile(f){
   if(!f){showToast('⚠️ Nenhum arquivo recebido');return;}
   const n=f.name.toLowerCase();
-  showToast('📂 Lendo: '+f.name+'\nTipo: '+(f.type||'?')+'\nTam: '+(f.size||0)+' bytes',8000);
   const isGpx=n.endsWith('.gpx')||f.type==='application/gpx+xml';
   const isKmz=n.endsWith('.kmz')||f.type==='application/vnd.google-earth.kmz';
   const isKml=n.endsWith('.kml')||f.type==='application/vnd.google-earth.kml+xml';
@@ -309,7 +308,6 @@ function handleFile(f){
 function loadGPX(txt){
   const doc=new DOMParser().parseFromString(txt,'text/xml');
   const pts=doc.querySelectorAll('trkpt,rtept,wpt');
-  showToast('🗺️ GPX: '+pts.length+' pontos encontrados',6000);
   const raw=[],elev=[];
   pts.forEach(p=>{const lo=parseFloat(p.getAttribute('lon')),la=parseFloat(p.getAttribute('lat')),el=parseFloat(p.querySelector('ele')?.textContent||0);if(!isNaN(lo)&&!isNaN(la)){raw.push([lo,la]);elev.push(isNaN(el)?0:el);}});
   if(!raw.length){showToast('⚠️ Nenhum ponto encontrado no GPX\n(verifique se o arquivo tem <trkpt> ou <wpt>)');return;}
