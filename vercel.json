@@ -1,4 +1,5 @@
 {
+  "cleanUrls": true,
   "functions": {
     "api/coletar.js": {
       "maxDuration": 60
