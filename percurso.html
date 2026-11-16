@@ -483,17 +483,12 @@ function animate(){
     const bearing=Math.atan2(lo-plo,la-pla)*180/Math.PI;
     map.easeTo({center:[lo,la],bearing,pitch:65,duration:80,easing:t=>t});
   }else if(S.camMode==='chase'){
-    const pi=Math.max(0,ci-10);const[plo,pla]=S.raw[pi];
+    const pi=Math.max(0,ci-5);const[plo,pla]=S.raw[pi];
     const bearing=Math.atan2(lo-plo,la-pla)*180/Math.PI;
-    const fwd=geoOffset(lo,la,bearing,0.08);
-    map.easeTo({center:fwd,bearing,pitch:80,zoom:17,duration:80,easing:t=>t});
-    // posiciona avatar exatamente na projeção do corredor na tela (a cada frame)
-    const pt=map.project([lo,la]);
-    const av=document.getElementById('avatar');
-    av.style.bottom='auto';
-    av.style.left=Math.round(pt.x)+'px';
-    av.style.top=Math.round(pt.y)+'px';
-    av.style.transform='translate(-50%,-100%)';
+    // avatar fixo na tela; padding desloca o mapa para [lo,la] aparecer nos pés do avatar
+    map.easeTo({center:[lo,la],bearing,pitch:80,zoom:17,
+      padding:{bottom:10,top:0,left:0,right:0},
+      duration:80,easing:t=>t});
   }
   updateStats();
   document.getElementById('elev-progress').style.width=(total?(S.distKm/total)*100:0)+'%';
@@ -571,15 +566,14 @@ function setCamMode(mode){
   const idMap={'2d':'btn-cam2d',follow:'btn-camfollow','3d':'btn-cam3d',chase:'btn-camchase'};
   document.getElementById(idMap[mode]||'btn-cam2d').classList.add('on');
   if(mode==='3d'){if(map.isStyleLoaded())setupTerrain();map.easeTo({pitch:65,duration:600});}
-  else if(mode==='chase'){if(map.isStyleLoaded())setupTerrain();map.easeTo({pitch:80,zoom:17,duration:600});}
-  else{if(map.getTerrain())map.setTerrain(null);map.easeTo({pitch:0,bearing:0,duration:600});}
+  else if(mode==='chase'){if(map.isStyleLoaded())setupTerrain();map.easeTo({pitch:80,zoom:17,padding:{bottom:10,top:0,left:0,right:0},duration:600});}
+  else{if(map.getTerrain())map.setTerrain(null);map.easeTo({pitch:0,bearing:0,padding:{bottom:0,top:0,left:0,right:0},duration:600});}
   // avatar: só aparece no modo chase
   const av=document.getElementById('avatar');
   av.hidden=(mode!=='chase');
   if(mode==='chase'){
     updateAvatarSpeed();
   }else{
-    // reseta posicionamento dinâmico ao sair do modo chase
     av.style.left='';av.style.top='';av.style.bottom='';av.style.transform='';
   }
 }
