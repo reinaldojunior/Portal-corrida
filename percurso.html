@@ -36,6 +36,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 #ctrl{position:fixed;bottom:env(safe-area-inset-bottom,0px);left:0;right:0;min-height:var(--ctrl-h);background:var(--surface);border-top:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;gap:0;padding:5px max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px));z-index:10}
 .ctrl-row{display:flex;align-items:center;gap:5px;width:100%}
 .ctrl-row+.ctrl-row{margin-top:4px}
+.cb[hidden]{display:none}
 .cb{background:rgba(255,255,255,.07);border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text);flex-shrink:0;transition:background .15s}
 .cb:hover{background:rgba(255,255,255,.13)}
 .cb.prime{background:var(--route);width:40px;height:40px}
@@ -113,6 +114,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     </button>
     <button class="cb" id="btn-camchase" title="Chase cam (estilo Strava)">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+    </button>
+    <button class="cb" id="btn-char" title="Trocar personagem" hidden>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>
     </button>
     <div class="csep"></div>
     <label class="cb" id="btn-up" for="gpx-file" title="Importar arquivo" style="cursor:pointer">
@@ -385,7 +389,7 @@ function distToIdx(d){
 // ── CHASE 3D (estilo Subway Surfers) ───────────────────────────────────────────
 // medidas em metros: rua = largura do traçado, boneco proporcional, câmera atrás e acima
 const CHASE={trackW:10,runnerH:3.4,camBack:12,camUp:6,lookAhead:24,kmFactor:0.12};
-const R3={layer:null,loading:null,mixer:null,run:null,idle:null,cur:null,mainMat:null,pos:null,elev:0,heading:null,camHeading:null};
+const R3={layer:null,loading:null,mixer:null,run:null,idle:null,cur:null,pos:null,elev:0,heading:null,camHeading:null};
 
 function posAt(d){
   const n=S.cumKm.length;if(!n)return null;
@@ -441,30 +445,24 @@ function runnerAnim(running){
   R3.cur=next;
 }
 
+// personagens KayKit (CC0, Kay Lousberg) sem armas/capa, só com animações Running_A e Idle
+const CHARS=[{id:'corredora',nome:'Corredora'},{id:'corredor',nome:'Corredor'},{id:'barbudo',nome:'Barbudo'}];
+function savedChar(){try{const v=localStorage.getItem('mm-char');return CHARS.some(c=>c.id===v)?v:CHARS[0].id;}catch(e){return CHARS[0].id;}}
+
 function ensureRunner(){
   if(R3.loading)return R3.loading;
   R3.loading=(async()=>{
-    const T=await import('/assets/3d/three-runner.js');
-    const gltf=await new T.GLTFLoader().loadAsync('/assets/3d/runner.glb');
-    const model=gltf.scene;model.updateMatrixWorld(true);
-    const box=new T.Box3().setFromObject(model,true);
-    const h=(box.max.y-box.min.y)||1;
-    model.position.set(-(box.min.x+box.max.x)/2,-box.min.y,-(box.min.z+box.max.z)/2);
-    model.traverse(o=>{if(o.isMesh&&o.material?.name==='Main'){o.material=o.material.clone();o.material.color.set(S.color);R3.mainMat=o.material;}});
-    const grp=new T.Scene();grp.add(model);grp.scale.setScalar(CHASE.runnerH/h);
-    const scene=new T.Scene();scene.add(grp);
+    const T=await import('/assets/3d/three-runner.js');R3.T=T;
+    const scene=new T.Scene();R3.scene=scene;
     scene.add(new T.HemisphereLight(0xffffff,0x444455,2.4));
     const sun=new T.DirectionalLight(0xffffff,2.2);sun.position.set(-2,4,3);scene.add(sun);
-    R3.mixer=new T.AnimationMixer(model);
-    const clip=n=>gltf.animations.find(a=>a.name===n);
-    R3.run=R3.mixer.clipAction(clip('Running'));R3.idle=R3.mixer.clipAction(clip('Idle'));
-    runnerAnim(S.playing);
+    await loadChar(R3.charId||savedChar());
     const camera=new T.Camera(),clock=new T.Clock(),m4=()=>new T.Matrix4();
     let renderer=null;
     R3.layer={id:'runner-3d',type:'custom',renderingMode:'3d',
       onAdd(m,gl){if(!renderer){renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:true});renderer.autoClear=false;renderer.outputColorSpace=T.SRGBColorSpace;}},
       render(gl,matrix){
-        if(S.camMode!=='chase'||!R3.pos)return;
+        if(S.camMode!=='chase'||!R3.pos||!R3.mixer)return;
         R3.mixer.update(Math.min(clock.getDelta(),0.1));
         const mc=mapboxgl.MercatorCoordinate.fromLngLat(R3.pos,R3.elev),s=mc.meterInMercatorCoordinateUnits();
         // modelo olha para +Z; após girar X 90° fica olhando para o sul → gira Y por (180° − rumo)
@@ -477,6 +475,31 @@ function ensureRunner(){
     if(map.isStyleLoaded()&&!map.getLayer('runner-3d'))map.addLayer(R3.layer);
   })().catch(e=>{R3.loading=null;console.error(e);showToast('⚠️ Não foi possível carregar o boneco 3D');if(S.dotMarker)S.dotMarker.getElement().style.display='';});
   return R3.loading;
+}
+
+async function loadChar(id){
+  const T=R3.T;R3.charId=id;
+  const gltf=await new T.GLTFLoader().loadAsync('/assets/3d/'+id+'.glb');
+  if(R3.charId!==id)return;
+  const model=gltf.scene;model.updateMatrixWorld(true);
+  const box=new T.Box3().setFromObject(model,true),h=(box.max.y-box.min.y)||1;
+  model.position.set(-(box.min.x+box.max.x)/2,-box.min.y,-(box.min.z+box.max.z)/2);
+  const grp=new T.Scene();grp.add(model);grp.scale.setScalar(CHASE.runnerH/h);
+  if(R3.grp)R3.scene.remove(R3.grp);
+  R3.scene.add(grp);R3.grp=grp;
+  R3.mixer=new T.AnimationMixer(model);R3.cur=null;
+  const clip=n=>gltf.animations.find(a=>a.name===n);
+  R3.run=R3.mixer.clipAction(clip('Running_A'));R3.idle=R3.mixer.clipAction(clip('Idle'));
+  runnerAnim(S.playing);
+  map.triggerRepaint();
+}
+
+function nextChar(){
+  const i=CHARS.findIndex(c=>c.id===(R3.charId||savedChar()));
+  const c=CHARS[(i+1)%CHARS.length];
+  try{localStorage.setItem('mm-char',c.id);}catch(e){}
+  showToast('👤 '+c.nome,1500);
+  if(R3.T)loadChar(c.id).catch(e=>{console.error(e);showToast('⚠️ Não foi possível carregar o personagem');});else R3.charId=c.id;
 }
 
 function animate(){
@@ -541,7 +564,6 @@ function setColor(c){
   document.getElementById('color-pick').value=c;
   if(S.dotMarker)S.dotMarker.getElement().style.boxShadow='0 0 12px 4px '+c;
   if(map.isStyleLoaded()){map.setPaintProperty('route-glow','line-color',c);map.setPaintProperty('route-line','line-color',c);}
-  R3.mainMat?.color.set(c);
   drawElevProfile();
 }
 
@@ -587,6 +609,7 @@ function setCamMode(mode){
     if(S.raw.length){chaseFrame(S.distKm);map.once('idle',()=>{if(S.camMode==='chase'&&!S.playing){R3.heading=null;R3.camHeading=null;chaseFrame(S.distKm);}});}
   }
   else{if(map.getTerrain())map.setTerrain(null);map.easeTo({pitch:0,bearing:0,duration:600});}
+  document.getElementById('btn-char').hidden=(mode!=='chase');
   if(mode!=='chase'){setTrackStyle(false);if(S.dotMarker)S.dotMarker.getElement().style.display='';}
 }
 
@@ -621,6 +644,7 @@ document.getElementById('btn-cam2d').addEventListener('click',()=>setCamMode('2d
 document.getElementById('btn-camfollow').addEventListener('click',()=>setCamMode('follow'));
 document.getElementById('btn-cam3d').addEventListener('click',()=>setCamMode('3d'));
 document.getElementById('btn-camchase').addEventListener('click',()=>setCamMode('chase'));
+document.getElementById('btn-char').addEventListener('click',nextChar);
 
 window.addEventListener('resize',()=>drawElevProfile());
 
