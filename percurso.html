@@ -77,6 +77,19 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .es-met{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,.14);text-align:center}
 .es-met span{display:block;font-size:11px;opacity:.75;text-transform:uppercase;letter-spacing:.06em}
 .es-met b{font:700 19px 'Space Grotesk',sans-serif}
+/* celular: o painel vira uma barra que abre ao tocar (no computador fica sempre aberto) */
+#es-tog{display:none}
+@media (max-width:640px){
+  #es-tog{display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;color:#fff;padding:2px 0;cursor:pointer;text-shadow:inherit;font:inherit;min-height:32px}
+  #es-tog .es-rot{font-size:12px}
+  #es-res{margin-left:auto;font:700 14px 'Space Grotesk',sans-serif;white-space:nowrap}
+  .es-chev{flex-shrink:0;transition:transform .2s}
+  #estr:not(.aberto) #es-corpo{display:none}
+  #estr:not(.aberto){padding:6px 12px}
+  #estr.aberto .es-chev{transform:rotate(180deg)}
+  #estr.aberto #es-tog{margin-bottom:2px}
+  #estr .es-top .es-rot{display:none}
+}
 @media (max-width:640px){
   #hud{top:calc(env(safe-area-inset-top,0px) + 50px)}.hv b{font-size:24px}.hv span{font-size:9px}.hud-top{gap:18px}.hud-sub{top:52px;gap:14px}.hud-sub .hv b{font-size:13px}.hud-sub .hv span{font-size:8px}#hud-lap{top:88px;font-size:13px}
   #estr{left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));width:auto;top:auto;transform:none;bottom:calc(var(--elev-h) + var(--ctrl-h) + 8px);padding:8px 10px;border-radius:12px}#estr .es-met b{font-size:15px}#estr input[type=range]{height:16px;margin:3px 0 0}#estr .es-top{margin-bottom:4px}
@@ -128,8 +141,10 @@ body.modo-corrida:not(.race-admin) #ctrl{display:none}
 #rotas button{background:rgba(9,9,15,.55);border:1px solid rgba(255,255,255,.22);border-radius:999px;color:#fff;font:600 12px 'Inter',sans-serif;padding:5px 12px;cursor:pointer;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
 #rotas button[aria-pressed=true]{background:#fff;color:#09090f;border-color:#fff}
 #rotas .rt-star{border-style:dashed;color:#ffd60a}
+@media (max-width:420px){body.embed .bf-txt{display:none}body.embed #btn-full{padding:7px 9px}}
 @media (max-width:640px){#rotas{top:calc(env(safe-area-inset-top,0px) + 124px);max-width:none;right:14px}}
-body.embed #btn-full{display:inline-flex;align-items:center;gap:4px;pointer-events:auto;color:var(--text);text-decoration:none;font:600 12px 'Inter',sans-serif;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 10px;white-space:nowrap}
+body.embed #btn-som{order:8;margin-left:auto}
+body.embed #btn-full{order:9;display:inline-flex;align-items:center;gap:4px;pointer-events:auto;color:var(--text);text-decoration:none;font:600 12px 'Inter',sans-serif;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 10px;white-space:nowrap}
 .pp-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
 .pp-top h3{margin:0;font:700 15px 'Space Grotesk',sans-serif}
 .pp-x{background:none;border:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:2px 6px}
@@ -266,6 +281,8 @@ body.embed #btn-full{display:inline-flex;align-items:center;gap:4px;pointer-even
   <div id="hud-fim" hidden></div>
 </div>
 <div id="estr" hidden>
+  <button type="button" id="es-tog" aria-expanded="false" aria-controls="es-corpo"><span class="es-rot">Sua estratégia</span><span id="es-res"></span><svg class="es-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg></button>
+  <div id="es-corpo">
   <div class="es-top"><span class="es-rot">Monte a sua estratégia</span><label>Tempo alvo<input id="es-alvo" inputmode="numeric" aria-label="Tempo alvo (h:mm:ss)"></label></div>
   <div class="es-ctrl"><div class="es-l"><span>Estratégia</span><b id="es-est-txt"></b></div>
     <input type="range" id="es-est" min="-5" max="5" step="1" value="0" aria-label="Estratégia de ritmo">
@@ -274,10 +291,11 @@ body.embed #btn-full{display:inline-flex;align-items:center;gap:4px;pointer-even
     <input type="range" id="es-adj" min="0" max="100" step="5" value="100" aria-label="Ajuste nas subidas">
     <div class="es-p"><span>Forçar</span><span>Poupar</span></div></div>
   <div class="es-met" id="es-met"></div>
+  </div>
 </div>
 <header id="hdr">
   <input id="race-name" type="text" placeholder="Nome da Corrida" maxlength="40">
-  <a id="btn-full" target="_blank" rel="noopener">⤢ Tela cheia</a>
+  <a id="btn-full" target="_blank" rel="noopener" aria-label="Abrir em tela cheia" title="Tela cheia"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg><span class="bf-txt">Tela cheia</span></a>
   <button type="button" id="btn-som" aria-label="Desligar o som" title="Som">🔊</button>
   <div id="stats">
     <div class="sv"><span class="sv-n" id="s-km">—</span><span class="sv-u">KM</span></div>
@@ -639,6 +657,7 @@ function setTrackStyle(chase){
   map.setPaintProperty('route-full-line','line-opacity',chase?0.3:0.08);
   map.setPaintProperty('route-line','line-width',chase?meterWidth(CHASE.trackW):3);
   map.setPaintProperty('route-glow','line-opacity',chase?0:0.22);
+  if(map.getLayer('runner-3d'))map.moveLayer('runner-3d'); // boneco sempre acima das camadas do traçado
 }
 
 function chaseFrame(d){
@@ -881,7 +900,9 @@ function ensureRunner(){
         const l=m4().makeTranslation(mc.x,mc.y,mc.z).scale(new T.Vector3(s,-s,s))
           .multiply(m4().makeRotationX(Math.PI/2)).multiply(m4().makeRotationY(Math.PI-R3.heading*Math.PI/180));
         camera.projectionMatrix=m4().fromArray(matrix).multiply(l);
-        renderer.resetState();renderer.render(scene,camera);
+        // a câmera fica sempre atrás do boneco: limpa a profundidade para o chão e a faixa pintada nele
+        // não cortarem as pernas quando o relevo carrega mais detalhado e fica um pouco acima do pé
+        renderer.resetState();renderer.clearDepth();renderer.render(scene,camera);
         map.triggerRepaint();
       }};
     withStyle(()=>{if(!map.getLayer('runner-3d'))map.addLayer(R3.layer);});
@@ -975,12 +996,17 @@ function planChanged(){
   try{localStorage.setItem('mm-estr',JSON.stringify({est:PLAN.est,adj:PLAN.adj}));}catch(e){}
   updatePanel();updateHud();
 }
+document.getElementById('es-tog').addEventListener('click',()=>{
+  const e=document.getElementById('estr'),ab=e.classList.toggle('aberto');
+  document.getElementById('es-tog').setAttribute('aria-expanded',ab);
+});
 function updatePanel(){
   const e=PLAN.est,a=PLAN.adj;
   document.getElementById('es-est').value=e;document.getElementById('es-adj').value=a;
   document.getElementById('es-est-txt').textContent=e===0?'Ritmo igual':e>0?'Guardar pro fim (nível '+e+')':'Sair forte (nível '+(-e)+')';
   document.getElementById('es-adj-txt').textContent=a>=95?'Esforço constante':a<=5?'Pace igual em tudo':a>=50?'Poupa um pouco':'Força um pouco';
   const m1=Math.round(PLAN.metade[0]),m2=Math.round(PLAN.metade[1]),dif=m2-m1;
+  document.getElementById('es-res').textContent=PLAN.trechos.length?fmtT(Math.round(m1+m2))+' · '+(dif===0?'ritmo igual':(dif>0?'+':'−')+fmtT(Math.abs(dif))+' na 2ª metade'):'';
   document.getElementById('es-met').innerHTML=PLAN.trechos.length?[['1ª metade',fmtT(m1)],['2ª metade',fmtT(m2)],['Diferença',dif===0?'0:00':(dif>0?'+':'−')+fmtT(Math.abs(dif))]]
     .map(([l,v])=>'<div><span>'+l+'</span><b>'+v+'</b></div>').join(''):'';
 }
