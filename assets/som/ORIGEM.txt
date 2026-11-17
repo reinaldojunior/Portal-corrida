@@ -1,5 +1,6 @@
 Sons do percurso 3D (percurso.html)
-- tiro-largada, torcida, fogos: gerados no Higgsfield (Mirelo) para o Mapmove, 17/11/2026
+- corneta-largada: enviada pelo dono do site (cortada e com volume normalizado)
+- torcida, fogos: gerados no Higgsfield (Mirelo) para o Mapmove, 17/11/2026
 - voz-conseguimos: gerada no Higgsfield (Seed Audio, voz "Andre"), 17/11/2026
 - respiracao: trecho enviado pelo dono do site, em loop com emenda suavizada
 - musica-1 a musica-3: faixas do dono do site feitas no Suno ("Corra com 180 BPM", "Pulsação de Estrada")

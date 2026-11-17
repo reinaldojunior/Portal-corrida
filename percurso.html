@@ -563,9 +563,9 @@ function play(){
   if(S.raf)cancelAnimationFrame(S.raf);
   S.raf=requestAnimationFrame(animate);
   updateStartOv();
-  // som: só começa num clique (exigência dos navegadores); tiro de largada quando sai do zero
+  // som: só começa num clique (exigência dos navegadores); corneta de largada quando sai do zero
   const doZero=S.distKm===0;
-  somIniciar()?.then(()=>{if(!S.playing)return;if(doZero)somTocar('tiro',0.8);somCorrida(S.camMode==='chase');});
+  somIniciar()?.then(()=>{if(!S.playing)return;if(doZero)somTocar('largada',0.8);somCorrida(S.camMode==='chase');});
   somMusica(true);
 }
 
@@ -733,7 +733,7 @@ function stopCelebrate(){
 // efeitos e voz: Higgsfield (gerados para o site); respiração: gravação enviada pelo dono; músicas: Suno do dono + uma gerada
 const SOM={ctx:null,on:true,buf:{},carregando:null,run:null,runGain:null,musica:null,musGain:null,faixa:-1,master:null};
 try{SOM.on=localStorage.getItem('mm-som')!=='0';}catch(e){}
-const SOM_FX={tiro:'tiro-largada',voz:'voz-conseguimos',torcida:'torcida',fogos:'fogos',resp:'respiracao'};
+const SOM_FX={largada:'corneta-largada',voz:'voz-conseguimos',torcida:'torcida',fogos:'fogos',resp:'respiracao'};
 const MUSICAS=['musica-1','musica-2','musica-3','musica-4'];
 function somIniciar(){
   if(!SOM.ctx){
