@@ -301,6 +301,7 @@ function init(raw,elev){
   document.getElementById('empty').classList.add('gone');
   const coords=raw.map(([lo,la])=>[lo,la]);
   if(map.isStyleLoaded())setupRoute(coords);else map.once('style.load',()=>setupRoute(coords));
+  computeGrades();
   drawElevProfile();updateStats();
   const totalKm=S.cumKm[S.cumKm.length-1];
   showToast('✅ '+raw.length+' pontos · '+totalKm.toFixed(1)+' km',3000);
@@ -483,7 +484,7 @@ function runnerAnim(state){
   if(!R3.parts)return;
   let part=R3.parts[R3.files[state]],act=part?.actions[CLIP[state]];
   if(!act){part=R3.parts[R3.files.run];act=part.actions[CLIP[state]]||part.actions.Idle||part.actions.Run;}
-  act.timeScale=state==='run'?Math.min(2,0.75+0.15*S.speed):(act===part.actions.Run?0:1);
+  act.timeScale=state==='run'?cadence():(act===part.actions.Run?0:1);
   if(R3.part!==part){if(R3.part)R3.part.grp.visible=false;part.grp.visible=true;R3.part=part;}
   if(part.cur===act)return;
   act.reset().play();
@@ -588,10 +589,27 @@ function nextChar(){
   if(R3.T)loadChar(c.id).catch(e=>{console.error(e);showToast('⚠️ Não foi possível carregar o personagem');});else R3.charId=c.id;
 }
 
+// inclinação média (±50 m) em cada ponto, a partir da altimetria do GPX
+function computeGrades(){
+  const n=S.cumKm.length,total=S.cumKm[n-1]||0,has=S.elev.length===n&&S.elev.some(e=>e!==S.elev[0]);
+  const elevAt=d=>{const i=distToIdx(d);if(i===0)return S.elev[0];const d0=S.cumKm[i-1],d1=S.cumKm[i],t=d1>d0?(d-d0)/(d1-d0):0;return S.elev[i-1]+(S.elev[i]-S.elev[i-1])*t;};
+  S.grade=S.cumKm.map(d=>{if(!has)return 0;const a=Math.max(0,d-0.05),b=Math.min(total,d+0.05);return b>a?(elevAt(b)-elevAt(a))/((b-a)*1000):0;});
+}
+// fator de velocidade pela inclinação: custo energético de Minetti suavizado para ficar perto do GAP do Strava
+// (≈ −14% a 5% de subida, −24% a 10%; ≈ +19% a 5% de descida, limitado a +35%)
+function gradeFactor(g){
+  g=Math.max(-0.35,Math.min(0.35,g||0));
+  const c=155.4*g**5-30.4*g**4-43.3*g**3+46.3*g**2+19.5*g+3.6;
+  return Math.max(0.45,Math.min(1.35,1+0.6*(3.6/c-1)));
+}
+// ritmo das pernas segue a velocidade efetiva
+function cadence(){return Math.min(2.4,0.7+0.35*Math.log2(1+(S.effSpeed||S.speed)));}
+
 function animate(){
   if(!S.playing)return;
   const total=S.cumKm[S.cumKm.length-1]||0;
-  S.distKm=Math.min(S.distKm+S.speed*KM_PER_SPEED*(S.camMode==='chase'?CHASE.kmFactor:1),total);
+  S.effSpeed=S.speed*gradeFactor(S.grade?.[distToIdx(S.distKm)]);
+  S.distKm=Math.min(S.distKm+S.effSpeed*KM_PER_SPEED*(S.camMode==='chase'?CHASE.kmFactor:1),total);
   const ci=distToIdx(S.distKm);
   S.idx=ci;
   const coords=S.raw.slice(0,ci+1).map(([lo,la])=>[lo,la]);
@@ -609,6 +627,7 @@ function animate(){
     coords.length=Math.max(1,ci);coords.push(p);
     map.getSource('route-prog')?.setData({type:'Feature',geometry:{type:'LineString',coordinates:coords}});
     chaseFrame(S.distKm);
+    const run=R3.part?.actions.Run;if(run&&R3.part.cur===run)run.timeScale=cadence();
   }
   updateStats();
   document.getElementById('elev-progress').style.width=(total?(S.distKm/total)*100:0)+'%';
@@ -696,6 +715,9 @@ function setCamMode(mode){
     if(S.raw.length){chaseFrame(S.distKm);map.once('idle',()=>{if(S.camMode==='chase'&&!S.playing){R3.heading=null;R3.camHeading=null;chaseFrame(S.distKm);}});}
   }
   else{if(map.getTerrain())map.setTerrain(null);map.easeTo({pitch:0,bearing:0,duration:600});}
+  // no modo personagem a velocidade vai até 32×; nos outros até 8×
+  const spd=document.getElementById('spd');spd.max=mode==='chase'?32:8;
+  if(S.speed>+spd.max){S.speed=+spd.max;spd.value=S.speed;document.getElementById('spd-lbl').textContent=S.speed+'×';}
   ['btn-char','btn-zin','btn-zout'].forEach(id=>document.getElementById(id).hidden=(mode!=='chase'));
   setMapGestures(mode!=='chase');
   if(mode!=='chase'){setTrackStyle(false);if(S.dotMarker)S.dotMarker.getElement().style.display='';}
