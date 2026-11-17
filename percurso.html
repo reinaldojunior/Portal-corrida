@@ -298,9 +298,17 @@ const S={raw:[],elev:[],cumKm:[],hydra:[],idx:0,distKm:0,playing:false,color:'#e
 const QS=new URLSearchParams(location.search);
 const RACE={slug:QS.get('corrida'),dist:QS.get('dist'),id:null,data:{},admin:false,key:'principal',sb:null};
 
+// executa fn assim que o estilo aceitar mudanças; isStyleLoaded() fica falso enquanto tiles carregam,
+// e 'style.load' pode já ter passado, então tenta e, se o estilo ainda não estiver pronto, espera
+function withStyle(fn){
+  if(!S.routeReady){(S.pending||(S.pending=[])).push(fn);return;}
+  try{fn();}catch(e){if(/not done loading/i.test(e.message))map.once('style.load',()=>withStyle(fn));else console.error(e);}
+}
+
 function emptyLine(){return{type:'Feature',geometry:{type:'LineString',coordinates:[]}};}
 
 map.on('load',()=>{
+  setTimeout(()=>{S.routeReady=true;(S.pending||[]).splice(0).forEach(withStyle);},0);
   map.addSource('route-full',{type:'geojson',data:emptyLine()});
   map.addSource('route-prog',{type:'geojson',data:emptyLine()});
   map.addLayer({id:'route-full-line',type:'line',source:'route-full',paint:{'line-color':'#ffffff','line-width':2,'line-opacity':0.08}});
@@ -432,7 +440,7 @@ function init(raw,elev){
   document.getElementById('empty').classList.add('gone');
   S.hydra.forEach(h=>h.km=nearestKm(h.lo,h.la));
   const coords=raw.map(([lo,la])=>[lo,la]);
-  if(map.isStyleLoaded())setupRoute(coords);else map.once('style.load',()=>setupRoute(coords));
+  withStyle(()=>setupRoute(coords));
   computeGrades();
   drawElevProfile();updateStats();
   const totalKm=S.cumKm[S.cumKm.length-1];
@@ -599,7 +607,7 @@ function bearingBetween(p,q){
   return Math.atan2(Math.sin(dl)*Math.cos(la2),Math.cos(la1)*Math.sin(la2)-Math.sin(la1)*Math.cos(la2)*Math.cos(dl))/r;
 }
 function lerpAngle(a,b,t){return a+((((b-a)%360)+540)%360-180)*t;}
-function groundAt(ll,fallback){const e=map.queryTerrainElevation?.(ll);return e==null?fallback:e;}
+function groundAt(ll,fallback){if(!map.getTerrain?.())return 0;const e=map.queryTerrainElevation?.(ll);return e==null?fallback:e;}
 
 // largura em metros reais (acompanha o zoom, com perspectiva)
 function meterWidth(m){
@@ -734,7 +742,7 @@ function ensureRunner(){
         renderer.resetState();renderer.render(scene,camera);
         map.triggerRepaint();
       }};
-    if(map.isStyleLoaded()&&!map.getLayer('runner-3d'))map.addLayer(R3.layer);
+    withStyle(()=>{if(!map.getLayer('runner-3d'))map.addLayer(R3.layer);});
   })().catch(e=>{R3.loading=null;console.error(e);showToast('⚠️ Não foi possível carregar o boneco 3D');if(S.dotMarker)S.dotMarker.getElement().style.display='';});
   return R3.loading;
 }
@@ -1005,7 +1013,7 @@ function setColor(c){
   document.getElementById('color-wrap').style.background=c;
   document.getElementById('color-pick').value=c;
   if(S.dotMarker)S.dotMarker.getElement().style.boxShadow='0 0 12px 4px '+c;
-  if(map.isStyleLoaded()){map.setPaintProperty('route-glow','line-color',c);map.setPaintProperty('route-line','line-color',c);}
+  withStyle(()=>{map.setPaintProperty('route-glow','line-color',c);map.setPaintProperty('route-line','line-color',c);});
   drawElevProfile();
 }
 
@@ -1013,13 +1021,14 @@ function setColor(c){
 function setMapStyle(styleUrl){
   map.setStyle(styleUrl);
   map.once('style.load',()=>{
-    map.addSource('route-full',{type:'geojson',data:emptyLine()});
-    map.addSource('route-prog',{type:'geojson',data:emptyLine()});
-    map.addLayer({id:'route-full-line',type:'line',source:'route-full',paint:{'line-color':'#ffffff','line-width':2,'line-opacity':0.08}});
-    map.addLayer({id:'route-glow',type:'line',source:'route-prog',paint:{'line-color':S.color,'line-width':14,'line-opacity':0.22,'line-blur':6}});
-    map.addLayer({id:'route-line',type:'line',source:'route-prog',paint:{'line-color':S.color,'line-width':3,'line-cap':'round','line-join':'round'}});
+    // idempotente: se a troca de estilo cruzar com o carregamento inicial, não cria camadas em dobro
+    if(!map.getSource('route-full'))map.addSource('route-full',{type:'geojson',data:emptyLine()});
+    if(!map.getSource('route-prog'))map.addSource('route-prog',{type:'geojson',data:emptyLine()});
+    if(!map.getLayer('route-full-line'))map.addLayer({id:'route-full-line',type:'line',source:'route-full',paint:{'line-color':'#ffffff','line-width':2,'line-opacity':0.08}});
+    if(!map.getLayer('route-glow'))map.addLayer({id:'route-glow',type:'line',source:'route-prog',paint:{'line-color':S.color,'line-width':14,'line-opacity':0.22,'line-blur':6}});
+    if(!map.getLayer('route-line'))map.addLayer({id:'route-line',type:'line',source:'route-prog',paint:{'line-color':S.color,'line-width':3,'line-cap':'round','line-join':'round'}});
     if(S.camMode==='3d')setupTerrain();
-    if(S.camMode==='chase'){setupTerrain(1);setTrackStyle(true);if(R3.layer)map.addLayer(R3.layer);chaseFrame(S.distKm);}
+    if(S.camMode==='chase'){setupTerrain(1);setTrackStyle(true);if(R3.layer&&!map.getLayer('runner-3d'))map.addLayer(R3.layer);chaseFrame(S.distKm);}
     if(S.raw.length){
       const coords=S.raw.map(([lo,la])=>[lo,la]);
       map.getSource('route-full').setData({type:'Feature',geometry:{type:'LineString',coordinates:coords}});
@@ -1043,9 +1052,9 @@ function setCamMode(mode){
   document.querySelectorAll('#btn-cam2d,#btn-camfollow,#btn-cam3d,#btn-camchase').forEach(b=>b.classList.remove('on'));
   const idMap={'2d':'btn-cam2d',follow:'btn-camfollow','3d':'btn-cam3d',chase:'btn-camchase'};
   document.getElementById(idMap[mode]||'btn-cam2d').classList.add('on');
-  if(mode==='3d'){if(map.isStyleLoaded())setupTerrain();map.easeTo({pitch:65,duration:600});}
+  if(mode==='3d'){withStyle(()=>setupTerrain());map.easeTo({pitch:65,duration:600});}
   else if(mode==='chase'){
-    if(map.isStyleLoaded()){setupTerrain(1);setTrackStyle(true);}
+    withStyle(()=>{setupTerrain(1);setTrackStyle(true);if(S.camMode==='chase'&&S.raw.length&&!S.playing){R3.heading=null;R3.camHeading=null;chaseFrame(S.distKm);}});
     R3.heading=null;R3.camHeading=null;R3.elev=S.elev[distToIdx(S.distKm)]||0;
     if(S.dotMarker)S.dotMarker.getElement().style.display='none';
     ensureRunner();
@@ -1126,7 +1135,7 @@ const SB_URL='https://ssfsxdmzbubvygctdjgf.supabase.co',SB_KEY='sb_publishable_s
 if(EMBED){document.body.classList.add('embed');const u=new URL(location.href);u.searchParams.delete('embed');document.getElementById('btn-full').href=u.pathname+u.search;}
 function loadScript(src,integrity){return new Promise((ok,err)=>{const t=document.createElement('script');t.src=src;if(integrity){t.integrity=integrity;t.crossOrigin='anonymous';}t.onload=ok;t.onerror=err;document.head.append(t);});}
 async function carregarCorrida(){
-  document.body.classList.add('modo-corrida');
+  document.body.classList.add('modo-corrida');map.resize();
   const nome=document.getElementById('race-name');nome.readOnly=true;
   try{
     if(!window.supabase)await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js','sha384-K1nraABOP/zFehpLIUksXebbs7jMpB8gYMlb+uhVKZcWT/9Vkq1+qhv6ndC+1Yuz');
@@ -1141,7 +1150,7 @@ async function carregarCorrida(){
   const pts=d?d.percurso:(Array.isArray(data.percurso)&&data.percurso.length>1?data.percurso:ds.sort((a,b)=>(b.km||0)-(a.km||0))[0]?.percurso);
   RACE.key=d?d.rotulo:'principal';
   try{const {data:{session}}=await RACE.sb.auth.getSession();if(session){const {data:ok}=await RACE.sb.rpc('is_admin');RACE.admin=!!ok;}}catch(e){}
-  document.body.classList.toggle('race-admin',RACE.admin);nome.readOnly=true;
+  document.body.classList.toggle('race-admin',RACE.admin);nome.readOnly=true;map.resize();drawElevProfile();
   if(!pts){showToast('Esta corrida ainda não tem percurso (GPX).',6000);return;}
   const D=RACE.data;
   S.groups=D.grupos&&typeof D.grupos==='object'?D.grupos:{};
@@ -1158,7 +1167,8 @@ async function carregarCorrida(){
 // vista salva pelo admin: estilo do mapa, cor, câmera, personagem, zoom, km e velocidade
 function aplicarVista(V){
   const st=V.style&&[...document.querySelectorAll('.stbtn')].find(b=>b.dataset.style===V.style);
-  if(st&&!st.classList.contains('on'))st.click();
+  // troca de estilo só depois do carregamento inicial (senão cruza com o 'load' do mapa)
+  if(st&&!st.classList.contains('on'))withStyle(()=>st.click());
   if(typeof V.color==='string'&&/^#[0-9a-f]{6}$/i.test(V.color)){
     const b=[...document.querySelectorAll('.pset')].find(x=>x.dataset.color.toLowerCase()===V.color.toLowerCase());
     if(b)b.click();else{setColor(V.color);document.querySelectorAll('.pset').forEach(x=>x.classList.remove('on'));}
