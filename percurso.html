@@ -14,7 +14,7 @@
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;overflow:hidden}
 #map{position:fixed;top:0;left:0;right:0;bottom:calc(var(--elev-h) + var(--ctrl-h));z-index:0}
 .mapboxgl-canvas{outline:none}
-.mapboxgl-ctrl-bottom-left,.mapboxgl-ctrl-bottom-right{bottom:calc(var(--elev-h) + var(--ctrl-h) + 4px)!important}
+.mapboxgl-ctrl-bottom-left,.mapboxgl-ctrl-bottom-right{bottom:0!important}
 #hdr{position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;padding:10px max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));background:linear-gradient(to bottom,rgba(9,9,15,.92) 70%,transparent);display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:20;pointer-events:none}
 #race-name{pointer-events:auto;background:none;border:none;outline:none;font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:900;letter-spacing:-.4px;text-transform:uppercase;color:var(--text);flex:1;min-width:0}
 #race-name::placeholder{color:var(--muted)}
@@ -33,6 +33,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 #elev-gain{position:absolute;top:7px;right:12px;font-size:11px;color:var(--start);font-family:'Space Grotesk',sans-serif;font-weight:500}
 #elev-svg{position:absolute;bottom:0;left:0;right:0;height:76px;overflow:visible}
 #elev-progress{position:absolute;top:0;left:0;width:0;height:2px;background:var(--route);z-index:2}
+#elev-panel{cursor:pointer;touch-action:none}
+#elev-cursor{position:absolute;top:0;bottom:0;left:0;width:2px;margin-left:-1px;background:#fff;opacity:.85;z-index:3;pointer-events:none;box-shadow:0 0 6px rgba(0,0,0,.6)}
+#elev-cursor::after{content:"";position:absolute;top:-5px;left:50%;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px var(--route)}
+#elev-cursor[hidden]{display:none}
 #ctrl{position:fixed;bottom:env(safe-area-inset-bottom,0px);left:0;right:0;min-height:var(--ctrl-h);background:var(--surface);border-top:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;gap:0;padding:5px max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px));z-index:10}
 .ctrl-row{display:flex;align-items:center;gap:5px;width:100%}
 .ctrl-row+.ctrl-row{margin-top:4px}
@@ -40,35 +44,38 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 /* ── HUD do modo personagem (fundo transparente, texto com sombra) ── */
 #hud{position:fixed;top:calc(env(safe-area-inset-top,0px) + 60px);left:0;right:0;bottom:calc(var(--elev-h) + var(--ctrl-h));z-index:6;pointer-events:none;color:#fff;font-family:'Space Grotesk',sans-serif;text-shadow:0 2px 8px rgba(0,0,0,.85),0 0 2px rgba(0,0,0,.9)}
 #hud[hidden],#estr[hidden]{display:none}
-.hud-col{position:absolute;top:0;display:flex;flex-direction:column;gap:10px}
-.hud-l{left:max(16px,env(safe-area-inset-left,0px))}
-.hud-r{right:max(16px,env(safe-area-inset-right,0px));text-align:right}
+.hud-top,.hud-sub{position:absolute;left:50%;transform:translateX(-50%);display:flex;justify-content:center;text-align:center;white-space:nowrap}
+.hud-top{top:0;gap:34px}
+.hud-sub{top:62px;gap:22px}
+.hud-sub .hv b{font-size:17px}
+.hud-sub .hv span{font-size:9px}
 .hv span{display:block;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;opacity:.85}
-.hv b{display:block;font-size:26px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
+.hv b{display:block;font-size:30px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
 .hv small{font-size:13px;font-weight:600;margin-left:2px}
 #hud-lap,#hud-fim{position:absolute;left:50%;transform:translateX(-50%);text-align:center;white-space:nowrap}
-#hud-lap{top:0;font-size:15px;font-weight:700;letter-spacing:.04em;background:rgba(9,9,15,.35);padding:6px 14px;border-radius:999px}
+#hud-lap{top:112px;font-size:15px;font-weight:700;letter-spacing:.04em;background:rgba(9,9,15,.35);padding:6px 14px;border-radius:999px}
 #hud-fim{top:18%;font-size:13px;letter-spacing:.1em;text-transform:uppercase}
 #hud-fim b{display:block;font-size:44px;letter-spacing:0;margin:2px 0 4px}
 #hud-lap[hidden],#hud-fim[hidden]{display:none}
 /* ── painel de estratégia (sempre visível no modo personagem) ── */
-#estr{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--elev-h) + var(--ctrl-h) + 30px);z-index:7;width:250px;padding:10px 12px;border-radius:12px;background:rgba(9,9,15,.32);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);color:#fff;font-size:11px;text-shadow:0 1px 4px rgba(0,0,0,.8)}
+#estr{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--elev-h) + var(--ctrl-h) + 34px);z-index:7;width:300px;padding:12px 14px;border-radius:14px;background:rgba(9,9,15,.30);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);color:#fff;font-size:13px;text-shadow:0 1px 4px rgba(0,0,0,.8)}
 .es-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
-.es-rot{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#ff8a3d}
-#estr label{display:flex;align-items:center;gap:6px;font-size:10px;opacity:.9;white-space:nowrap}
-#es-alvo{width:72px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.25);border-radius:6px;color:#fff;font:700 13px 'Space Grotesk',sans-serif;padding:3px 6px;text-align:center}
-.es-ctrl{margin-top:6px}
+.es-rot{font:700 12px 'Space Grotesk',sans-serif;letter-spacing:.08em;text-transform:uppercase}
+#estr label{display:flex;align-items:center;gap:6px;font-size:12px;opacity:.9;white-space:nowrap}
+#es-alvo{width:84px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.3);border-radius:8px;color:#fff;font:700 15px 'Space Grotesk',sans-serif;padding:4px 6px;text-align:center}
+.es-ctrl{margin-top:9px}
 .es-l{display:flex;justify-content:space-between;gap:6px;font-weight:600}
-.es-l b{font-weight:500;opacity:.9;text-align:right}
-#estr input[type=range]{width:100%;margin:3px 0 0;accent-color:#ff8a3d}
-.es-p{display:flex;justify-content:space-between;font-size:9px;opacity:.7}
-.es-met{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:8px;text-align:center}
-.es-met span{display:block;font-size:9px;opacity:.75;text-transform:uppercase;letter-spacing:.06em}
-.es-met b{font:700 13px 'Space Grotesk',sans-serif}
+.es-l b{font-weight:500;opacity:.85;text-align:right}
+#estr input[type=range]{width:100%;margin:4px 0 0;accent-color:#fff}
+.es-p{display:flex;justify-content:space-between;font-size:11px;opacity:.7}
+.es-met{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.14);text-align:center}
+.es-met span{display:block;font-size:10px;opacity:.75;text-transform:uppercase;letter-spacing:.06em}
+.es-met b{font:700 16px 'Space Grotesk',sans-serif}
 @media (max-width:640px){
-  .hv b{font-size:18px}.hv span{font-size:9px}.hud-col{gap:6px}
+  .hv b{font-size:20px}.hv span{font-size:9px}.hud-top{gap:16px}.hud-sub{top:46px;gap:10px}.hud-sub .hv b{font-size:13px}.hud-sub .hv span{font-size:8px}#hud-lap{top:88px;font-size:13px}
   #estr{left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));width:auto;bottom:calc(var(--elev-h) + var(--ctrl-h) + 8px);padding:8px 10px}
   #hud-fim b{font-size:32px}
+  #estr .es-p{display:none}#estr .es-ctrl{margin-top:5px}#estr .es-met{margin-top:6px;padding-top:5px}#estr{font-size:12px}
 }
 .cb{background:rgba(255,255,255,.07);border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text);flex-shrink:0;transition:background .15s}
 .cb:hover{background:rgba(255,255,255,.13)}
@@ -119,6 +126,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   <span id="elev-label">Elevação</span>
   <span id="elev-gain"></span>
   <div id="elev-progress"></div>
+  <div id="elev-cursor" hidden></div>
   <svg id="elev-svg" preserveAspectRatio="none"></svg>
 </div>
 
@@ -186,16 +194,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 </div>
 
 <div id="hud" hidden>
-  <div class="hud-col hud-l">
+  <div class="hud-top">
     <div class="hv"><span>Distância</span><b id="h-dist">0,00<small>km</small></b></div>
     <div class="hv"><span>Tempo</span><b id="h-time">0:00</b></div>
+    <div class="hv"><span>Pace</span><b id="h-pace">—</b></div>
+  </div>
+  <div class="hud-sub">
+    <div class="hv"><span>Velocidade</span><b id="h-vel">—</b></div>
     <div class="hv"><span>Altitude</span><b id="h-alt">—</b></div>
     <div class="hv"><span>Inclinação</span><b id="h-inc">—</b></div>
-    <div class="hv"><span>Subida acumulada</span><b id="h-dmais">—</b></div>
-  </div>
-  <div class="hud-col hud-r">
-    <div class="hv"><span>Pace</span><b id="h-pace">—</b></div>
-    <div class="hv"><span>Velocidade</span><b id="h-vel">—</b></div>
+    <div class="hv"><span>Subida acum.</span><b id="h-dmais">—</b></div>
   </div>
   <div id="hud-lap" hidden></div>
   <div id="hud-fim" hidden></div>
@@ -230,7 +238,7 @@ let map;
 function startMap(){
 map=new mapboxgl.Map({container:'map',style:'mapbox://styles/mapbox/dark-v11',center:[-47.25,-23.12],zoom:11,maxZoom:24,pitch:0,bearing:0,antialias:true});
 
-const S={raw:[],elev:[],cumKm:[],hydra:[],idx:0,distKm:0,playing:false,color:'#e63946',speed:3,hydraMode:false,showKm:true,camMode:'2d',mult:60,raceT:0,lastLap:0,lastNow:0,raf:null,dotMarker:null,startMarker:null,finishMarker:null,kmMarkers:[],hydraMarkers:[]};
+const S={raw:[],elev:[],cumKm:[],hydra:[],idx:0,distKm:0,playing:false,color:'#e63946',speed:3,hydraMode:false,showKm:true,camMode:'2d',mult:20,raceT:0,lastLap:0,lastNow:0,raf:null,dotMarker:null,startMarker:null,finishMarker:null,kmMarkers:[],hydraMarkers:[]};
 
 function emptyLine(){return{type:'Feature',geometry:{type:'LineString',coordinates:[]}};}
 
@@ -454,7 +462,7 @@ function distToIdx(d){
 
 // ── CHASE 3D (estilo Subway Surfers) ───────────────────────────────────────────
 // medidas em metros: rua = largura do traçado, boneco proporcional, câmera atrás e acima
-const CHASE={trackW:10,runnerH:3.4,camBack:12,camUp:6,lookAhead:24};
+const CHASE={trackW:10,runnerH:3.4,camBack:12,camUp:4.5,lookAhead:4};
 const R3={zoom:savedZoom(),layer:null,loading:null,mixer:null,run:null,idle:null,cur:null,pos:null,elev:0,heading:null,camHeading:null};
 
 function posAt(d){
@@ -665,7 +673,7 @@ function computeGrades(){
 // est de −5 (sair forte) a +5 (guardar pro fim), até ±4% nas pontas; adj de 0 (pace igual) a 100 (esforço igual)
 const PLAN={alvo:null,est:0,adj:100,trechos:[],tot:0,plano:0,metade:[0,0]};
 try{const v=JSON.parse(localStorage.getItem('mm-estr')||'{}');if(Number.isFinite(v.est))PLAN.est=v.est;if(Number.isFinite(v.adj))PLAN.adj=v.adj;}catch(e){}
-const MULTS=[10,15,20,30,45,60,90,120,180,240,300];
+const MULTS=[5,10,15,20,25,30];
 function fmtT(x){x=Math.max(0,Math.round(x));const h=Math.floor(x/3600),m=Math.floor(x%3600/60),ss=x%60;return(h?h+':'+String(m).padStart(2,'0'):m)+':'+String(ss).padStart(2,'0');}
 function fmtPace(x){x=Math.round(x);return Math.floor(x/60)+"'"+String(x%60).padStart(2,'0')+'"';}
 function parseT(v){const p=String(v).trim().split(':').map(Number);return p.length&&p.every(Number.isFinite)?p.reduce((a,b)=>a*60+b,0):null;}
@@ -776,10 +784,38 @@ function animate(now){
     updateHud();
   }
   updateStats();
-  document.getElementById('elev-progress').style.width=(total?(S.distKm/total)*100:0)+'%';
+  setElevProgress();
   if(S.distKm>=total){pause();celebrate();return;}
   S.raf=requestAnimationFrame(animate);
 }
+
+// ── LINHA DO TEMPO (arrastar no relevo para avançar ou voltar) ──
+function setElevProgress(){
+  const tot=S.cumKm[S.cumKm.length-1]||0,f=tot?S.distKm/tot*100:0;
+  document.getElementById('elev-progress').style.width=f+'%';
+  const c=document.getElementById('elev-cursor');c.hidden=!tot;c.style.left=f+'%';
+}
+function seek(d){
+  if(!S.raw.length)return;
+  stopCelebrate();
+  const tot=S.cumKm[S.cumKm.length-1];
+  S.distKm=Math.max(0,Math.min(tot,d));S.idx=distToIdx(S.distKm);
+  S.raceT=timeAtDist(S.distKm);S.lastLap=Math.floor(S.distKm);S.lastNow=0;
+  document.getElementById('hud-lap').hidden=true;
+  const ci=S.idx,p=posAt(S.distKm),coords=S.raw.slice(0,ci).map(([lo,la])=>[lo,la]);coords.push(p);
+  map.getSource('route-prog')?.setData({type:'Feature',geometry:{type:'LineString',coordinates:coords}});
+  S.dotMarker?.setLngLat(p);
+  if(S.camMode==='chase'){R3.heading=null;R3.camHeading=null;chaseFrame(S.distKm);}
+  else if(S.camMode!=='2d')map.jumpTo({center:p});
+  updateStats();updateHud();setElevProgress();
+}
+(()=>{
+  const el=document.getElementById('elev-panel');let drag=false;
+  const at=e=>{const r=el.getBoundingClientRect();seek((e.clientX-r.left)/r.width*(S.cumKm[S.cumKm.length-1]||0));};
+  el.addEventListener('pointerdown',e=>{if(!S.raw.length)return;drag=true;el.setPointerCapture(e.pointerId);at(e);});
+  el.addEventListener('pointermove',e=>{if(drag)at(e);});
+  const up=()=>{drag=false;};el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
+})();
 
 // ── ELEVATION PROFILE ──────────────────────────────────────────────────────────
 function drawElevProfile(){
@@ -790,13 +826,16 @@ function drawElevProfile(){
   const mn=Math.min(...S.elev),mx=Math.max(...S.elev);
   const gain=S.elev.reduce((g,e,i)=>i>0&&e>S.elev[i-1]?g+e-S.elev[i-1]:g,0);
   document.getElementById('elev-gain').textContent='+'+Math.round(gain)+'m';
-  const pts=S.elev.map((e,i)=>`${(i/(S.elev.length-1))*W},${H-((e-mn)/(mx-mn+1))*(H-10)-4}`).join(' ');
+  // eixo x pela distância (não pelo índice), para casar com a linha do tempo
+  const tot=S.cumKm[S.cumKm.length-1]||1;
+  const pts=S.elev.map((e,i)=>`${(S.cumKm[i]??0)/tot*W},${H-((e-mn)/(mx-mn+1))*(H-10)-4}`).join(' ');
   const area=document.createElementNS('http://www.w3.org/2000/svg','polygon');
   area.setAttribute('points',`0,${H} ${pts} ${W},${H}`);
   area.setAttribute('fill','rgba(230,57,70,.18)');svg.appendChild(area);
   const line=document.createElementNS('http://www.w3.org/2000/svg','polyline');
   line.setAttribute('points',pts);line.setAttribute('fill','none');
   line.setAttribute('stroke',S.color);line.setAttribute('stroke-width','1.5');svg.appendChild(line);
+  setElevProgress();
 }
 
 function updateStats(){
@@ -861,7 +900,7 @@ function setCamMode(mode){
     if(S.raw.length){chaseFrame(S.distKm);map.once('idle',()=>{if(S.camMode==='chase'&&!S.playing){R3.heading=null;R3.camHeading=null;chaseFrame(S.distKm);}});}
   }
   else{if(map.getTerrain())map.setTerrain(null);map.easeTo({pitch:0,bearing:0,duration:600});}
-  // modo personagem: controle em "× tempo real" (60× = 1 h de prova em 1 min); nos outros, 1× a 8×
+  // modo personagem: controle em "× tempo real" (5× a 30×; 30× = 1 h de prova em 2 min); nos outros, 1× a 8×
   const spd=document.getElementById('spd'),chase=mode==='chase';
   spd.min=chase?0:1;spd.max=chase?MULTS.length-1:8;spd.value=chase?MULTS.indexOf(S.mult):S.speed;
   document.getElementById('spd-lbl').textContent=(chase?S.mult:S.speed)+'×';
@@ -880,7 +919,7 @@ document.getElementById('btn-rst').addEventListener('click',()=>{
   pause();S.idx=0;S.distKm=0;S.raceT=0;S.lastLap=0;document.getElementById('hud-lap').hidden=true;
   map.getSource('route-prog')?.setData(emptyLine());
   if(S.dotMarker&&S.raw.length)S.dotMarker.setLngLat(S.raw[0]);
-  updateStats();updateHud();document.getElementById('elev-progress').style.width='0';
+  updateStats();updateHud();setElevProgress();
 });
 document.getElementById('spd').addEventListener('input',e=>{
   const v=parseInt(e.target.value);
