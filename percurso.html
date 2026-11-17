@@ -64,94 +64,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .toast{position:fixed;bottom:calc(var(--ctrl-h) + var(--elev-h) + 52px);left:50%;transform:translateX(-50%);background:rgba(15,15,27,.95);border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:20px;font-size:12px;z-index:50;white-space:pre-wrap;max-width:88vw;text-align:center;pointer-events:none;line-height:1.4}
 #gpx-file,#kml-file{display:none}
 
-/* ── AVATAR ─────────────────────────────────────────────────────────────── */
-#avatar{position:fixed;bottom:calc(var(--ctrl-h) + var(--elev-h) + 10px);left:50%;transform:translateX(-50%);z-index:25;pointer-events:none;width:72px;filter:drop-shadow(0 6px 14px rgba(0,0,0,.7))}
-#avatar svg{display:block}
-/* bounce do corpo inteiro */
-#av-body-grp{animation:av-bounce .42s ease-in-out infinite alternate}
-@keyframes av-bounce{from{transform:translateY(0)}to{transform:translateY(-5px)}}
-/* pernas */
-.av-leg-l{transform-box:fill-box;transform-origin:50% 0%;animation:av-leg-l .42s ease-in-out infinite}
-.av-leg-r{transform-box:fill-box;transform-origin:50% 0%;animation:av-leg-r .42s ease-in-out infinite}
-@keyframes av-leg-l{0%,100%{transform:rotate(-30deg)}50%{transform:rotate(30deg)}}
-@keyframes av-leg-r{0%,100%{transform:rotate(30deg)}50%{transform:rotate(-30deg)}}
-/* braços (fase oposta às pernas) */
-.av-arm-l{transform-box:fill-box;transform-origin:80% 10%;animation:av-arm-l .42s ease-in-out infinite}
-.av-arm-r{transform-box:fill-box;transform-origin:20% 10%;animation:av-arm-r .42s ease-in-out infinite}
-@keyframes av-arm-l{0%,100%{transform:rotate(32deg)}50%{transform:rotate(-32deg)}}
-@keyframes av-arm-r{0%,100%{transform:rotate(-32deg)}50%{transform:rotate(32deg)}}
-/* cabeça leve oscilação */
-#av-head{transform-box:fill-box;transform-origin:50% 100%;animation:av-head .84s ease-in-out infinite alternate}
-@keyframes av-head{from{transform:rotate(-2deg)}to{transform:rotate(2deg)}}
-/* pausa quando não está rodando */
-#avatar.paused #av-body-grp,#avatar.paused .av-leg-l,#avatar.paused .av-leg-r,
-#avatar.paused .av-arm-l,#avatar.paused .av-arm-r,#avatar.paused #av-head{animation-play-state:paused}
 </style>
 </head>
 <body>
 <input type="file" id="gpx-file" accept=".gpx,.kmz,.kml,application/gpx+xml,application/vnd.google-earth.kmz,application/vnd.google-earth.kml+xml,application/octet-stream,*/*">
 <input type="file" id="kml-file" accept=".kmz,.kml,application/vnd.google-earth.kmz,application/vnd.google-earth.kml+xml,*/*">
 
-<!-- ── AVATAR ─────────────────────────────────────────────────────────────── -->
-<div id="avatar" hidden>
-<svg viewBox="0 0 60 112" width="72" height="134" xmlns="http://www.w3.org/2000/svg">
-  <!-- sombra no chão -->
-  <ellipse cx="30" cy="110" rx="13" ry="3.5" fill="rgba(0,0,0,.35)"/>
-  <g id="av-body-grp">
-    <!-- PERNA ESQUERDA (começa para trás) -->
-    <g class="av-leg-l">
-      <rect x="19" y="54" width="11" height="22" rx="5.5" fill="#1565C0"/>
-      <rect x="15" y="72" width="10" height="17" rx="5" fill="#1E88E5"/>
-      <ellipse cx="17" cy="91" rx="12" ry="5" fill="#111"/>
-      <ellipse cx="14" cy="89" rx="5" ry="3" fill="#fff" opacity=".15"/>
-    </g>
-    <!-- PERNA DIREITA (começa para frente) -->
-    <g class="av-leg-r">
-      <rect x="30" y="54" width="11" height="22" rx="5.5" fill="#1565C0"/>
-      <rect x="35" y="72" width="10" height="17" rx="5" fill="#1E88E5"/>
-      <ellipse cx="43" cy="91" rx="12" ry="5" fill="#111"/>
-      <ellipse cx="40" cy="89" rx="5" ry="3" fill="#fff" opacity=".15"/>
-    </g>
-    <!-- SHORTS -->
-    <rect x="17" y="50" width="26" height="12" rx="5" fill="#0D47A1"/>
-    <!-- CAMISETA -->
-    <rect x="15" y="26" width="30" height="28" rx="8" fill="#E53935"/>
-    <!-- detalhe lateral camiseta -->
-    <rect x="15" y="26" width="5" height="28" rx="4" fill="#B71C1C" opacity=".6"/>
-    <rect x="40" y="26" width="5" height="28" rx="4" fill="#B71C1C" opacity=".6"/>
-    <!-- número de peito -->
-    <rect x="20" y="32" width="20" height="14" rx="3" fill="#fff"/>
-    <text x="30" y="43" text-anchor="middle" font-size="9" font-weight="800" fill="#E53935" font-family="Arial,sans-serif">1</text>
-    <!-- BRAÇO ESQUERDO (começa para frente — fase oposta à perna esq) -->
-    <g class="av-arm-l">
-      <rect x="4" y="27" width="12" height="8" rx="4" fill="#E53935"/>
-      <rect x="2" y="34" width="10" height="10" rx="5" fill="#FFCCBC"/>
-      <circle cx="6" cy="47" r="4.5" fill="#FFCCBC"/>
-    </g>
-    <!-- BRAÇO DIREITO -->
-    <g class="av-arm-r">
-      <rect x="44" y="27" width="12" height="8" rx="4" fill="#E53935"/>
-      <rect x="48" y="34" width="10" height="10" rx="5" fill="#FFCCBC"/>
-      <circle cx="54" cy="47" r="4.5" fill="#FFCCBC"/>
-    </g>
-    <!-- PESCOÇO -->
-    <rect x="25" y="21" width="10" height="7" rx="4" fill="#FFCCBC"/>
-    <!-- CABEÇA (vista de trás) -->
-    <g id="av-head">
-      <!-- pele da nuca -->
-      <circle cx="30" cy="13" r="13" fill="#FFCCBC"/>
-      <!-- cabelo cobrindo a parte de trás da cabeça -->
-      <ellipse cx="30" cy="10" rx="13" ry="12" fill="#2C1810"/>
-      <!-- pele aparecendo na nuca (base da cabeça) -->
-      <ellipse cx="30" cy="23" rx="7" ry="4.5" fill="#FFCCBC"/>
-      <!-- faixa na cabeça (costas) -->
-      <path d="M17 10 Q30 6 43 10" stroke="#FDD835" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-      <!-- gotas de suor nas laterais (ainda visíveis de costas) -->
-      <ellipse cx="16" cy="12" rx="1.5" ry="2.2" fill="#64B5F6" opacity=".7" transform="rotate(-20 16 12)"/>
-    </g>
-  </g>
-</svg>
-</div>
 <div id="map"></div>
 
 <div id="empty">
@@ -242,7 +160,7 @@ async function initApp(){
 
 let map;
 function startMap(){
-map=new mapboxgl.Map({container:'map',style:'mapbox://styles/mapbox/dark-v11',center:[-47.25,-23.12],zoom:11,pitch:0,bearing:0,antialias:true});
+map=new mapboxgl.Map({container:'map',style:'mapbox://styles/mapbox/dark-v11',center:[-47.25,-23.12],zoom:11,maxZoom:24,pitch:0,bearing:0,antialias:true});
 
 const S={raw:[],elev:[],cumKm:[],hydra:[],idx:0,distKm:0,playing:false,color:'#e63946',speed:3,hydraMode:false,showKm:true,camMode:'2d',raf:null,dotMarker:null,startMarker:null,finishMarker:null,kmMarkers:[],hydraMarkers:[]};
 
@@ -274,7 +192,6 @@ map.on('load',()=>{
 // ── FILE HANDLING ──────────────────────────────────────────────────────────────
 function handleFile(f){
   if(!f){showToast('⚠️ Nenhum arquivo recebido');return;}
-  showToast('📂 '+f.name+' ('+Math.round(f.size/1024)+'kb)',4000);
   const n=f.name.toLowerCase();
   const isGpx=n.endsWith('.gpx')||f.type==='application/gpx+xml';
   const isKmz=n.endsWith('.kmz')||f.type==='application/vnd.google-earth.kmz';
@@ -302,7 +219,6 @@ function loadGPX(txt){
   // getElementsByTagName funciona com namespace (xmlns=...); querySelectorAll pode falhar
   const all=[...doc.getElementsByTagName('trkpt'),...doc.getElementsByTagName('rtept'),...doc.getElementsByTagName('wpt')];
   const pts=all.length?all:[...doc.querySelectorAll('[lat][lon]')];
-  showToast('🗺 '+pts.length+' pontos GPX',3000);
   const raw=[],elev=[];
   pts.forEach(p=>{
     const lo=parseFloat(p.getAttribute('lon')),la=parseFloat(p.getAttribute('lat'));
@@ -435,7 +351,7 @@ function play(){
   if(S.distKm>=total)S.distKm=0;
   S.playing=true;
   document.getElementById('btn-play').innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
-  document.getElementById('avatar').classList.remove('paused');
+  runnerAnim(true);
   if(S.raf)cancelAnimationFrame(S.raf);
   S.raf=requestAnimationFrame(animate);
 }
@@ -444,7 +360,7 @@ function pause(){
   S.playing=false;
   if(S.raf){cancelAnimationFrame(S.raf);S.raf=null;}
   document.getElementById('btn-play').innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>';
-  document.getElementById('avatar').classList.add('paused');
+  runnerAnim(false);
 }
 
 // km avançados por frame = speed × 0.004 (≈ speed km/min a 60fps)
@@ -466,10 +382,107 @@ function distToIdx(d){
   return lo;
 }
 
+// ── CHASE 3D (estilo Subway Surfers) ───────────────────────────────────────────
+// medidas em metros: rua = largura do traçado, boneco proporcional, câmera atrás e acima
+const CHASE={trackW:10,runnerH:3.4,camBack:12,camUp:6,lookAhead:24,kmFactor:0.12};
+const R3={layer:null,loading:null,mixer:null,run:null,idle:null,cur:null,mainMat:null,pos:null,elev:0,heading:null,camHeading:null};
+
+function posAt(d){
+  const n=S.cumKm.length;if(!n)return null;
+  d=Math.max(0,Math.min(d,S.cumKm[n-1]));
+  const i=distToIdx(d);if(i===0)return S.raw[0].slice();
+  const d0=S.cumKm[i-1],d1=S.cumKm[i],t=d1>d0?(d-d0)/(d1-d0):0;
+  const[a,b]=S.raw[i-1],[c,e]=S.raw[i];
+  return[a+(c-a)*t,b+(e-b)*t];
+}
+function bearingBetween(p,q){
+  const r=Math.PI/180,la1=p[1]*r,la2=q[1]*r,dl=(q[0]-p[0])*r;
+  return Math.atan2(Math.sin(dl)*Math.cos(la2),Math.cos(la1)*Math.sin(la2)-Math.sin(la1)*Math.cos(la2)*Math.cos(dl))/r;
+}
+function lerpAngle(a,b,t){return a+((((b-a)%360)+540)%360-180)*t;}
+function groundAt(ll,fallback){const e=map.queryTerrainElevation?.(ll);return e==null?fallback:e;}
+
+// largura em metros reais (acompanha o zoom, com perspectiva)
+function meterWidth(m){
+  const lat=S.raw.length?S.raw[0][1]:0,k=m/(156543.03*Math.cos(lat*Math.PI/180));
+  return['interpolate',['exponential',2],['zoom'],0,k,24,k*Math.pow(2,24)];
+}
+function setTrackStyle(chase){
+  if(!map.getLayer('route-line'))return;
+  ['route-full-line','route-line'].forEach(id=>{map.setLayoutProperty(id,'line-join','round');map.setLayoutProperty(id,'line-cap','round');});
+  map.setPaintProperty('route-full-line','line-width',chase?meterWidth(CHASE.trackW):2);
+  map.setPaintProperty('route-full-line','line-opacity',chase?0.3:0.08);
+  map.setPaintProperty('route-line','line-width',chase?meterWidth(CHASE.trackW):3);
+  map.setPaintProperty('route-glow','line-opacity',chase?0:0.22);
+}
+
+function chaseFrame(d){
+  const p=posAt(d);if(!p)return;
+  const hRaw=bearingBetween(posAt(d-0.015),posAt(d+0.015));
+  R3.heading=R3.heading==null?hRaw:lerpAngle(R3.heading,hRaw,0.3);
+  R3.camHeading=R3.camHeading==null?R3.heading:lerpAngle(R3.camHeading,R3.heading,0.1);
+  R3.pos=p;R3.elev=groundAt(p,R3.elev);
+  const back=geoOffset(p[0],p[1],R3.camHeading+180,CHASE.camBack/1000);
+  const camAlt=Math.max(R3.elev,groundAt(back,R3.elev))+CHASE.camUp;
+  const pitch=90-Math.atan2(camAlt-R3.elev-1,CHASE.camBack+CHASE.lookAhead)*180/Math.PI;
+  const cam=map.getFreeCameraOptions();
+  cam.position=mapboxgl.MercatorCoordinate.fromLngLat(back,camAlt);
+  cam.setPitchBearing(Math.min(pitch,84),R3.camHeading);
+  map.setFreeCameraOptions(cam);
+  map.triggerRepaint();
+}
+
+function runnerAnim(running){
+  if(!R3.mixer)return;
+  R3.run.timeScale=Math.min(2,0.75+0.15*S.speed);
+  const next=running?R3.run:R3.idle;if(R3.cur===next)return;
+  next.reset().play();
+  if(R3.cur)R3.cur.crossFadeTo(next,0.25,false);
+  R3.cur=next;
+}
+
+function ensureRunner(){
+  if(R3.loading)return R3.loading;
+  R3.loading=(async()=>{
+    const T=await import('/assets/3d/three-runner.js');
+    const gltf=await new T.GLTFLoader().loadAsync('/assets/3d/runner.glb');
+    const model=gltf.scene;model.updateMatrixWorld(true);
+    const box=new T.Box3().setFromObject(model,true);
+    const h=(box.max.y-box.min.y)||1;
+    model.position.set(-(box.min.x+box.max.x)/2,-box.min.y,-(box.min.z+box.max.z)/2);
+    model.traverse(o=>{if(o.isMesh&&o.material?.name==='Main'){o.material=o.material.clone();o.material.color.set(S.color);R3.mainMat=o.material;}});
+    const grp=new T.Scene();grp.add(model);grp.scale.setScalar(CHASE.runnerH/h);
+    const scene=new T.Scene();scene.add(grp);
+    scene.add(new T.HemisphereLight(0xffffff,0x444455,2.4));
+    const sun=new T.DirectionalLight(0xffffff,2.2);sun.position.set(-2,4,3);scene.add(sun);
+    R3.mixer=new T.AnimationMixer(model);
+    const clip=n=>gltf.animations.find(a=>a.name===n);
+    R3.run=R3.mixer.clipAction(clip('Running'));R3.idle=R3.mixer.clipAction(clip('Idle'));
+    runnerAnim(S.playing);
+    const camera=new T.Camera(),clock=new T.Clock(),m4=()=>new T.Matrix4();
+    let renderer=null;
+    R3.layer={id:'runner-3d',type:'custom',renderingMode:'3d',
+      onAdd(m,gl){if(!renderer){renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:true});renderer.autoClear=false;renderer.outputColorSpace=T.SRGBColorSpace;}},
+      render(gl,matrix){
+        if(S.camMode!=='chase'||!R3.pos)return;
+        R3.mixer.update(Math.min(clock.getDelta(),0.1));
+        const mc=mapboxgl.MercatorCoordinate.fromLngLat(R3.pos,R3.elev),s=mc.meterInMercatorCoordinateUnits();
+        // modelo olha para +Z; após girar X 90° fica olhando para o sul → gira Y por (180° − rumo)
+        const l=m4().makeTranslation(mc.x,mc.y,mc.z).scale(new T.Vector3(s,-s,s))
+          .multiply(m4().makeRotationX(Math.PI/2)).multiply(m4().makeRotationY(Math.PI-R3.heading*Math.PI/180));
+        camera.projectionMatrix=m4().fromArray(matrix).multiply(l);
+        renderer.resetState();renderer.render(scene,camera);
+        map.triggerRepaint();
+      }};
+    if(map.isStyleLoaded()&&!map.getLayer('runner-3d'))map.addLayer(R3.layer);
+  })().catch(e=>{R3.loading=null;console.error(e);showToast('⚠️ Não foi possível carregar o boneco 3D');if(S.dotMarker)S.dotMarker.getElement().style.display='';});
+  return R3.loading;
+}
+
 function animate(){
   if(!S.playing)return;
   const total=S.cumKm[S.cumKm.length-1]||0;
-  S.distKm=Math.min(S.distKm+S.speed*KM_PER_SPEED,total);
+  S.distKm=Math.min(S.distKm+S.speed*KM_PER_SPEED*(S.camMode==='chase'?CHASE.kmFactor:1),total);
   const ci=distToIdx(S.distKm);
   S.idx=ci;
   const coords=S.raw.slice(0,ci+1).map(([lo,la])=>[lo,la]);
@@ -483,12 +496,10 @@ function animate(){
     const bearing=Math.atan2(lo-plo,la-pla)*180/Math.PI;
     map.easeTo({center:[lo,la],bearing,pitch:65,duration:80,easing:t=>t});
   }else if(S.camMode==='chase'){
-    const pi=Math.max(0,ci-5);const[plo,pla]=S.raw[pi];
-    const bearing=Math.atan2(lo-plo,la-pla)*180/Math.PI;
-    // avatar fixo na tela; padding desloca o mapa para [lo,la] aparecer nos pés do avatar
-    map.easeTo({center:[lo,la],bearing,pitch:80,zoom:17,
-      padding:{bottom:10,top:0,left:0,right:0},
-      duration:80,easing:t=>t});
+    const p=posAt(S.distKm);
+    coords.length=Math.max(1,ci);coords.push(p);
+    map.getSource('route-prog')?.setData({type:'Feature',geometry:{type:'LineString',coordinates:coords}});
+    chaseFrame(S.distKm);
   }
   updateStats();
   document.getElementById('elev-progress').style.width=(total?(S.distKm/total)*100:0)+'%';
@@ -530,6 +541,7 @@ function setColor(c){
   document.getElementById('color-pick').value=c;
   if(S.dotMarker)S.dotMarker.getElement().style.boxShadow='0 0 12px 4px '+c;
   if(map.isStyleLoaded()){map.setPaintProperty('route-glow','line-color',c);map.setPaintProperty('route-line','line-color',c);}
+  R3.mainMat?.color.set(c);
   drawElevProfile();
 }
 
@@ -543,6 +555,7 @@ function setMapStyle(styleUrl){
     map.addLayer({id:'route-glow',type:'line',source:'route-prog',paint:{'line-color':S.color,'line-width':14,'line-opacity':0.22,'line-blur':6}});
     map.addLayer({id:'route-line',type:'line',source:'route-prog',paint:{'line-color':S.color,'line-width':3,'line-cap':'round','line-join':'round'}});
     if(S.camMode==='3d')setupTerrain();
+    if(S.camMode==='chase'){setupTerrain(1);setTrackStyle(true);if(R3.layer)map.addLayer(R3.layer);chaseFrame(S.distKm);}
     if(S.raw.length){
       const coords=S.raw.map(([lo,la])=>[lo,la]);
       map.getSource('route-full').setData({type:'Feature',geometry:{type:'LineString',coordinates:coords}});
@@ -553,10 +566,10 @@ function setMapStyle(styleUrl){
 }
 
 // ── CAMERA / TERRAIN ───────────────────────────────────────────────────────────
-function setupTerrain(){
+function setupTerrain(exaggeration=1.5){
   if(!map.getSource('mapbox-dem'))
     map.addSource('mapbox-dem',{type:'raster-dem',url:'mapbox://mapbox.mapbox-terrain-dem-v1',tileSize:512,maxzoom:14});
-  map.setTerrain({source:'mapbox-dem',exaggeration:1.5});
+  map.setTerrain({source:'mapbox-dem',exaggeration});
   map.setFog({color:'rgb(186,210,235)','high-color':'#245bde','horizon-blend':0.02,'space-color':'#000820','star-intensity':0.6});
 }
 
@@ -566,23 +579,15 @@ function setCamMode(mode){
   const idMap={'2d':'btn-cam2d',follow:'btn-camfollow','3d':'btn-cam3d',chase:'btn-camchase'};
   document.getElementById(idMap[mode]||'btn-cam2d').classList.add('on');
   if(mode==='3d'){if(map.isStyleLoaded())setupTerrain();map.easeTo({pitch:65,duration:600});}
-  else if(mode==='chase'){if(map.isStyleLoaded())setupTerrain();map.easeTo({pitch:80,zoom:17,padding:{bottom:10,top:0,left:0,right:0},duration:600});}
-  else{if(map.getTerrain())map.setTerrain(null);map.easeTo({pitch:0,bearing:0,padding:{bottom:0,top:0,left:0,right:0},duration:600});}
-  // avatar: só aparece no modo chase
-  const av=document.getElementById('avatar');
-  av.hidden=(mode!=='chase');
-  if(mode==='chase'){
-    updateAvatarSpeed();
-  }else{
-    av.style.left='';av.style.top='';av.style.bottom='';av.style.transform='';
+  else if(mode==='chase'){
+    if(map.isStyleLoaded()){setupTerrain(1);setTrackStyle(true);}
+    R3.heading=null;R3.camHeading=null;R3.elev=S.elev[distToIdx(S.distKm)]||0;
+    if(S.dotMarker)S.dotMarker.getElement().style.display='none';
+    ensureRunner();
+    if(S.raw.length){chaseFrame(S.distKm);map.once('idle',()=>{if(S.camMode==='chase'&&!S.playing){R3.heading=null;R3.camHeading=null;chaseFrame(S.distKm);}});}
   }
-}
-
-function updateAvatarSpeed(){
-  // animação mais rápida com velocidade maior; base 0.42s a speed 3
-  const dur=Math.max(0.18, 0.42*(3/S.speed))+'s';
-  document.querySelectorAll('#av-body-grp,.av-leg-l,.av-leg-r,.av-arm-l,.av-arm-r,#av-head')
-    .forEach(el=>el.style.animationDuration=dur);
+  else{if(map.getTerrain())map.setTerrain(null);map.easeTo({pitch:0,bearing:0,duration:600});}
+  if(mode!=='chase'){setTrackStyle(false);if(S.dotMarker)S.dotMarker.getElement().style.display='';}
 }
 
 // ── CONTROLS ───────────────────────────────────────────────────────────────────
@@ -593,7 +598,7 @@ document.getElementById('btn-rst').addEventListener('click',()=>{
   if(S.dotMarker&&S.raw.length)S.dotMarker.setLngLat(S.raw[0]);
   updateStats();document.getElementById('elev-progress').style.width='0';
 });
-document.getElementById('spd').addEventListener('input',e=>{S.speed=parseInt(e.target.value);document.getElementById('spd-lbl').textContent=S.speed+'×';if(S.camMode==='chase')updateAvatarSpeed();});
+document.getElementById('spd').addEventListener('input',e=>{S.speed=parseInt(e.target.value);document.getElementById('spd-lbl').textContent=S.speed+'×';runnerAnim(S.playing);});
 document.getElementById('btn-km').addEventListener('click',()=>{S.showKm=!S.showKm;document.getElementById('btn-km').classList.toggle('on',S.showKm);renderKmMarkers();});
 document.getElementById('btn-hydra').addEventListener('click',()=>{S.hydraMode=!S.hydraMode;document.getElementById('btn-hydra').classList.toggle('on',S.hydraMode);document.getElementById('hydra-tip').hidden=!S.hydraMode;map.getCanvas().style.cursor=S.hydraMode?'crosshair':'';});
 document.getElementById('btn-kml').addEventListener('click',()=>document.getElementById('kml-file').click());
@@ -615,7 +620,7 @@ document.querySelectorAll('.stbtn').forEach(btn=>{
 document.getElementById('btn-cam2d').addEventListener('click',()=>setCamMode('2d'));
 document.getElementById('btn-camfollow').addEventListener('click',()=>setCamMode('follow'));
 document.getElementById('btn-cam3d').addEventListener('click',()=>setCamMode('3d'));
-document.getElementById('btn-camchase').addEventListener('click',()=>{setCamMode('chase');setupTerrain();});
+document.getElementById('btn-camchase').addEventListener('click',()=>setCamMode('chase'));
 
 window.addEventListener('resize',()=>drawElevProfile());
 
