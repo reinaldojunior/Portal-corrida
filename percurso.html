@@ -82,6 +82,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   #estr{left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));width:auto;top:auto;transform:none;bottom:calc(var(--elev-h) + var(--ctrl-h) + 8px);padding:8px 10px;border-radius:12px}#estr .es-met b{font-size:15px}#estr input[type=range]{height:16px;margin:3px 0 0}#estr .es-top{margin-bottom:4px}
   #hud-fim b{font-size:32px}
   #estr .es-p{display:none}#estr .es-ctrl{margin-top:5px}#estr .es-met{margin-top:6px;padding-top:5px}#estr{font-size:12px}
+  /* celular: painel compacto em duas colunas e fundo sólido (o desfoque deixava a faixa laranja "vazar" e cobrir o boneco) */
+  #estr{display:grid;grid-template-columns:1fr 1fr;column-gap:12px;row-gap:2px;align-items:end;background:rgba(9,9,15,.78);backdrop-filter:none;-webkit-backdrop-filter:none;padding:7px 10px}
+  #estr .es-top{grid-column:1;grid-row:1;margin:0}#estr .es-top .es-rot{display:none}
+  #estr label{font-size:11px}#es-alvo{width:78px;font-size:14px;padding:4px}
+  #estr .es-met{grid-column:2;grid-row:1;margin:0;padding:0;border:0;gap:2px}
+  #estr .es-met span{font-size:8px;letter-spacing:.03em}#estr .es-met b{font-size:13px}
+  #estr .es-ctrl{margin-top:4px;min-width:0}
+  #estr .es-l{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#estr .es-l b{margin-left:4px;font-size:10px}
 }
 .cb{background:rgba(255,255,255,.07);border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text);flex-shrink:0;transition:background .15s}
 .cb:hover{background:rgba(255,255,255,.13)}
