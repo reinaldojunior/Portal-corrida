@@ -16,7 +16,8 @@ const SUPABASE_URL = 'https://ssfsxdmzbubvygctdjgf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-const QUANTIDADE = 300;
+// a lista mistura todas as modalidades; 300 cortava SP (o que passa do limite some sem aviso)
+const QUANTIDADE = 1500;
 const UFS = [
   'AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT',
   'PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'
@@ -79,34 +80,37 @@ async function buscarPorEstado(uf) {
 
 // ─── FILTRO DE MODALIDADE (pelo título, pois a API não retorna o tipo) ────────
 
-// Palavras que indicam corrida
-const RE_CORRIDA = /\b(corrida|run|trail|maratona|meia.?maratona|maratoninha|night|corrida|km)\b/i;
+// Palavras que indicam corrida (sem \b no começo de "maratona" para pegar "Ultramaratona"; "10K", "21K"…)
+const RE_CORRIDA = /(corrida|corre\b|\brun\b|running|runner|\btrail|maratona|maratoninha|r[uú]stica|\bnight\b|\bkm\b|\b\d{1,3}\s?k\b|desafio|\bmeia\b|cross\s?country|revezamento)/i;
 // Palavras que indicam NÃO é corrida (evita falsos positivos)
-const RE_EXCLUIR = /\bnatação|natacao|ciclismo|beach.?tennis|futev[oô]lei|canoagem\b/i;
+const RE_EXCLUIR = /(nata[cç][aã]o|ciclismo|\bpedal|\bmtb\b|\bbike|beach.?tennis|futev[oô]lei|canoagem|\bremo\b|stand.?up|v[oô]lei|t[eê]nis\b|xadrez|jiu|karat[eê]|\bjud[oô])/i;
 
 function ehCorridaDeRua(titulo) {
   if (RE_EXCLUIR.test(titulo)) return false;
   return RE_CORRIDA.test(titulo);
 }
 
+// situação do evento: só descarta o que já fechou (antes só "Aberto" passava e "Em breve"/pré-venda sumiam)
+const RE_FECHADO = /(encerr|cancel|esgot|finaliz|realizad|adiad)/i;
+
 // ─── PARSER DE EVENTO ─────────────────────────────────────────────────────────
 
 function parsearEvento(ev, uf) {
   const nome = limpar(ev.title || '');
-  if (!nome) return null;
+  if (!nome) return { descarte: 'sem nome' };
 
   // Data: "14/11/2026" → "2026-11-14"
   const dataBruta = String(ev.date || '');
-  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dataBruta)) return null;
+  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dataBruta)) return { descarte: 'data' };
   const [d, m, a] = dataBruta.split('/');
   const data = `${a}-${m}-${d}`;
 
   // Só provas futuras
   const hoje = new Date(Date.now() - 3 * 3600e3);
-  if (new Date(data) < hoje) return null;
+  if (new Date(data) < hoje) return { descarte: 'passada' };
 
-  // Só eventos abertos
-  if (ev.status && ev.status !== 'Aberto') return null;
+  // descarta só o que já fechou
+  if (ev.status && RE_FECHADO.test(String(ev.status))) return { descarte: 'status:' + ev.status };
 
   // address: "São Paulo, SP" ou "Campinas, SP"
   const addr = limpar(ev.address || '');
@@ -155,15 +159,20 @@ async function coletarTicketSports() {
 
   try {
     const todos = [];
+    // diagnóstico que vai para o registro do robô: por que cada evento ficou de fora
+    const descartes = {}, noLimite = [];
+    const conta = (k) => { descartes[k] = (descartes[k] || 0) + 1; };
 
     for (const uf of UFS) {
       const lista = await buscarPorEstado(uf);
       let corridas = 0;
+      if (lista.length >= QUANTIDADE) noLimite.push(uf);
 
       for (const ev of lista) {
-        if (!ehCorridaDeRua(ev.title || '')) continue;
+        if (!ehCorridaDeRua(ev.title || '')) { conta('outra modalidade'); continue; }
         const item = parsearEvento(ev, uf);
-        if (item) { todos.push(item); corridas++; }
+        if (item && !item.descarte) { todos.push(item); corridas++; }
+        else conta(item ? item.descarte : 'inválido');
       }
 
       if (lista.length) {
@@ -194,7 +203,7 @@ async function coletarTicketSports() {
       ? await rpc('robo_inserir_pendentes', { p_token: token, p_itens: novos })
       : 0;
 
-    await logFim(true, { coletados: unicos.length, novos: inseridas }, null);
+    await logFim(true, { coletados: unicos.length, novos: inseridas, descartes, no_limite: noLimite }, null);
     console.log(`[TicketSports] ${inseridas} novos de ${unicos.length} coletados`);
     return { coletados: unicos.length, novos: inseridas };
   } catch (e) {
