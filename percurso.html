@@ -37,6 +37,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 #elev-cursor{position:absolute;top:0;bottom:0;left:0;width:2px;margin-left:-1px;background:#fff;opacity:.85;z-index:3;pointer-events:none;box-shadow:0 0 6px rgba(0,0,0,.6)}
 #elev-cursor::after{content:"";position:absolute;top:-5px;left:50%;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px var(--route)}
 #elev-cursor[hidden]{display:none}
+/* marcas de km e gotas de hidratação no relevo */
+#elev-marks{position:absolute;inset:0;pointer-events:none;z-index:2}
+.ek{position:absolute;bottom:0;height:76px;border-left:1px dashed rgba(255,255,255,.14)}
+.ek b{position:absolute;bottom:3px;left:3px;font:600 9px 'Inter',sans-serif;color:rgba(255,255,255,.6);text-shadow:0 1px 2px rgba(0,0,0,.9);white-space:nowrap}
+.ed{position:absolute;width:12px;height:16px;margin-left:-6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.8))}
 #ctrl{position:fixed;bottom:env(safe-area-inset-bottom,0px);left:0;right:0;min-height:var(--ctrl-h);background:var(--surface);border-top:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;gap:0;padding:5px max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px));z-index:10}
 .ctrl-row{display:flex;align-items:center;gap:5px;width:100%}
 .ctrl-row+.ctrl-row{margin-top:4px}
@@ -151,6 +156,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   <span id="elev-label">Elevação</span>
   <span id="elev-gain"></span>
   <div id="elev-progress"></div>
+  <div id="elev-marks"></div>
   <div id="elev-cursor" hidden></div>
   <svg id="elev-svg" preserveAspectRatio="none"></svg>
 </div>
@@ -468,6 +474,7 @@ function renderHydraMarkers(){
     el.addEventListener('click',()=>m.togglePopup());
     S.hydraMarkers.push(m);
   });
+  drawElevMarks();
 }
 
 // ── PAINEL DE PONTOS IMPORTADOS ──
@@ -915,7 +922,38 @@ function drawElevProfile(){
   const line=document.createElementNS('http://www.w3.org/2000/svg','polyline');
   line.setAttribute('points',pts);line.setAttribute('fill','none');
   line.setAttribute('stroke',S.color);line.setAttribute('stroke-width','1.5');svg.appendChild(line);
+  S.elevGeom={mn,mx,H};
+  drawElevMarks();
   setElevProgress();
+}
+
+// é hidratação: marcado à mão (💧) ou grupo/nome que fala de água/hidratação (inclui "H", "H1"…)
+function isHydra(h){
+  if(!h.g)return true;
+  const txt=[h.g,S.groups[h.g]?.label,h.name,h.orig].filter(Boolean).join(' ');
+  return /hidrat|água|agua|water|isot[oô]nic|^h\d*$/i.test(txt)||/^h\d*$/i.test(h.orig||'');
+}
+// marca de km (rótulo a cada 1/2/5/10 km, conforme o espaço) e gota em cada hidratação visível
+function drawElevMarks(){
+  const box=document.getElementById('elev-marks');box.textContent='';
+  const tot=S.cumKm[S.cumKm.length-1]||0,W=box.clientWidth||window.innerWidth;if(!tot||!S.elevGeom)return;
+  const step=[1,2,5,10,20].find(k=>k/tot*W>=34)||20;
+  for(let km=step;km<tot-0.05;km+=step){
+    const d=document.createElement('div');d.className='ek';d.style.left=(km/tot*100)+'%';
+    const b=document.createElement('b');b.textContent=km+' km';d.append(b);box.append(d);
+  }
+  const {mn,mx,H}=S.elevGeom,top0=box.clientHeight-H;
+  S.hydra.forEach(h=>{
+    if(h.km==null||!isHydra(h)||(h.g&&(!h.show||!S.groups[h.g]?.show)))return;
+    const y=top0+H-((elevAtD(h.km)-mn)/(mx-mn+1))*(H-10)-4;
+    const d=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    d.setAttribute('viewBox','0 0 12 16');d.setAttribute('class','ed');
+    d.style.left=(h.km/tot*100)+'%';d.style.top=(y-17)+'px';
+    d.innerHTML='<path d="M6 1C6 1 1 7.2 1 10.5a5 5 0 0 0 10 0C11 7.2 6 1 6 1z" fill="#29b6f6" stroke="#fff" stroke-width="1.2"/>';
+    const t=document.createElementNS('http://www.w3.org/2000/svg','title');
+    t.textContent=(h.g?poiName(h):(h.name||'Hidratação'))+' · km '+h.km.toFixed(1).replace('.',',');d.append(t);
+    box.append(d);
+  });
 }
 
 function updateStats(){
