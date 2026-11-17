@@ -3,6 +3,6 @@ Sons do percurso 3D (percurso.html)
 - torcida, fogos: gerados no Higgsfield (Mirelo) para o Mapmove, 17/11/2026
 - voz-conseguimos: gerada no Higgsfield (Seed Audio, voz "Andre"), 17/11/2026
 - respiracao: trecho enviado pelo dono do site, em loop com emenda suavizada
-- musica-1 a musica-3: faixas do dono do site feitas no Suno ("Corra com 180 BPM", "Pulsação de Estrada")
+- musica-2 e musica-3: faixas do dono do site feitas no Suno (a musica-1 foi retirada a pedido do dono)
 - musica-4: gerada no Higgsfield (ElevenLabs Music), 17/11/2026
 Volumes normalizados (loudnorm) e comprimidos para MP3.
