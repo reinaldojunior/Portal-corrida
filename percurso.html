@@ -733,6 +733,10 @@ function stopCelebrate(){
 // efeitos e voz: Higgsfield (gerados para o site); respiração: gravação enviada pelo dono; músicas: Suno do dono + uma gerada
 const SOM={ctx:null,on:true,buf:{},carregando:null,run:null,runGain:null,musica:null,musGain:null,faixa:-1,master:null};
 try{SOM.on=localStorage.getItem('mm-som')!=='0';}catch(e){}
+// iPhone (Safari 17+): toca como player de mídia, mesmo com a chave de silencioso ligada
+try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch(e){}
+// celular: ao voltar para a aba (ou depois de uma ligação) o áudio fica pausado; retoma se a animação estiver rodando
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&SOM.ctx&&S.playing&&SOM.ctx.state!=='running')SOM.ctx.resume().catch(()=>{});});
 const SOM_FX={largada:'corneta-largada',voz:'voz-conseguimos',torcida:'torcida',fogos:'fogos',resp:'respiracao'};
 const MUSICAS=['musica-1','musica-2','musica-3','musica-4'];
 function somIniciar(){
@@ -742,8 +746,10 @@ function somIniciar(){
     SOM.master=SOM.ctx.createGain();SOM.master.gain.value=SOM.on?1:0;SOM.master.connect(SOM.ctx.destination);
     SOM.musGain=SOM.ctx.createGain();SOM.musGain.gain.value=0.3;SOM.musGain.connect(SOM.master);
     SOM.runGain=SOM.ctx.createGain();SOM.runGain.gain.value=0;SOM.runGain.connect(SOM.master);
+    // iPhone: sem isto o Safari só destrava o áudio se algo tocar ainda dentro do toque
+    const z=SOM.ctx.createBufferSource();z.buffer=SOM.ctx.createBuffer(1,1,22050);z.connect(SOM.ctx.destination);z.start(0);
   }
-  if(SOM.ctx.state==='suspended')SOM.ctx.resume();
+  if(SOM.ctx.state!=='running')SOM.ctx.resume().catch(()=>{});
   SOM.carregando??=Promise.all(Object.entries(SOM_FX).map(async([k,f])=>{
     try{const r=await fetch('/assets/som/'+f+'.mp3');SOM.buf[k]=await SOM.ctx.decodeAudioData(await r.arrayBuffer());}catch(e){}
   }));
@@ -779,7 +785,7 @@ function somAtualizar(){
 function somMusica(ligar){
   if(!SOM.ctx)return;
   if(!SOM.musica){
-    const a=new Audio();a.preload='none';SOM.musica=a;
+    const a=new Audio();a.preload='none';a.setAttribute('playsinline','');SOM.musica=a;
     SOM.ctx.createMediaElementSource(a).connect(SOM.musGain);
     SOM.faixa=Math.floor(Math.random()*MUSICAS.length);a.src='/assets/som/'+MUSICAS[SOM.faixa]+'.mp3';
     a.addEventListener('ended',()=>{SOM.faixa=(SOM.faixa+1)%MUSICAS.length;a.src='/assets/som/'+MUSICAS[SOM.faixa]+'.mp3';a.play().catch(()=>{});});
