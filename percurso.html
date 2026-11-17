@@ -42,38 +42,38 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .ctrl-row+.ctrl-row{margin-top:4px}
 .cb[hidden]{display:none}
 /* ── HUD do modo personagem (fundo transparente, texto com sombra) ── */
-#hud{position:fixed;top:calc(env(safe-area-inset-top,0px) + 60px);left:0;right:0;bottom:calc(var(--elev-h) + var(--ctrl-h));z-index:6;pointer-events:none;color:#fff;font-family:'Space Grotesk',sans-serif;text-shadow:0 2px 8px rgba(0,0,0,.85),0 0 2px rgba(0,0,0,.9)}
+#hud{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:0;right:0;bottom:calc(var(--elev-h) + var(--ctrl-h));z-index:21;pointer-events:none;color:#fff;font-family:'Space Grotesk',sans-serif;text-shadow:0 2px 8px rgba(0,0,0,.85),0 0 2px rgba(0,0,0,.9)}
 #hud[hidden],#estr[hidden]{display:none}
 .hud-top,.hud-sub{position:absolute;left:50%;transform:translateX(-50%);display:flex;justify-content:center;text-align:center;white-space:nowrap}
-.hud-top{top:0;gap:34px}
-.hud-sub{top:62px;gap:22px}
-.hud-sub .hv b{font-size:17px}
+.hud-top{top:0;gap:44px}
+.hud-sub{top:74px;gap:28px}
+.hud-sub .hv b{font-size:19px}
 .hud-sub .hv span{font-size:9px}
-.hv span{display:block;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;opacity:.85}
-.hv b{display:block;font-size:30px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
+.hv span{display:block;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;opacity:.85}
+.hv b{display:block;font-size:42px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
 .hv small{font-size:13px;font-weight:600;margin-left:2px}
 #hud-lap,#hud-fim{position:absolute;left:50%;transform:translateX(-50%);text-align:center;white-space:nowrap}
-#hud-lap{top:112px;font-size:15px;font-weight:700;letter-spacing:.04em;background:rgba(9,9,15,.35);padding:6px 14px;border-radius:999px}
+#hud-lap{top:128px;font-size:15px;font-weight:700;letter-spacing:.04em;background:rgba(9,9,15,.35);padding:6px 14px;border-radius:999px}
 #hud-fim{top:18%;font-size:13px;letter-spacing:.1em;text-transform:uppercase}
 #hud-fim b{display:block;font-size:44px;letter-spacing:0;margin:2px 0 4px}
 #hud-lap[hidden],#hud-fim[hidden]{display:none}
 /* ── painel de estratégia (sempre visível no modo personagem) ── */
-#estr{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--elev-h) + var(--ctrl-h) + 34px);z-index:7;width:300px;padding:12px 14px;border-radius:14px;background:rgba(9,9,15,.30);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);color:#fff;font-size:13px;text-shadow:0 1px 4px rgba(0,0,0,.8)}
-.es-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
-.es-rot{font:700 12px 'Space Grotesk',sans-serif;letter-spacing:.08em;text-transform:uppercase}
-#estr label{display:flex;align-items:center;gap:6px;font-size:12px;opacity:.9;white-space:nowrap}
-#es-alvo{width:84px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.3);border-radius:8px;color:#fff;font:700 15px 'Space Grotesk',sans-serif;padding:4px 6px;text-align:center}
-.es-ctrl{margin-top:9px}
+#estr{position:fixed;right:max(16px,env(safe-area-inset-right,0px));top:calc((100vh - var(--elev-h) - var(--ctrl-h)) / 2);transform:translateY(-50%);z-index:7;width:330px;padding:16px 18px;border-radius:16px;background:rgba(9,9,15,.30);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);color:#fff;font-size:14px;text-shadow:0 1px 4px rgba(0,0,0,.8)}
+.es-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.es-rot{font:700 13px 'Space Grotesk',sans-serif;letter-spacing:.08em;text-transform:uppercase}
+#estr label{display:flex;align-items:center;gap:6px;font-size:13px;opacity:.9;white-space:nowrap}
+#es-alvo{width:92px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.3);border-radius:8px;color:#fff;font:700 16px 'Space Grotesk',sans-serif;padding:6px 6px;text-align:center}
+.es-ctrl{margin-top:14px}
 .es-l{display:flex;justify-content:space-between;gap:6px;font-weight:600}
 .es-l b{font-weight:500;opacity:.85;text-align:right}
-#estr input[type=range]{width:100%;margin:4px 0 0;accent-color:#fff}
-.es-p{display:flex;justify-content:space-between;font-size:11px;opacity:.7}
-.es-met{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.14);text-align:center}
-.es-met span{display:block;font-size:10px;opacity:.75;text-transform:uppercase;letter-spacing:.06em}
-.es-met b{font:700 16px 'Space Grotesk',sans-serif}
+#estr input[type=range]{width:100%;height:22px;margin:6px 0 2px;accent-color:#fff}
+.es-p{display:flex;justify-content:space-between;font-size:12px;opacity:.7}
+.es-met{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,.14);text-align:center}
+.es-met span{display:block;font-size:11px;opacity:.75;text-transform:uppercase;letter-spacing:.06em}
+.es-met b{font:700 19px 'Space Grotesk',sans-serif}
 @media (max-width:640px){
-  .hv b{font-size:20px}.hv span{font-size:9px}.hud-top{gap:16px}.hud-sub{top:46px;gap:10px}.hud-sub .hv b{font-size:13px}.hud-sub .hv span{font-size:8px}#hud-lap{top:88px;font-size:13px}
-  #estr{left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));width:auto;bottom:calc(var(--elev-h) + var(--ctrl-h) + 8px);padding:8px 10px}
+  #hud{top:calc(env(safe-area-inset-top,0px) + 50px)}.hv b{font-size:24px}.hv span{font-size:9px}.hud-top{gap:18px}.hud-sub{top:52px;gap:14px}.hud-sub .hv b{font-size:13px}.hud-sub .hv span{font-size:8px}#hud-lap{top:88px;font-size:13px}
+  #estr{left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));width:auto;top:auto;transform:none;bottom:calc(var(--elev-h) + var(--ctrl-h) + 8px);padding:8px 10px;border-radius:12px}#estr .es-met b{font-size:15px}#estr input[type=range]{height:16px;margin:3px 0 0}#estr .es-top{margin-bottom:4px}
   #hud-fim b{font-size:32px}
   #estr .es-p{display:none}#estr .es-ctrl{margin-top:5px}#estr .es-met{margin-top:6px;padding-top:5px}#estr{font-size:12px}
 }
@@ -200,8 +200,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     <div class="hv"><span>Pace</span><b id="h-pace">—</b></div>
   </div>
   <div class="hud-sub">
-    <div class="hv"><span>Velocidade</span><b id="h-vel">—</b></div>
-    <div class="hv"><span>Altitude</span><b id="h-alt">—</b></div>
     <div class="hv"><span>Inclinação</span><b id="h-inc">—</b></div>
     <div class="hv"><span>Subida acum.</span><b id="h-dmais">—</b></div>
   </div>
@@ -462,7 +460,7 @@ function distToIdx(d){
 
 // ── CHASE 3D (estilo Subway Surfers) ───────────────────────────────────────────
 // medidas em metros: rua = largura do traçado, boneco proporcional, câmera atrás e acima
-const CHASE={trackW:10,runnerH:3.4,camBack:12,camUp:4.5,lookAhead:4};
+const CHASE={trackW:10,runnerH:3.4,camBack:12,camUp:4.5,lookAhead:7};
 const R3={zoom:savedZoom(),layer:null,loading:null,mixer:null,run:null,idle:null,cur:null,pos:null,elev:0,heading:null,camHeading:null};
 
 function posAt(d){
@@ -718,8 +716,6 @@ function updateHud(){
   document.getElementById('h-dist').innerHTML=d.toFixed(2).replace('.',',')+'<small>km</small>';
   document.getElementById('h-time').textContent=fmtT(S.raceT);
   document.getElementById('h-pace').innerHTML=fmtPace(t.pace)+'<small>/km</small>';
-  document.getElementById('h-vel').innerHTML=(3600/t.pace).toFixed(1).replace('.',',')+'<small>km/h</small>';
-  document.getElementById('h-alt').innerHTML=has?Math.round(elevAtD(d))+'<small>m</small>':'—';
   const g=Math.round((S.grade?.[i]||0)*100);
   document.getElementById('h-inc').textContent=has?(g>0?'+':'')+g+'%':'—';
   document.getElementById('h-dmais').innerHTML=has?'+'+Math.round(S.cumGain?.[i]||0)+'<small>m</small>':'—';
