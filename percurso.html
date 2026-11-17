@@ -350,6 +350,7 @@ function renderHydraMarkers(){
 
 // ── ANIMATION ──────────────────────────────────────────────────────────────────
 function play(){
+  stopCelebrate();
   if(!S.raw.length)return;
   const total=S.cumKm[S.cumKm.length-1]||0;
   if(S.distKm>=total)S.distKm=0;
@@ -426,27 +427,67 @@ function chaseFrame(d){
   R3.heading=R3.heading==null?hRaw:lerpAngle(R3.heading,hRaw,0.3);
   R3.camHeading=R3.camHeading==null?R3.heading:lerpAngle(R3.camHeading,R3.heading,0.1);
   R3.pos=p;R3.elev=groundAt(p,R3.elev);
-  const back=geoOffset(p[0],p[1],R3.camHeading+180,CHASE.camBack/1000);
-  const camAlt=Math.max(R3.elev,groundAt(back,R3.elev))+CHASE.camUp;
-  const pitch=90-Math.atan2(camAlt-R3.elev-1,CHASE.camBack+CHASE.lookAhead)*180/Math.PI;
+  placeCam(p,R3.camHeading,CHASE.camBack,CHASE.camUp,CHASE.camBack+CHASE.lookAhead,1);
+}
+
+// câmera a `back` m atrás de p (no rumo `bearing`), `up` m acima, mirando a `lookH` m de altura a `lookDist` m
+function placeCam(p,bearing,back,up,lookDist,lookH){
+  const pos=geoOffset(p[0],p[1],bearing+180,back/1000);
+  const camAlt=Math.max(R3.elev,groundAt(pos,R3.elev))+up;
+  const pitch=90-Math.atan2(camAlt-R3.elev-lookH,lookDist)*180/Math.PI;
   const cam=map.getFreeCameraOptions();
-  cam.position=mapboxgl.MercatorCoordinate.fromLngLat(back,camAlt);
-  cam.setPitchBearing(Math.min(pitch,84),R3.camHeading);
+  cam.position=mapboxgl.MercatorCoordinate.fromLngLat(pos,camAlt);
+  cam.setPitchBearing(Math.min(pitch,84),bearing);
   map.setFreeCameraOptions(cam);
   map.triggerRepaint();
 }
 
-function runnerAnim(running){
-  if(!R3.mixer)return;
-  R3.run.timeScale=Math.min(2,0.75+0.15*S.speed);
-  const next=running?R3.run:R3.idle;if(R3.cur===next)return;
-  next.reset().play();
-  if(R3.cur)R3.cur.crossFadeTo(next,0.25,false);
-  R3.cur=next;
+// estado: true/'run' correndo, false/'idle' parado, 'cheer' comemorando.
+// cada estado aponta para um arquivo (R3.files) e um clipe (CLIP); arquivos ainda não baixados usam o de corrida
+const CLIP={run:'Run',idle:'Idle',cheer:'Cheer'};
+function runnerAnim(state){
+  if(state===true)state='run';else if(state===false)state='idle';
+  if(R3.celebrating)state='cheer';
+  R3.state=state;
+  if(!R3.parts)return;
+  let part=R3.parts[R3.files[state]],act=part?.actions[CLIP[state]];
+  if(!act){part=R3.parts[R3.files.run];act=part.actions[CLIP[state]]||part.actions.Idle||part.actions.Run;}
+  act.timeScale=state==='run'?Math.min(2,0.75+0.15*S.speed):(act===part.actions.Run?0:1);
+  if(R3.part!==part){if(R3.part)R3.part.grp.visible=false;part.grp.visible=true;R3.part=part;}
+  if(part.cur===act)return;
+  act.reset().play();
+  if(part.cur)part.cur.crossFadeTo(act,0.3,false);
+  part.cur=act;
 }
 
-// personagens KayKit (CC0, Kay Lousberg) sem armas/capa, só com animações Running_A e Idle
-const CHARS=[{id:'corredora',nome:'Corredora'},{id:'corredor',nome:'Corredor'},{id:'barbudo',nome:'Barbudo'}];
+// chegada: boneco vira para a câmera, comemora e a câmera dá uma volta de 360° em torno dele
+function celebrate(){
+  if(S.camMode!=='chase'||!R3.pos)return;
+  R3.celebrating=true;runnerAnim('cheer');
+  const t0=performance.now(),h0=R3.heading,base=R3.camHeading;
+  const step=now=>{
+    if(!R3.celebrating||S.camMode!=='chase')return;
+    const t=(now-t0)/1000,ease=x=>x<0?0:x>1?1:x*x*(3-2*x);
+    R3.heading=lerpAngle(h0,base+180,ease(t/0.9));
+    const orbit=ease((t-1.2)/10)*360;
+    const k=ease(t/1.5);
+    placeCam(R3.pos,base+orbit,CHASE.camBack*(1-0.45*k),CHASE.camUp*(1-0.6*k),CHASE.camBack*(1-0.45*k),CHASE.runnerH*0.55);
+    R3.celebRaf=requestAnimationFrame(step);
+  };
+  R3.celebRaf=requestAnimationFrame(step);
+}
+function stopCelebrate(){
+  if(!R3.celebrating)return;
+  R3.celebrating=false;cancelAnimationFrame(R3.celebRaf);
+  R3.heading=R3.camHeading;runnerAnim(S.playing);
+}
+
+// Atleta: gerado a partir da arte do usuário (Higgsfield/Meshy), um arquivo por animação.
+// Demais: KayKit (CC0, Kay Lousberg) sem armas/capa, com Run/Idle/Cheer num arquivo só.
+const CHARS=[
+  {id:'atleta',nome:'Atleta',files:{run:'atleta-corrida.glb',idle:'atleta-parado.glb',cheer:'atleta-comemora.glb'},
+   yaw:{'atleta-parado.glb':37}}, // a postura do parado fica ~37° de lado; desvira
+  {id:'corredora',nome:'Corredora'},{id:'corredor',nome:'Corredor'},{id:'barbudo',nome:'Barbudo'}];
 function savedChar(){try{const v=localStorage.getItem('mm-char');return CHARS.some(c=>c.id===v)?v:CHARS[0].id;}catch(e){return CHARS[0].id;}}
 
 function ensureRunner(){
@@ -462,8 +503,8 @@ function ensureRunner(){
     R3.layer={id:'runner-3d',type:'custom',renderingMode:'3d',
       onAdd(m,gl){if(!renderer){renderer=new T.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:true});renderer.autoClear=false;renderer.outputColorSpace=T.SRGBColorSpace;}},
       render(gl,matrix){
-        if(S.camMode!=='chase'||!R3.pos||!R3.mixer)return;
-        R3.mixer.update(Math.min(clock.getDelta(),0.1));
+        if(S.camMode!=='chase'||!R3.pos||!R3.part)return;
+        R3.part.mixer.update(Math.min(clock.getDelta(),0.1));
         const mc=mapboxgl.MercatorCoordinate.fromLngLat(R3.pos,R3.elev),s=mc.meterInMercatorCoordinateUnits();
         // modelo olha para +Z; após girar X 90° fica olhando para o sul → gira Y por (180° − rumo)
         const l=m4().makeTranslation(mc.x,mc.y,mc.z).scale(new T.Vector3(s,-s,s))
@@ -477,21 +518,34 @@ function ensureRunner(){
   return R3.loading;
 }
 
-async function loadChar(id){
-  const T=R3.T;R3.charId=id;
-  const gltf=await new T.GLTFLoader().loadAsync('/assets/3d/'+id+'.glb');
-  if(R3.charId!==id)return;
+async function loadPart(file,yawDeg=0){
+  const T=R3.T;
+  const gltf=await new T.GLTFLoader().loadAsync('/assets/3d/'+file);
   const model=gltf.scene;model.updateMatrixWorld(true);
   const box=new T.Box3().setFromObject(model,true),h=(box.max.y-box.min.y)||1;
   model.position.set(-(box.min.x+box.max.x)/2,-box.min.y,-(box.min.z+box.max.z)/2);
-  const grp=new T.Scene();grp.add(model);grp.scale.setScalar(CHASE.runnerH/h);
-  if(R3.grp)R3.scene.remove(R3.grp);
-  R3.scene.add(grp);R3.grp=grp;
-  R3.mixer=new T.AnimationMixer(model);R3.cur=null;
-  const clip=n=>gltf.animations.find(a=>a.name===n);
-  R3.run=R3.mixer.clipAction(clip('Running_A'));R3.idle=R3.mixer.clipAction(clip('Idle'));
-  runnerAnim(S.playing);
-  map.triggerRepaint();
+  const grp=new T.Scene();grp.add(model);grp.scale.setScalar(CHASE.runnerH/h);grp.rotation.y=yawDeg*Math.PI/180;grp.visible=false;
+  const mixer=new T.AnimationMixer(model),actions={};
+  gltf.animations.forEach(a=>actions[a.name]=mixer.clipAction(a));
+  return{grp,mixer,actions,cur:null};
+}
+
+async function loadChar(id){
+  const c=CHARS.find(x=>x.id===id)||CHARS[0];R3.charId=c.id;
+  const one=c.id+'.glb',files=c.files||{run:one,idle:one,cheer:one};
+  const parts={};
+  parts[files.run]=await loadPart(files.run,c.yaw?.[files.run]);
+  if(R3.charId!==c.id)return;
+  Object.values(R3.parts||{}).forEach(p=>R3.scene.remove(p.grp));
+  R3.parts=parts;R3.files=files;R3.part=null;
+  R3.scene.add(parts[files.run].grp);
+  runnerAnim(R3.state??S.playing);map.triggerRepaint();
+  for(const f of new Set(Object.values(files))){
+    if(parts[f])continue;
+    const p=await loadPart(f,c.yaw?.[f]);if(R3.charId!==c.id)return;
+    parts[f]=p;R3.scene.add(p.grp);R3.part=null;Object.values(parts).forEach(x=>x.grp.visible=false);
+    runnerAnim(R3.state);
+  }
 }
 
 function nextChar(){
@@ -526,7 +580,7 @@ function animate(){
   }
   updateStats();
   document.getElementById('elev-progress').style.width=(total?(S.distKm/total)*100:0)+'%';
-  if(S.distKm>=total){pause();return;}
+  if(S.distKm>=total){pause();celebrate();return;}
   S.raf=requestAnimationFrame(animate);
 }
 
@@ -596,6 +650,7 @@ function setupTerrain(exaggeration=1.5){
 }
 
 function setCamMode(mode){
+  stopCelebrate();
   S.camMode=mode;
   document.querySelectorAll('#btn-cam2d,#btn-camfollow,#btn-cam3d,#btn-camchase').forEach(b=>b.classList.remove('on'));
   const idMap={'2d':'btn-cam2d',follow:'btn-camfollow','3d':'btn-cam3d',chase:'btn-camchase'};
@@ -616,6 +671,7 @@ function setCamMode(mode){
 // ── CONTROLS ───────────────────────────────────────────────────────────────────
 document.getElementById('btn-play').addEventListener('click',()=>S.playing?pause():play());
 document.getElementById('btn-rst').addEventListener('click',()=>{
+  stopCelebrate();
   pause();S.idx=0;S.distKm=0;
   map.getSource('route-prog')?.setData(emptyLine());
   if(S.dotMarker&&S.raw.length)S.dotMarker.setLngLat(S.raw[0]);
