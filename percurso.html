@@ -1179,9 +1179,11 @@ async function carregarCorrida(){
   if(Number.isFinite(D.alvos?.[RACE.key]))PLAN.alvo=D.alvos[RACE.key];
   buildPlan();S.raceT=0;document.getElementById('es-alvo').value=fmtT(PLAN.alvo||0);updatePanel();updateHud();
   renderHydraMarkers();
-  aplicarVista(D.vista||{});
+  // prova ainda não configurada pelo admin: mesma vista das provas já montadas (personagem Atleta, mapa Rua)
+  aplicarVista(D.vista||VISTA_PADRAO);
   updateStartOv();
 }
+const VISTA_PADRAO={cam:'chase',char:'atleta',style:'mapbox://styles/mapbox/streets-v12',zoom:0.96,mult:20,showKm:true,color:'#e63946'};
 // vista salva pelo admin: estilo do mapa, cor, câmera, personagem, zoom, km e velocidade
 function aplicarVista(V){
   const st=V.style&&[...document.querySelectorAll('.stbtn')].find(b=>b.dataset.style===V.style);
