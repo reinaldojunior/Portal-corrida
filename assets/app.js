@@ -1753,7 +1753,7 @@ async function adminRobo() {
   carregarSugestoesPercurso();
 }
 
-// ── Percursos achados pelo robô (api/buscar-percurso): admin aprova (vai para a distância) ou descarta ──
+// ── Percursos achados pelo robô (/api/enriquecer?modo=percurso): admin aprova (vai para a distância) ou descarta ──
 const urlSegura = (u) => { try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.toString() : null; } catch { return null; } };
 function miniPercurso(pts) {
   if (!Array.isArray(pts) || pts.length < 2) return '';
@@ -1805,7 +1805,7 @@ async function carregarSugestoesPercurso() {
     const btn = ev.currentTarget, { data: { session } } = await sb.auth.getSession();
     btn.disabled = true; btn.textContent = 'Procurando… (até 1 min)';
     try {
-      const r = await fetch('/api/buscar-percurso', { headers: { authorization: `Bearer ${session.access_token}` } });
+      const r = await fetch('/api/enriquecer?modo=percurso', { headers: { authorization: `Bearer ${session.access_token}` } });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.erro || `erro ${r.status}`);
       toast(`${j.percursos_lidos} página(s) lidas: ${j.com_percurso} com percurso${j.so_link ? `, ${j.so_link} só com link` : ''}.`);
