@@ -565,6 +565,7 @@ function play(){
   updateStartOv();
   // som: só começa num clique (exigência dos navegadores); corneta de largada quando sai do zero
   const doZero=S.distKm===0;
+  try{SOM_CANAL?.postMessage('play');}catch(e){}
   somIniciar()?.then(()=>{if(!S.playing)return;if(doZero)somTocar('largada',0.8);somCorrida(S.camMode==='chase');});
   somMusica(true);
 }
@@ -735,8 +736,12 @@ const SOM={ctx:null,on:true,buf:{},carregando:null,run:null,runGain:null,musica:
 try{SOM.on=localStorage.getItem('mm-som')!=='0';}catch(e){}
 // iPhone (Safari 17+): toca como player de mídia, mesmo com a chave de silencioso ligada
 try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch(e){}
-// celular: ao voltar para a aba (ou depois de uma ligação) o áudio fica pausado; retoma se a animação estiver rodando
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&SOM.ctx&&S.playing&&SOM.ctx.state!=='running')SOM.ctx.resume().catch(()=>{});});
+// só uma página toca por vez: ao sair da aba (a animação para quando a aba some) pausa tudo,
+// e quando outra aba/mapa do site dá play, esta pausa
+const somParar=()=>{if(S.playing)pause();else somMusica(false);};
+document.addEventListener('visibilitychange',()=>{if(document.hidden)somParar();});
+const SOM_CANAL=('BroadcastChannel' in window)?new BroadcastChannel('mm-percurso'):null;
+if(SOM_CANAL)SOM_CANAL.onmessage=e=>{if(e.data==='play')somParar();};
 const SOM_FX={largada:'corneta-largada',voz:'voz-conseguimos',torcida:'torcida',fogos:'fogos',resp:'respiracao'};
 const MUSICAS=['musica-2','musica-3','musica-4'];
 function somIniciar(){
