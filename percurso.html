@@ -93,6 +93,30 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 #color-pick{position:absolute;inset:-4px;opacity:0;cursor:pointer;width:calc(100% + 8px);height:calc(100% + 8px)}
 .hbtn{background:rgba(41,182,246,.12);border:1px solid var(--hydra);border-radius:20px;padding:3px 8px;font-size:11px;color:var(--hydra);cursor:pointer;flex-shrink:0;white-space:nowrap;transition:background .15s}
 .hbtn.on{background:rgba(41,182,246,.28)}
+.hbtn[hidden]{display:none}
+/* marcador de ponto importado: bolinha + nome */
+.poi-m{display:flex;align-items:center;gap:5px;background:rgba(9,9,15,.82);border:1px solid #29b6f6;border-radius:999px;padding:2px 8px 2px 3px;color:#fff;font:600 11px 'Inter',sans-serif;white-space:nowrap;cursor:pointer;box-shadow:0 0 8px rgba(41,182,246,.45)}
+.poi-m::before{content:"";width:12px;height:12px;border-radius:50%;background:#29b6f6;flex-shrink:0}
+/* painel de pontos importados */
+#poi-panel{position:fixed;top:calc(env(safe-area-inset-top,0px) + 64px);left:max(16px,env(safe-area-inset-left,0px));z-index:40;width:360px;max-height:calc(100vh - var(--elev-h) - var(--ctrl-h) - 90px);overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;color:var(--text);font-size:13px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+#poi-panel[hidden]{display:none}
+.pp-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.pp-top h3{margin:0;font:700 15px 'Space Grotesk',sans-serif}
+.pp-x{background:none;border:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:2px 6px}
+.pp-help{margin:0 0 10px;color:var(--muted);font-size:12px;line-height:1.4}
+.pp-g{border:1px solid var(--border);border-radius:10px;padding:8px;margin-bottom:8px}
+.pp-row{display:flex;align-items:center;gap:8px}
+.pp-row input[type=checkbox]{width:16px;height:16px;accent-color:#29b6f6;flex-shrink:0}
+.pp-row input[type=text]{flex:1;min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:7px;color:var(--text);font:inherit;padding:5px 8px}
+.pp-g>.pp-row input[type=text]{font-weight:700}
+.pp-n{color:var(--muted);font-size:11px;white-space:nowrap}
+.pp-more{background:none;border:none;color:#29b6f6;font-size:12px;cursor:pointer;padding:4px 0 0}
+.pp-items{margin:6px 0 0 24px;display:flex;flex-direction:column;gap:5px}
+.pp-items[hidden]{display:none}
+.pp-foot{display:flex;justify-content:space-between;gap:8px;position:sticky;bottom:-14px;margin:6px -14px -14px;padding:10px 14px 14px;background:var(--surface);border-top:1px solid var(--border)}
+.pp-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:8px;color:var(--text);font:600 12px 'Inter',sans-serif;padding:7px 12px;cursor:pointer}
+.pp-btn.pri{background:#29b6f6;border-color:#29b6f6;color:#06121a}
+@media (max-width:640px){#poi-panel{left:10px;right:10px;width:auto}}
 .tbtn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:3px 8px;font-size:11px;color:var(--muted);cursor:pointer;flex-shrink:0;white-space:nowrap;transition:background .15s}
 .tbtn.on{background:rgba(255,255,255,.15);color:var(--text);border-color:rgba(255,255,255,.25)}
 .csp{flex:1}
@@ -190,6 +214,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     <button class="hbtn" id="btn-hydra">💧 Hidratação</button>
     <div class="csep"></div>
     <button class="tbtn" id="btn-kml">📂 KMZ</button>
+    <button class="hbtn" id="btn-pois" hidden>📍 Pontos</button>
   </div>
 </div>
 
@@ -224,6 +249,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   </div>
 </header>
 
+<div id="poi-panel" hidden role="dialog" aria-labelledby="pp-tit">
+  <div class="pp-top"><h3 id="pp-tit">Pontos do arquivo</h3><button type="button" class="pp-x" id="pp-close" aria-label="Fechar">×</button></div>
+  <p class="pp-help">Marque o que deve aparecer no mapa. Renomeie o grupo para trocar o nome de todos (ex.: H → Ponto de Hidratação) ou abra o grupo para editar cada ponto.</p>
+  <div id="pp-list"></div>
+  <div class="pp-foot"><button type="button" class="pp-btn" id="pp-import">Importar outro arquivo</button><button type="button" class="pp-btn pri" id="pp-ok">Pronto</button></div>
+</div>
 <div id="hydra-tip" hidden>Toque no mapa para marcar hidratação · Clique direito remove</div>
 
 <script>
@@ -236,7 +267,7 @@ let map;
 function startMap(){
 map=new mapboxgl.Map({container:'map',style:'mapbox://styles/mapbox/dark-v11',center:[-47.25,-23.12],zoom:11,maxZoom:24,pitch:0,bearing:0,antialias:true});
 
-const S={raw:[],elev:[],cumKm:[],hydra:[],idx:0,distKm:0,playing:false,color:'#e63946',speed:3,hydraMode:false,showKm:true,camMode:'2d',mult:20,raceT:0,lastLap:0,lastNow:0,raf:null,dotMarker:null,startMarker:null,finishMarker:null,kmMarkers:[],hydraMarkers:[]};
+const S={raw:[],elev:[],cumKm:[],hydra:[],idx:0,distKm:0,playing:false,color:'#e63946',speed:3,hydraMode:false,showKm:true,camMode:'2d',mult:20,groups:{},raceT:0,lastLap:0,lastNow:0,raf:null,dotMarker:null,startMarker:null,finishMarker:null,kmMarkers:[],hydraMarkers:[]};
 
 function emptyLine(){return{type:'Feature',geometry:{type:'LineString',coordinates:[]}};}
 
@@ -329,7 +360,9 @@ async function importKML(kmlText){
   }
   // Parse LineString route
   const lsNode=doc.querySelector('LineString coordinates,MultiGeometry LineString coordinates');
-  if(lsNode){
+  // o traçado do KML só vira percurso se ainda não houver um: o arquivo da corrida (GPX) manda no mapa e na altimetria
+  const keptRoute=!!(lsNode&&S.raw.length);
+  if(lsNode&&!S.raw.length){
     const raw=[],elev=[];
     lsNode.textContent.trim().split(/\s+/).forEach(c=>{const p=c.split(',');const lo=parseFloat(p[0]),la=parseFloat(p[1]),el=parseFloat(p[2]||0);if(!isNaN(lo)&&!isNaN(la)){raw.push([lo,la]);elev.push(isNaN(el)?0:el);}});
     if(raw.length)init(raw,elev);
@@ -343,18 +376,22 @@ async function importKML(kmlText){
     const parts=ptc.textContent.trim().split(/[\s,]+/);
     const lo=parseFloat(parts[0]),la=parseFloat(parts[1]);
     if(isNaN(lo)||isNaN(la))return;
-    newH.push({lo,la,km:null,name});
+    // grupo: pasta do KML; sem pasta, o nome sem o número do fim (H1, H2 → "H")
+    let folder=null;for(let el=pm.parentElement;el;el=el.parentElement)if(el.tagName==='Folder'){folder=el.querySelector(':scope>name')?.textContent.trim()||null;break;}
+    const m=name.match(/^(.*?)[\s\-_#]*(\d+)$/);
+    const g=folder||(m?m[1].trim():name)||'Pontos';
+    newH.push({lo,la,km:S.raw.length?nearestKm(lo,la):null,orig:name,num:m?m[2]:null,g,name:null,show:true});
   });
   if(newH.length){
-    if(S.raw.length){newH.forEach(h=>{let best=Infinity,bk=0;S.raw.forEach(([rlo,rla],i)=>{const d=Math.hypot(rlo-h.lo,rla-h.la);if(d<best){best=d;bk=S.cumKm[i];}});h.km=bk;});}
-    S.hydra.push(...newH);renderHydraMarkers();
-    showToast('✅ '+newH.length+' ponto(s) importado(s) do KML');
-  }
+    newH.forEach(h=>{S.groups[h.g]??={label:h.g,show:true};});
+    S.hydra.push(...newH);renderHydraMarkers();openPoiPanel();
+    showToast('✅ '+newH.length+' ponto(s) importado(s)'+(keptRoute?'\nO traçado do arquivo foi ignorado: o percurso carregado foi mantido.':''),keptRoute?5000:3000);
+  }else if(keptRoute)showToast('O arquivo não tem pontos para importar. O percurso carregado foi mantido.',5000);
 }
 
 // ── INIT ROUTE ─────────────────────────────────────────────────────────────────
 function init(raw,elev){
-  S.raw=raw;S.elev=elev||[];S.hydra=[];S.idx=0;S.distKm=0;S.playing=false;
+  S.raw=raw;S.elev=elev||[];S.idx=0;S.distKm=0;S.playing=false;
   S.cumKm=[0];
   for(let i=1;i<raw.length;i++){
     const[lo1,la1]=raw[i-1],[lo2,la2]=raw[i];
@@ -363,6 +400,7 @@ function init(raw,elev){
     S.cumKm.push(S.cumKm[i-1]+6371*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
   }
   document.getElementById('empty').classList.add('gone');
+  S.hydra.forEach(h=>h.km=nearestKm(h.lo,h.la));
   const coords=raw.map(([lo,la])=>[lo,la]);
   if(map.isStyleLoaded())setupRoute(coords);else map.once('style.load',()=>setupRoute(coords));
   computeGrades();
@@ -407,17 +445,60 @@ function renderKmMarkers(){
   }
 }
 
+function nearestKm(lo,la){let best=Infinity,bk=0;S.raw.forEach(([rlo,rla],i)=>{const d=Math.hypot(rlo-lo,rla-la);if(d<best){best=d;bk=S.cumKm[i];}});return bk;}
+// nome exibido: o editado no ponto; senão o rótulo do grupo (+ número original); senão o nome do arquivo
+function poiName(h){
+  if(h.name)return h.name;
+  const g=h.g&&S.groups[h.g];
+  if(g&&g.label!==h.g)return h.num!=null?g.label+' '+h.num:g.label;
+  return h.orig||'';
+}
 function renderHydraMarkers(){
   S.hydraMarkers.forEach(m=>m.remove());S.hydraMarkers=[];
+  document.getElementById('btn-pois').hidden=!S.hydra.some(h=>h.g);
   S.hydra.forEach((h,i)=>{
-    const lbl=h.name&&h.name.length<=4?h.name:'H'+(i+1);
-    const el=Object.assign(document.createElement('div'),{className:'hyd-m',textContent:lbl});
-    const popup=new mapboxgl.Popup({offset:14,closeButton:false}).setText(h.name||(h.km!=null?'km '+h.km.toFixed(1):'H'+(i+1)));
+    if(h.g&&(!h.show||!S.groups[h.g]?.show))return;
+    const nm=h.g?poiName(h):(h.name||'');
+    const el=document.createElement('div');
+    if(h.g){el.className='poi-m';el.textContent=nm||'Ponto';}
+    else{el.className='hyd-m';el.textContent=nm&&nm.length<=4?nm:'H'+(i+1);}
+    const popup=new mapboxgl.Popup({offset:14,closeButton:false}).setText((nm||'H'+(i+1))+(h.km!=null?' · km '+h.km.toFixed(1).replace('.',','):''));
     const m=new mapboxgl.Marker({element:el,anchor:'center'}).setLngLat([h.lo,h.la]).setPopup(popup).addTo(map);
     el.addEventListener('click',()=>m.togglePopup());
     S.hydraMarkers.push(m);
   });
 }
+
+// ── PAINEL DE PONTOS IMPORTADOS ──
+function openPoiPanel(){
+  const list=document.getElementById('pp-list');list.textContent='';
+  const mk=(tag,props)=>Object.assign(document.createElement(tag),props);
+  Object.entries(S.groups).forEach(([key,g])=>{
+    const items=S.hydra.filter(h=>h.g===key);if(!items.length)return;
+    const box=mk('div',{className:'pp-g'}),row=mk('div',{className:'pp-row'});
+    const cb=mk('input',{type:'checkbox',checked:g.show,title:'Mostrar no mapa'});
+    const inp=mk('input',{type:'text',value:g.label,maxLength:40,ariaLabel:'Nome do grupo '+key});
+    const n=mk('span',{className:'pp-n',textContent:items.length+(items.length>1?' pontos':' ponto')});
+    row.append(cb,inp,n);box.append(row);
+    const sub=mk('div',{className:'pp-items',hidden:true});
+    const fill=()=>{sub.textContent='';items.forEach(h=>{
+      const r=mk('div',{className:'pp-row'}),c=mk('input',{type:'checkbox',checked:h.show});
+      const t=mk('input',{type:'text',value:poiName(h),maxLength:40,ariaLabel:'Nome do ponto'});
+      const k=mk('span',{className:'pp-n',textContent:h.km!=null?'km '+h.km.toFixed(1).replace('.',','):''});
+      c.addEventListener('change',()=>{h.show=c.checked;renderHydraMarkers();});
+      t.addEventListener('input',()=>{h.name=t.value.trim()||null;renderHydraMarkers();});
+      r.append(c,t,k);sub.append(r);});};
+    fill();
+    const more=mk('button',{type:'button',className:'pp-more',textContent:'Editar cada ponto ▾'});
+    more.addEventListener('click',()=>{sub.hidden=!sub.hidden;more.textContent=sub.hidden?'Editar cada ponto ▾':'Fechar ▴';});
+    cb.addEventListener('change',()=>{g.show=cb.checked;renderHydraMarkers();});
+    // renomear o grupo vale para os pontos que não foram editados um a um
+    inp.addEventListener('input',()=>{g.label=inp.value.trim()||key;renderHydraMarkers();fill();});
+    box.append(more,sub);list.append(box);
+  });
+  document.getElementById('poi-panel').hidden=false;
+}
+function closePoiPanel(){document.getElementById('poi-panel').hidden=true;}
 
 // ── ANIMATION ──────────────────────────────────────────────────────────────────
 function play(){
@@ -932,6 +1013,10 @@ document.getElementById('es-adj').addEventListener('input',e=>{PLAN.adj=+e.targe
 document.getElementById('btn-km').addEventListener('click',()=>{S.showKm=!S.showKm;document.getElementById('btn-km').classList.toggle('on',S.showKm);renderKmMarkers();});
 document.getElementById('btn-hydra').addEventListener('click',()=>{S.hydraMode=!S.hydraMode;document.getElementById('btn-hydra').classList.toggle('on',S.hydraMode);document.getElementById('hydra-tip').hidden=!S.hydraMode;map.getCanvas().style.cursor=S.hydraMode?'crosshair':'';});
 document.getElementById('btn-kml').addEventListener('click',()=>document.getElementById('kml-file').click());
+document.getElementById('btn-pois').addEventListener('click',()=>{const pp=document.getElementById('poi-panel');pp.hidden?openPoiPanel():closePoiPanel();});
+document.getElementById('pp-close').addEventListener('click',closePoiPanel);
+document.getElementById('pp-ok').addEventListener('click',closePoiPanel);
+document.getElementById('pp-import').addEventListener('click',()=>document.getElementById('kml-file').click());
 // btn-up e btn-up-main são <label for="gpx-file"> — disparam o input nativamente
 document.getElementById('gpx-file').addEventListener('change',e=>{handleFile(e.target.files[0]);e.target.value='';});
 document.getElementById('kml-file').addEventListener('change',e=>{handleFile(e.target.files[0]);e.target.value='';});
