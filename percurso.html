@@ -106,6 +106,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 /* painel de pontos importados */
 #poi-panel{position:fixed;top:calc(env(safe-area-inset-top,0px) + 64px);left:max(16px,env(safe-area-inset-left,0px));z-index:40;width:360px;max-height:calc(100vh - var(--elev-h) - var(--ctrl-h) - 90px);overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;color:var(--text);font-size:13px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
 #poi-panel[hidden]{display:none}
+/* modo corrida (?corrida=slug): visitante só assiste; admin pode importar e salvar */
+body.modo-corrida #empty{display:none}
+body.modo-corrida:not(.race-admin) #btn-up,body.modo-corrida:not(.race-admin) #btn-kml,body.modo-corrida:not(.race-admin) #btn-hydra,
+body.modo-corrida:not(.race-admin) #btn-pois,body.modo-corrida:not(.race-admin) #pp-import{display:none!important}
+body:not(.race-admin) #btn-save{display:none}
+#btn-full{display:none}
+body.embed #btn-full{display:inline-flex;align-items:center;gap:4px;pointer-events:auto;color:var(--text);text-decoration:none;font:600 12px 'Inter',sans-serif;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 10px;white-space:nowrap}
 .pp-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
 .pp-top h3{margin:0;font:700 15px 'Space Grotesk',sans-serif}
 .pp-x{background:none;border:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:2px 6px}
@@ -222,6 +229,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     <div class="csep"></div>
     <button class="tbtn" id="btn-kml">📂 KMZ</button>
     <button class="hbtn" id="btn-pois" hidden>📍 Pontos</button>
+    <button class="hbtn" id="btn-save">💾 Salvar na corrida</button>
   </div>
 </div>
 
@@ -250,6 +258,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 </div>
 <header id="hdr">
   <input id="race-name" type="text" placeholder="Nome da Corrida" maxlength="40">
+  <a id="btn-full" target="_blank" rel="noopener">⤢ Tela cheia</a>
   <div id="stats">
     <div class="sv"><span class="sv-n" id="s-km">—</span><span class="sv-u">KM</span></div>
     <div class="sv"><span class="sv-n" id="s-el">—</span><span class="sv-u">m ↑</span></div>
@@ -272,7 +281,8 @@ async function initApp(){
 
 let map;
 function startMap(){
-map=new mapboxgl.Map({container:'map',style:'mapbox://styles/mapbox/dark-v11',center:[-47.25,-23.12],zoom:11,maxZoom:24,pitch:0,bearing:0,antialias:true});
+const EMBED=new URLSearchParams(location.search).get('embed')==='1';
+map=new mapboxgl.Map({container:'map',cooperativeGestures:EMBED,style:'mapbox://styles/mapbox/dark-v11',center:[-47.25,-23.12],zoom:11,maxZoom:24,pitch:0,bearing:0,antialias:true});
 
 const S={raw:[],elev:[],cumKm:[],hydra:[],idx:0,distKm:0,playing:false,color:'#e63946',speed:3,hydraMode:false,showKm:true,camMode:'2d',mult:20,groups:{},raceT:0,lastLap:0,lastNow:0,raf:null,dotMarker:null,startMarker:null,finishMarker:null,kmMarkers:[],hydraMarkers:[]};
 
@@ -303,6 +313,7 @@ map.on('load',()=>{
 
 // ── FILE HANDLING ──────────────────────────────────────────────────────────────
 function handleFile(f){
+  if(RACE.slug&&!RACE.admin)return;
   if(!f){showToast('⚠️ Nenhum arquivo recebido');return;}
   const n=f.name.toLowerCase();
   const isGpx=n.endsWith('.gpx')||f.type==='application/gpx+xml';
@@ -616,7 +627,7 @@ function setMapGestures(on){
 }
 (()=>{
   const el=map.getCanvasContainer?.()||document.getElementById('map');
-  el.addEventListener('wheel',e=>{if(S.camMode!=='chase')return;e.preventDefault();chaseZoom(Math.exp(e.deltaY*0.0015));},{passive:false});
+  el.addEventListener('wheel',e=>{if(S.camMode!=='chase')return;if(EMBED&&!(e.ctrlKey||e.metaKey))return;e.preventDefault();chaseZoom(Math.exp(e.deltaY*0.0015));},{passive:false});
   let pinch=0;
   const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
   el.addEventListener('touchstart',e=>{if(S.camMode==='chase'&&e.touches.length===2)pinch=dist(e.touches);},{passive:true});
@@ -1085,6 +1096,56 @@ window.addEventListener('resize',()=>drawElevProfile());
 
 function showToast(msg,duration=4000){document.querySelectorAll('.toast').forEach(t=>t.remove());const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),duration);}
 updatePanel();
+
+// ── MODO CORRIDA: /percurso?corrida=slug[&dist=rótulo][&embed=1] ──
+// carrega o GPX salvo da prova e o que o admin salvou (pontos, nomes, tempo alvo, estratégia); visitante não altera nada
+const SB_URL='https://ssfsxdmzbubvygctdjgf.supabase.co',SB_KEY='sb_publishable_s2yoUApfYl_ZvSUkqYYrVw_uXwKsybM';
+const QS=new URLSearchParams(location.search);
+const RACE={slug:QS.get('corrida'),dist:QS.get('dist'),id:null,data:{},admin:false,key:'principal',sb:null};
+if(EMBED){document.body.classList.add('embed');const u=new URL(location.href);u.searchParams.delete('embed');document.getElementById('btn-full').href=u.pathname+u.search;}
+function loadScript(src,integrity){return new Promise((ok,err)=>{const t=document.createElement('script');t.src=src;if(integrity){t.integrity=integrity;t.crossOrigin='anonymous';}t.onload=ok;t.onerror=err;document.head.append(t);});}
+async function carregarCorrida(){
+  document.body.classList.add('modo-corrida');
+  const nome=document.getElementById('race-name');nome.readOnly=true;
+  try{
+    if(!window.supabase)await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js','sha384-K1nraABOP/zFehpLIUksXebbs7jMpB8gYMlb+uhVKZcWT/9Vkq1+qhv6ndC+1Yuz');
+    RACE.sb=window.supabase.createClient(SB_URL,SB_KEY);
+  }catch(e){showToast('⚠️ Não foi possível carregar a corrida');return;}
+  const {data,error}=await RACE.sb.from('corridas').select('id,slug,nome,percurso,percurso_3d,corrida_distancias(rotulo,km,percurso)').eq('slug',RACE.slug).maybeSingle();
+  if(error||!data){showToast('⚠️ Corrida não encontrada');return;}
+  RACE.id=data.id;RACE.data=data.percurso_3d||{};nome.value=data.nome||'';
+  // percurso da distância pedida (mesmo rótulo da aba na página da prova); senão o principal; senão o maior
+  const ds=(data.corrida_distancias||[]).filter(d=>Array.isArray(d.percurso)&&d.percurso.length>1);
+  const d=ds.find(x=>x.rotulo===RACE.dist);
+  const pts=d?d.percurso:(Array.isArray(data.percurso)&&data.percurso.length>1?data.percurso:ds.sort((a,b)=>(b.km||0)-(a.km||0))[0]?.percurso);
+  RACE.key=d?d.rotulo:'principal';
+  try{const {data:{session}}=await RACE.sb.auth.getSession();if(session){const {data:ok}=await RACE.sb.rpc('is_admin');RACE.admin=!!ok;}}catch(e){}
+  document.body.classList.toggle('race-admin',RACE.admin);nome.readOnly=true;
+  if(!pts){showToast('Esta corrida ainda não tem percurso (GPX).',6000);return;}
+  const D=RACE.data;
+  S.groups=D.grupos&&typeof D.grupos==='object'?D.grupos:{};
+  S.hydra=Array.isArray(D.pontos)?D.pontos.filter(p=>Number.isFinite(p.lo)&&Number.isFinite(p.la)).map(p=>({...p,km:null})):[];
+  init(pts.map(p=>[p[1],p[0]]),pts.map(p=>Number.isFinite(p[2])?p[2]:0));
+  if(Number.isFinite(D.est))PLAN.est=D.est;
+  if(Number.isFinite(D.adj))PLAN.adj=D.adj;
+  if(Number.isFinite(D.alvos?.[RACE.key]))PLAN.alvo=D.alvos[RACE.key];
+  buildPlan();S.raceT=0;document.getElementById('es-alvo').value=fmtT(PLAN.alvo||0);updatePanel();updateHud();
+  renderHydraMarkers();
+}
+async function salvarCorrida(){
+  if(!RACE.admin||!RACE.id)return;
+  const D=RACE.data||{};
+  const payload={v:1,
+    pontos:S.hydra.map(h=>({lo:h.lo,la:h.la,orig:h.orig??null,num:h.num??null,g:h.g??null,name:h.name??null,show:h.show!==false})),
+    grupos:S.groups,alvos:{...(D.alvos||{}),[RACE.key]:PLAN.alvo},est:PLAN.est,adj:PLAN.adj};
+  const btn=document.getElementById('btn-save');btn.disabled=true;
+  const {data,error}=await RACE.sb.from('corridas').update({percurso_3d:payload}).eq('id',RACE.id).select('id');
+  btn.disabled=false;
+  if(error||!data?.length){showToast('⚠️ Não foi possível salvar'+(error?': '+error.message:' (entre como admin no site)'),6000);return;}
+  RACE.data=payload;showToast('✅ Salvo na corrida. Os visitantes já veem esta versão.',4000);
+}
+document.getElementById('btn-save').addEventListener('click',salvarCorrida);
+if(RACE.slug)carregarCorrida();
 } // end startMap
 
 initApp();
