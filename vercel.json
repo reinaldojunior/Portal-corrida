@@ -37,6 +37,9 @@
     },
     "api/corridas.js": {
       "maxDuration": 10
+    },
+    "api/buscar-percurso.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -115,6 +118,10 @@
     {
       "path": "/api/enriquecer?modo=textos&r=3",
       "schedule": "30 2 * * *"
+    },
+    {
+      "path": "/api/buscar-percurso",
+      "schedule": "40 13 * * *"
     }
   ],
   "headers": [

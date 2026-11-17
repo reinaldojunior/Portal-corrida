@@ -1047,3 +1047,14 @@ a.q-linha:focus-visible .q-st::after{opacity:1}
 .proxima-info b{font-family:var(--display);font-weight:400;font-size:20px;line-height:1.2;display:block}
 .proxima-dists{font-size:13px;color:var(--texto2);margin-top:3px;display:block}
 .proxima-seta{color:var(--texto2);flex-shrink:0}
+/* percursos achados pelo robô (aba Robô do admin) */
+.perc-sug{margin:0 0 16px}
+.perc-sug-topo{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.perc-sug-topo h2{font-size:24px;margin:0}
+.perc-sug-item{border-top:1px solid var(--linha,rgba(0,0,0,.1));padding:12px 0}
+.perc-sug-cab{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.perc-sug-trilha{display:grid;grid-template-columns:80px minmax(0,1fr) auto;gap:12px;align-items:center;margin-top:10px}
+.perc-sug-acoes{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.perc-mini{color:var(--cone,#e63946);background:rgba(0,0,0,.04);border-radius:8px}
+.perc-sug-links{margin:8px 0 0;padding-left:18px}
+@media (max-width:600px){.perc-sug-trilha{grid-template-columns:64px minmax(0,1fr)}.perc-sug-acoes{grid-column:1/-1}}
