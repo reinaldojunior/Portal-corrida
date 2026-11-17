@@ -1727,6 +1727,7 @@ async function adminRobo() {
     if (e.rota === 'enriquecer' && r.textos_lidos != null) return `<small>${r.textos_lidos} página(s) lidas para descrição · ${r.com_texto} com texto</small>`;
     if (e.rota === 'enriquecer' && r.devolvidas != null) return `<small>${r.devolvidas ? `${r.devolvidas} pendente(s) sem imagem ou local voltaram para a fila` : 'nenhuma pendente para reprocessar'}</small>`;
     if (e.rota === 'enriquecer') return `<small>${[r.processadas != null && `${r.processadas} lidas`, r.com_imagem && `${r.com_imagem} com imagem`, r.com_local && `${r.com_local} com local`, r.falhas && `${r.falhas} falhas`, r.conferidos && `${r.conferidos} pinos conferidos`, r.corrigidos && `${r.corrigidos} corrigidos`, r.publicadas && `<b>${r.publicadas} publicadas</b>`, r.pendentes_expiradas && `${r.pendentes_expiradas} pendentes vencidas`].filter(Boolean).join(' · ') || 'nada a fazer'}</small>`;
+    if (e.rota === 'buscar-percurso') return `<small>${r.percursos_lidos ?? 0} página(s) lidas · <b>${r.com_percurso ?? 0} com percurso</b>${r.so_link ? ` · ${r.so_link} só com link` : ''}${r.falhas ? ` · ${r.falhas} falhas` : ''}</small>`;
     if (e.rota === 'avisos') return `<small>${r.servico_configurado === false ? 'serviço de e-mail não configurado · ' : ''}${[r.enviados && `<b>${r.enviados} resumos enviados</b>`, r.simulados && `${r.simulados} simulados`, r.sem_novidade && `${r.sem_novidade} sem corrida nova`, r.confirmacoes && `${r.confirmacoes} confirmações`, r.falhas && `${r.falhas} falhas`].filter(Boolean).join(' · ') || `${r.inscritos || 0} inscritos para enviar`}</small>`;
     if (r.coletados != null && r.novos != null) return `<small>${r.coletados} coletados · <b>${r.novos} novos</b></small>`;
     if (e.rota === 'coletar' && Array.isArray(r.relatorio)) {
@@ -1742,12 +1743,75 @@ async function adminRobo() {
     return `<div class="caixa robo-cartao"><span class="muted">${nome}</span><b>${e ? quando(e.inicio) : 'sem registro'}</b>${e ? `<span class="status ${ROT[st][0]}">${ROT[st][1]}</span>` : ''}</div>`; };
   const publicadas7 = execs.filter((e) => Date.now() - new Date(e.inicio) < 7 * 864e5).reduce((a, e) => a + ((e.resultado || {}).publicadas || 0), 0);
   box.innerHTML = `${avisos.map((a) => `<div class="aviso erro" role="alert">${esc(a)}</div>`).join('')}
-  <div class="robo-cartoes">${cartao('coletar', 'Última coleta')}${cartao('enriquecer', 'Último enriquecimento')}
+  <div id="percSug"></div>
+  <div class="robo-cartoes">${cartao('coletar', 'Última coleta')}${cartao('enriquecer', 'Último enriquecimento')}${cartao('buscar-percurso', 'Última busca de percursos')}
     <div class="caixa robo-cartao"><span class="muted">Publicadas pelo robô (7 dias)</span><b>${publicadas7}</b></div></div>
   <p class="muted"><small>Cada rodada do robô fica registrada aqui por 60 dias. "Não terminou" quase sempre é a Vercel encerrando a rodada por tempo (limite de 60 s).</small></p>
   <div class="tabela-wrap"><table class="tab"><thead><tr><th>Quando</th><th>Rotina</th><th>Situação</th><th>Duração</th><th>Resultado</th></tr></thead><tbody>
   ${execs.map((e) => { const st = situacaoExec(e); return `<tr><td>${quando(e.inicio)}${e.origem === 'admin' ? '<br><small class="muted">pelo admin</small>' : ''}</td><td><b>${esc(e.rota)}</b><br><small class="muted">${esc(e.parametros || '')}</small></td><td><span class="status ${ROT[st][0]}">${ROT[st][1]}</span></td><td>${dur(e)}</td><td>${resumo(e)}</td></tr>`; }).join('') || '<tr><td colspan="5" class="muted">Nenhuma rodada registrada ainda.</td></tr>'}
   </tbody></table></div>`;
+  carregarSugestoesPercurso();
+}
+
+// ── Percursos achados pelo robô (api/buscar-percurso): admin aprova (vai para a distância) ou descarta ──
+const urlSegura = (u) => { try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.toString() : null; } catch { return null; } };
+function miniPercurso(pts) {
+  if (!Array.isArray(pts) || pts.length < 2) return '';
+  const la = pts.map((p) => p[0]), lo = pts.map((p) => p[1]);
+  const [a, b, c, d] = [Math.min(...la), Math.max(...la), Math.min(...lo), Math.max(...lo)];
+  const k = Math.cos(((a + b) / 2) * Math.PI / 180), w = (d - c) * k || 1e-9, h = (b - a) || 1e-9, s = 76 / Math.max(w, h);
+  const xy = pts.map((p) => `${(2 + (p[1] - c) * k * s + (76 - w * s) / 2).toFixed(1)},${(2 + (b - p[0]) * s + (76 - h * s) / 2).toFixed(1)}`).join(' ');
+  return `<svg viewBox="0 0 80 80" width="80" height="80" aria-hidden="true" class="perc-mini"><polyline points="${xy}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
+}
+async function carregarSugestoesPercurso() {
+  const box = $('#percSug'); if (!box) return;
+  const { data, error } = await sb.from('corridas').select('id,slug,nome,data,cidade,percurso_sugestao,corrida_distancias(id,rotulo,km)').not('percurso_sugestao', 'is', null).order('data').limit(100);
+  if (error) { box.innerHTML = '<div class="aviso erro">Para ver os percursos achados pelo robô, rode o script <b>sql/26-robo-percurso.sql</b> no Supabase.</div>'; return; }
+  const lista = (data || []).filter((c) => !c.percurso_sugestao.descartado);
+  const item = (c) => {
+    const s = c.percurso_sugestao, ds = (c.corrida_distancias || []).slice().sort((x, y) => x.km - y.km);
+    const trilhas = (s.trilhas || []).map((t, k) => `<div class="perc-sug-trilha">${miniPercurso(t.percurso)}
+      <div><b>${esc(t.nome || 'Percurso')}</b> <small class="muted">(${esc(t.tipo)})</small><br><small>${String(t.percurso_km).replace('.', ',')} km${t.subida_m != null ? ` · +${t.subida_m} m de subida` : ' · sem altimetria'}</small>
+      ${urlSegura(t.fonte) ? `<br><a href="${esc(urlSegura(t.fonte))}" target="_blank" rel="noopener noreferrer"><small>ver origem</small></a>` : ''}</div>
+      <div class="perc-sug-acoes">${ds.length ? `<select data-dist="${c.id}:${k}" aria-label="Distância deste percurso">${ds.map((d) => `<option value="${d.id}"${d.id === t.dist_id ? ' selected' : ''}>${esc(d.rotulo)}</option>`).join('')}</select>
+        <button type="button" class="btn btn-cone" data-aprovar="${c.id}:${k}">Aprovar</button>` : '<small class="muted">Cadastre as distâncias da prova para aprovar.</small>'}</div></div>`).join('');
+    const links = (s.links || []).map((l) => urlSegura(l.url) ? `<li><a href="${esc(urlSegura(l.url))}" target="_blank" rel="noopener noreferrer">${esc(l.tipo)}</a>${l.erro ? ' <small class="muted">(não consegui baixar)</small>' : ' <small class="muted">(precisa de login: baixe o GPX e envie em Editar corrida)</small>'}</li>` : '').join('');
+    return `<div class="perc-sug-item"><div class="perc-sug-cab"><div><a href="#corrida/${esc(c.slug)}"><b>${esc(c.nome)}</b></a><br><small class="muted">${esc(c.cidade || '')} · ${esc(c.data)}${urlSegura(s.pagina) ? ` · <a href="${esc(urlSegura(s.pagina))}" target="_blank" rel="noopener noreferrer">página da inscrição</a>` : ''}</small></div>
+      <button type="button" class="btn btn-linha" data-descartar="${c.id}">Descartar</button></div>${trilhas}${links ? `<ul class="perc-sug-links">${links}</ul>` : ''}</div>`;
+  };
+  box.innerHTML = `<div class="caixa perc-sug"><div class="perc-sug-topo"><h2 class="display">Percursos achados pelo robô <small class="muted">(${lista.length})</small></h2>
+    <button type="button" class="btn btn-linha" id="btnBuscarPerc">Procurar agora</button></div>
+    <p class="muted"><small>Todo dia o robô lê a página de inscrição das provas futuras sem GPX e procura Google My Maps, RideWithGPS e arquivos GPX/KML/KMZ. Nada é publicado sem a sua aprovação.</small></p>
+    ${lista.length ? lista.map(item).join('') : '<p class="muted">Nenhum percurso esperando aprovação.</p>'}</div>`;
+  const porId = Object.fromEntries(lista.map((c) => [c.id, c]));
+  $$('[data-aprovar]', box).forEach((b) => b.addEventListener('click', async () => {
+    const [id, k] = b.dataset.aprovar.split(':'), c = porId[id], t = c.percurso_sugestao.trilhas[+k];
+    const distId = $(`[data-dist="${id}:${k}"]`, box).value;
+    b.disabled = true;
+    const { error: e1 } = await sb.from('corrida_distancias').update({ percurso: t.percurso, percurso_km: t.percurso_km, subida_m: t.subida_m, descida_m: t.descida_m }).eq('id', distId);
+    if (e1) { b.disabled = false; return toast('Não foi possível aprovar: ' + e1.message); }
+    const resto = { ...c.percurso_sugestao, trilhas: c.percurso_sugestao.trilhas.filter((_, i) => i !== +k) };
+    await sb.from('corridas').update({ percurso_sugestao: resto.trilhas.length || (resto.links || []).length ? resto : null }).eq('id', id);
+    toast('Percurso aprovado: já aparece na página da prova e no 3D.');
+    carregarSugestoesPercurso();
+  }));
+  $$('[data-descartar]', box).forEach((b) => b.addEventListener('click', async () => {
+    b.disabled = true;
+    // descartado não volta para a fila do robô
+    await sb.from('corridas').update({ percurso_sugestao: { descartado: true, em: new Date().toISOString() } }).eq('id', b.dataset.descartar);
+    carregarSugestoesPercurso();
+  }));
+  $('#btnBuscarPerc', box)?.addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget, { data: { session } } = await sb.auth.getSession();
+    btn.disabled = true; btn.textContent = 'Procurando… (até 1 min)';
+    try {
+      const r = await fetch('/api/buscar-percurso', { headers: { authorization: `Bearer ${session.access_token}` } });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.erro || `erro ${r.status}`);
+      toast(`${j.percursos_lidos} página(s) lidas: ${j.com_percurso} com percurso${j.so_link ? `, ${j.so_link} só com link` : ''}.`);
+    } catch (e) { toast('Busca falhou: ' + e.message); }
+    carregarSugestoesPercurso();
+  });
 }
 
 function pintarAdmin(semConteudo) {
