@@ -37,6 +37,39 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .ctrl-row{display:flex;align-items:center;gap:5px;width:100%}
 .ctrl-row+.ctrl-row{margin-top:4px}
 .cb[hidden]{display:none}
+/* ── HUD do modo personagem (fundo transparente, texto com sombra) ── */
+#hud{position:fixed;top:calc(env(safe-area-inset-top,0px) + 60px);left:0;right:0;bottom:calc(var(--elev-h) + var(--ctrl-h));z-index:6;pointer-events:none;color:#fff;font-family:'Space Grotesk',sans-serif;text-shadow:0 2px 8px rgba(0,0,0,.85),0 0 2px rgba(0,0,0,.9)}
+#hud[hidden],#estr[hidden]{display:none}
+.hud-col{position:absolute;top:0;display:flex;flex-direction:column;gap:10px}
+.hud-l{left:max(16px,env(safe-area-inset-left,0px))}
+.hud-r{right:max(16px,env(safe-area-inset-right,0px));text-align:right}
+.hv span{display:block;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;opacity:.85}
+.hv b{display:block;font-size:26px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
+.hv small{font-size:13px;font-weight:600;margin-left:2px}
+#hud-lap,#hud-fim{position:absolute;left:50%;transform:translateX(-50%);text-align:center;white-space:nowrap}
+#hud-lap{top:0;font-size:15px;font-weight:700;letter-spacing:.04em;background:rgba(9,9,15,.35);padding:6px 14px;border-radius:999px}
+#hud-fim{top:18%;font-size:13px;letter-spacing:.1em;text-transform:uppercase}
+#hud-fim b{display:block;font-size:44px;letter-spacing:0;margin:2px 0 4px}
+#hud-lap[hidden],#hud-fim[hidden]{display:none}
+/* ── painel de estratégia (sempre visível no modo personagem) ── */
+#estr{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--elev-h) + var(--ctrl-h) + 30px);z-index:7;width:250px;padding:10px 12px;border-radius:12px;background:rgba(9,9,15,.32);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);color:#fff;font-size:11px;text-shadow:0 1px 4px rgba(0,0,0,.8)}
+.es-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.es-rot{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#ff8a3d}
+#estr label{display:flex;align-items:center;gap:6px;font-size:10px;opacity:.9;white-space:nowrap}
+#es-alvo{width:72px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.25);border-radius:6px;color:#fff;font:700 13px 'Space Grotesk',sans-serif;padding:3px 6px;text-align:center}
+.es-ctrl{margin-top:6px}
+.es-l{display:flex;justify-content:space-between;gap:6px;font-weight:600}
+.es-l b{font-weight:500;opacity:.9;text-align:right}
+#estr input[type=range]{width:100%;margin:3px 0 0;accent-color:#ff8a3d}
+.es-p{display:flex;justify-content:space-between;font-size:9px;opacity:.7}
+.es-met{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:8px;text-align:center}
+.es-met span{display:block;font-size:9px;opacity:.75;text-transform:uppercase;letter-spacing:.06em}
+.es-met b{font:700 13px 'Space Grotesk',sans-serif}
+@media (max-width:640px){
+  .hv b{font-size:18px}.hv span{font-size:9px}.hud-col{gap:6px}
+  #estr{left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));width:auto;bottom:calc(var(--elev-h) + var(--ctrl-h) + 8px);padding:8px 10px}
+  #hud-fim b{font-size:32px}
+}
 .cb{background:rgba(255,255,255,.07);border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text);flex-shrink:0;transition:background .15s}
 .cb:hover{background:rgba(255,255,255,.13)}
 .cb.prime{background:var(--route);width:40px;height:40px}
@@ -152,6 +185,31 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   </div>
 </div>
 
+<div id="hud" hidden>
+  <div class="hud-col hud-l">
+    <div class="hv"><span>Distância</span><b id="h-dist">0,00<small>km</small></b></div>
+    <div class="hv"><span>Tempo</span><b id="h-time">0:00</b></div>
+    <div class="hv"><span>Altitude</span><b id="h-alt">—</b></div>
+    <div class="hv"><span>Inclinação</span><b id="h-inc">—</b></div>
+    <div class="hv"><span>Subida acumulada</span><b id="h-dmais">—</b></div>
+  </div>
+  <div class="hud-col hud-r">
+    <div class="hv"><span>Pace</span><b id="h-pace">—</b></div>
+    <div class="hv"><span>Velocidade</span><b id="h-vel">—</b></div>
+  </div>
+  <div id="hud-lap" hidden></div>
+  <div id="hud-fim" hidden></div>
+</div>
+<div id="estr" hidden>
+  <div class="es-top"><span class="es-rot">Monte a sua estratégia</span><label>Tempo alvo<input id="es-alvo" inputmode="numeric" aria-label="Tempo alvo (h:mm:ss)"></label></div>
+  <div class="es-ctrl"><div class="es-l"><span>Estratégia</span><b id="es-est-txt"></b></div>
+    <input type="range" id="es-est" min="-5" max="5" step="1" value="0" aria-label="Estratégia de ritmo">
+    <div class="es-p"><span>Sair forte</span><span>Igual</span><span>Guardar pro fim</span></div></div>
+  <div class="es-ctrl"><div class="es-l"><span>Nas subidas</span><b id="es-adj-txt"></b></div>
+    <input type="range" id="es-adj" min="0" max="100" step="5" value="100" aria-label="Ajuste nas subidas">
+    <div class="es-p"><span>Forçar</span><span>Poupar</span></div></div>
+  <div class="es-met" id="es-met"></div>
+</div>
 <header id="hdr">
   <input id="race-name" type="text" placeholder="Nome da Corrida" maxlength="40">
   <div id="stats">
@@ -172,7 +230,7 @@ let map;
 function startMap(){
 map=new mapboxgl.Map({container:'map',style:'mapbox://styles/mapbox/dark-v11',center:[-47.25,-23.12],zoom:11,maxZoom:24,pitch:0,bearing:0,antialias:true});
 
-const S={raw:[],elev:[],cumKm:[],hydra:[],idx:0,distKm:0,playing:false,color:'#e63946',speed:3,hydraMode:false,showKm:true,camMode:'2d',raf:null,dotMarker:null,startMarker:null,finishMarker:null,kmMarkers:[],hydraMarkers:[]};
+const S={raw:[],elev:[],cumKm:[],hydra:[],idx:0,distKm:0,playing:false,color:'#e63946',speed:3,hydraMode:false,showKm:true,camMode:'2d',mult:60,raceT:0,lastLap:0,lastNow:0,raf:null,dotMarker:null,startMarker:null,finishMarker:null,kmMarkers:[],hydraMarkers:[]};
 
 function emptyLine(){return{type:'Feature',geometry:{type:'LineString',coordinates:[]}};}
 
@@ -360,8 +418,8 @@ function play(){
   stopCelebrate();
   if(!S.raw.length)return;
   const total=S.cumKm[S.cumKm.length-1]||0;
-  if(S.distKm>=total)S.distKm=0;
-  S.playing=true;
+  if(S.distKm>=total){S.distKm=0;S.raceT=0;S.lastLap=0;}
+  S.lastNow=0;S.playing=true;
   document.getElementById('btn-play').innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
   runnerAnim(true);
   if(S.raf)cancelAnimationFrame(S.raf);
@@ -396,7 +454,7 @@ function distToIdx(d){
 
 // ── CHASE 3D (estilo Subway Surfers) ───────────────────────────────────────────
 // medidas em metros: rua = largura do traçado, boneco proporcional, câmera atrás e acima
-const CHASE={trackW:10,runnerH:3.4,camBack:12,camUp:6,lookAhead:24,kmFactor:0.12};
+const CHASE={trackW:10,runnerH:3.4,camBack:12,camUp:6,lookAhead:24};
 const R3={zoom:savedZoom(),layer:null,loading:null,mixer:null,run:null,idle:null,cur:null,pos:null,elev:0,heading:null,camHeading:null};
 
 function posAt(d){
@@ -495,7 +553,7 @@ function runnerAnim(state){
 // chegada: boneco vira para a câmera, comemora e a câmera dá uma volta de 360° em torno dele
 function celebrate(){
   if(S.camMode!=='chase'||!R3.pos)return;
-  R3.celebrating=true;runnerAnim('cheer');
+  R3.celebrating=true;runnerAnim('cheer');showFinish(true);
   const t0=performance.now(),h0=R3.heading,base=R3.camHeading;
   const step=now=>{
     if(!R3.celebrating||S.camMode!=='chase')return;
@@ -511,7 +569,7 @@ function celebrate(){
 }
 function stopCelebrate(){
   if(!R3.celebrating)return;
-  R3.celebrating=false;cancelAnimationFrame(R3.celebRaf);
+  R3.celebrating=false;cancelAnimationFrame(R3.celebRaf);showFinish(false);
   R3.heading=R3.camHeading;runnerAnim(S.playing);
 }
 
@@ -590,10 +648,87 @@ function nextChar(){
 }
 
 // inclinação média (±50 m) em cada ponto, a partir da altimetria do GPX
+function hasElev(){return S.elev.length===S.cumKm.length&&S.elev.some(e=>e!==S.elev[0]);}
+function elevAtD(d){const i=distToIdx(d);if(i===0)return S.elev[0]||0;const d0=S.cumKm[i-1],d1=S.cumKm[i],t=d1>d0?(d-d0)/(d1-d0):0;return S.elev[i-1]+(S.elev[i]-S.elev[i-1])*t;}
 function computeGrades(){
-  const n=S.cumKm.length,total=S.cumKm[n-1]||0,has=S.elev.length===n&&S.elev.some(e=>e!==S.elev[0]);
-  const elevAt=d=>{const i=distToIdx(d);if(i===0)return S.elev[0];const d0=S.cumKm[i-1],d1=S.cumKm[i],t=d1>d0?(d-d0)/(d1-d0):0;return S.elev[i-1]+(S.elev[i]-S.elev[i-1])*t;};
-  S.grade=S.cumKm.map(d=>{if(!has)return 0;const a=Math.max(0,d-0.05),b=Math.min(total,d+0.05);return b>a?(elevAt(b)-elevAt(a))/((b-a)*1000):0;});
+  const n=S.cumKm.length,total=S.cumKm[n-1]||0,has=hasElev();
+  S.grade=S.cumKm.map(d=>{if(!has)return 0;const a=Math.max(0,d-0.05),b=Math.min(total,d+0.05);return b>a?(elevAtD(b)-elevAtD(a))/((b-a)*1000):0;});
+  // subida acumulada ponto a ponto (mesma soma do contador "m ↑" do topo)
+  S.cumGain=[0];for(let i=1;i<n;i++)S.cumGain.push(S.cumGain[i-1]+(has?Math.max(0,S.elev[i]-S.elev[i-1]):0));
+  PLAN.alvo=null;buildPlan();S.raceT=0;S.lastLap=0;
+  document.getElementById('es-alvo').value=fmtT(PLAN.alvo||0);
+  updatePanel();updateHud();
+}
+
+// ── PLANO DE PROVA: mesma conta do simulador da página da prova (sem clima), em trechos de 500 m ──
+// subidas: +3,3% de tempo por 1% de inclinação; descidas devolvem 1,8% por 1% (até 6%)
+// est de −5 (sair forte) a +5 (guardar pro fim), até ±4% nas pontas; adj de 0 (pace igual) a 100 (esforço igual)
+const PLAN={alvo:null,est:0,adj:100,trechos:[],tot:0,plano:0,metade:[0,0]};
+try{const v=JSON.parse(localStorage.getItem('mm-estr')||'{}');if(Number.isFinite(v.est))PLAN.est=v.est;if(Number.isFinite(v.adj))PLAN.adj=v.adj;}catch(e){}
+const MULTS=[10,15,20,30,45,60,90,120,180,240,300];
+function fmtT(x){x=Math.max(0,Math.round(x));const h=Math.floor(x/3600),m=Math.floor(x%3600/60),ss=x%60;return(h?h+':'+String(m).padStart(2,'0'):m)+':'+String(ss).padStart(2,'0');}
+function fmtPace(x){x=Math.round(x);return Math.floor(x/60)+"'"+String(x%60).padStart(2,'0')+'"';}
+function parseT(v){const p=String(v).trim().split(':').map(Number);return p.length&&p.every(Number.isFinite)?p.reduce((a,b)=>a*60+b,0):null;}
+function buildPlan(){
+  const n=S.cumKm.length,tot=S.cumKm[n-1]||0;PLAN.tot=tot;PLAN.trechos=[];if(!tot)return;
+  if(!PLAN.alvo)PLAN.alvo=Math.round(tot*330/60)*60;
+  const passo=0.5,m=Math.max(1,Math.ceil(tot/passo-0.1)),has=hasElev(),out=[];let j=1;
+  for(let i=0;i<m;i++){
+    const ini=i*passo,fim=i===m-1?tot:(i+1)*passo,len=fim-ini;let ganho=0,perda=0;
+    if(has){let ant=elevAtD(ini);
+      for(;j<n&&S.cumKm[j]<fim;j++){if(S.cumKm[j]<=ini)continue;const d=S.elev[j]-ant;if(d>0)ganho+=d;else perda-=d;ant=S.elev[j];}
+      const d=elevAtD(fim)-ant;if(d>0)ganho+=d;else perda-=d;}
+    const mm=len*1000,fInc=1+0.033*(ganho/mm*100)-0.018*Math.min(6,perda/mm*100);
+    const fEst=1+(PLAN.est/5)*0.04*(1-2*(ini+len/2)/tot);
+    out.push({ini,km:fim,len,f:fInc,w:(1+PLAN.adj/100*(fInc-1))*fEst});
+  }
+  const base=PLAN.alvo/tot,k=PLAN.alvo/out.reduce((a,t)=>a+base*t.w*t.len,0);let acum=0;
+  out.forEach(t=>{t.pace=base*t.w*k;t.t0=acum;acum+=t.pace*t.len;t.t1=acum;});
+  PLAN.trechos=out;PLAN.plano=out.reduce((a,t)=>a+base*t.f*t.len,0);
+  PLAN.metade=out.reduce((a,t)=>{const d1=Math.max(0,Math.min(t.km,tot/2)-t.ini);a[0]+=d1*t.pace;a[1]+=(t.len-d1)*t.pace;return a;},[0,0]);
+}
+function trechoAt(d){const T=PLAN.trechos;for(const t of T)if(d<t.km)return t;return T[T.length-1];}
+function timeAtDist(d){const t=trechoAt(d);return t?t.t0+Math.max(0,d-t.ini)*t.pace:0;}
+function distAtTime(x){const T=PLAN.trechos;for(const t of T)if(x<t.t1)return t.ini+Math.max(0,x-t.t0)/t.pace;return PLAN.tot;}
+function planChanged(){
+  buildPlan();S.raceT=timeAtDist(S.distKm);S.lastLap=Math.floor(S.distKm);
+  try{localStorage.setItem('mm-estr',JSON.stringify({est:PLAN.est,adj:PLAN.adj}));}catch(e){}
+  updatePanel();updateHud();
+}
+function updatePanel(){
+  const e=PLAN.est,a=PLAN.adj;
+  document.getElementById('es-est').value=e;document.getElementById('es-adj').value=a;
+  document.getElementById('es-est-txt').textContent=e===0?'Ritmo igual':e>0?'Guardar pro fim (nível '+e+')':'Sair forte (nível '+(-e)+')';
+  document.getElementById('es-adj-txt').textContent=a>=95?'Esforço constante':a<=5?'Pace igual em tudo':a>=50?'Poupa um pouco':'Força um pouco';
+  const m1=Math.round(PLAN.metade[0]),m2=Math.round(PLAN.metade[1]),dif=m2-m1;
+  document.getElementById('es-met').innerHTML=PLAN.trechos.length?[['1ª metade',fmtT(m1)],['2ª metade',fmtT(m2)],['Diferença',dif===0?'0:00':(dif>0?'+':'−')+fmtT(Math.abs(dif))]]
+    .map(([l,v])=>'<div><span>'+l+'</span><b>'+v+'</b></div>').join(''):'';
+}
+function updateHud(){
+  if(S.camMode!=='chase'||!PLAN.trechos.length)return;
+  const d=S.distKm,i=distToIdx(d),t=trechoAt(d),has=hasElev();
+  document.getElementById('h-dist').innerHTML=d.toFixed(2).replace('.',',')+'<small>km</small>';
+  document.getElementById('h-time').textContent=fmtT(S.raceT);
+  document.getElementById('h-pace').innerHTML=fmtPace(t.pace)+'<small>/km</small>';
+  document.getElementById('h-vel').innerHTML=(3600/t.pace).toFixed(1).replace('.',',')+'<small>km/h</small>';
+  document.getElementById('h-alt').innerHTML=has?Math.round(elevAtD(d))+'<small>m</small>':'—';
+  const g=Math.round((S.grade?.[i]||0)*100);
+  document.getElementById('h-inc').textContent=has?(g>0?'+':'')+g+'%':'—';
+  document.getElementById('h-dmais').innerHTML=has?'+'+Math.round(S.cumGain?.[i]||0)+'<small>m</small>':'—';
+  // aviso de volta a cada km
+  const km=Math.floor(d+1e-9);
+  if(km>S.lastLap&&km>=1&&d<PLAN.tot-0.05){
+    S.lastLap=km;const lap=document.getElementById('hud-lap');
+    lap.textContent='KM '+km+' · '+fmtPace(timeAtDist(km)-timeAtDist(km-1))+' · '+fmtT(timeAtDist(km));
+    lap.hidden=false;clearTimeout(S.lapTimer);S.lapTimer=setTimeout(()=>lap.hidden=true,2500);
+  }
+}
+function showFinish(on){
+  const el=document.getElementById('hud-fim');
+  if(!on){el.hidden=true;return;}
+  const has=hasElev();
+  el.innerHTML='Chegada<b>'+fmtT(S.raceT)+'</b>Pace médio '+fmtPace(S.raceT/PLAN.tot)+'/km'+(has?' · +'+Math.round(S.cumGain[S.cumGain.length-1])+' m de subida':'');
+  el.hidden=false;
 }
 // fator de velocidade pela inclinação: custo energético de Minetti suavizado para ficar perto do GAP do Strava
 // (≈ −14% a 5% de subida, −24% a 10%; ≈ +19% a 5% de descida, limitado a +35%)
@@ -604,12 +739,22 @@ function gradeFactor(g){
 }
 // ritmo das pernas segue a velocidade efetiva
 function cadence(){return Math.min(2.4,0.7+0.35*Math.log2(1+(S.effSpeed||S.speed)));}
+// 1× do modo antigo ≈ 8,7× tempo real num pace de 5'30"; usado só para o ritmo das pernas
+function chaseEff(){const t=trechoAt(S.distKm);return t?(S.mult/8.7)*(PLAN.alvo/PLAN.tot)/t.pace:S.speed;}
 
-function animate(){
+function animate(now){
   if(!S.playing)return;
   const total=S.cumKm[S.cumKm.length-1]||0;
-  S.effSpeed=S.speed*gradeFactor(S.grade?.[distToIdx(S.distKm)]);
-  S.distKm=Math.min(S.distKm+S.effSpeed*KM_PER_SPEED*(S.camMode==='chase'?CHASE.kmFactor:1),total);
+  if(S.camMode==='chase'&&PLAN.trechos.length){
+    // relógio de prova avança (tempo real × multiplicador) e a posição sai do plano
+    const dt=S.lastNow?Math.min(0.1,(now-S.lastNow)/1000):0;S.lastNow=now;
+    S.raceT=Math.min(PLAN.trechos[PLAN.trechos.length-1].t1,S.raceT+dt*S.mult);
+    S.distKm=Math.min(distAtTime(S.raceT),total);
+    S.effSpeed=chaseEff();
+  }else{
+    S.effSpeed=S.speed*gradeFactor(S.grade?.[distToIdx(S.distKm)]);
+    S.distKm=Math.min(S.distKm+S.effSpeed*KM_PER_SPEED,total);
+  }
   const ci=distToIdx(S.distKm);
   S.idx=ci;
   const coords=S.raw.slice(0,ci+1).map(([lo,la])=>[lo,la]);
@@ -628,6 +773,7 @@ function animate(){
     map.getSource('route-prog')?.setData({type:'Feature',geometry:{type:'LineString',coordinates:coords}});
     chaseFrame(S.distKm);
     const run=R3.part?.actions.Run;if(run&&R3.part.cur===run)run.timeScale=cadence();
+    updateHud();
   }
   updateStats();
   document.getElementById('elev-progress').style.width=(total?(S.distKm/total)*100:0)+'%';
@@ -715,9 +861,13 @@ function setCamMode(mode){
     if(S.raw.length){chaseFrame(S.distKm);map.once('idle',()=>{if(S.camMode==='chase'&&!S.playing){R3.heading=null;R3.camHeading=null;chaseFrame(S.distKm);}});}
   }
   else{if(map.getTerrain())map.setTerrain(null);map.easeTo({pitch:0,bearing:0,duration:600});}
-  // no modo personagem a velocidade vai até 32×; nos outros até 8×
-  const spd=document.getElementById('spd');spd.max=mode==='chase'?32:8;
-  if(S.speed>+spd.max){S.speed=+spd.max;spd.value=S.speed;document.getElementById('spd-lbl').textContent=S.speed+'×';}
+  // modo personagem: controle em "× tempo real" (60× = 1 h de prova em 1 min); nos outros, 1× a 8×
+  const spd=document.getElementById('spd'),chase=mode==='chase';
+  spd.min=chase?0:1;spd.max=chase?MULTS.length-1:8;spd.value=chase?MULTS.indexOf(S.mult):S.speed;
+  document.getElementById('spd-lbl').textContent=(chase?S.mult:S.speed)+'×';
+  document.getElementById('hud').hidden=!chase;document.getElementById('estr').hidden=!chase;
+  document.getElementById('stats').style.visibility=chase?'hidden':'';
+  if(chase){S.raceT=timeAtDist(S.distKm);S.lastLap=Math.floor(S.distKm);updateHud();}
   ['btn-char','btn-zin','btn-zout'].forEach(id=>document.getElementById(id).hidden=(mode!=='chase'));
   setMapGestures(mode!=='chase');
   if(mode!=='chase'){setTrackStyle(false);if(S.dotMarker)S.dotMarker.getElement().style.display='';}
@@ -727,12 +877,23 @@ function setCamMode(mode){
 document.getElementById('btn-play').addEventListener('click',()=>S.playing?pause():play());
 document.getElementById('btn-rst').addEventListener('click',()=>{
   stopCelebrate();
-  pause();S.idx=0;S.distKm=0;
+  pause();S.idx=0;S.distKm=0;S.raceT=0;S.lastLap=0;document.getElementById('hud-lap').hidden=true;
   map.getSource('route-prog')?.setData(emptyLine());
   if(S.dotMarker&&S.raw.length)S.dotMarker.setLngLat(S.raw[0]);
-  updateStats();document.getElementById('elev-progress').style.width='0';
+  updateStats();updateHud();document.getElementById('elev-progress').style.width='0';
 });
-document.getElementById('spd').addEventListener('input',e=>{S.speed=parseInt(e.target.value);document.getElementById('spd-lbl').textContent=S.speed+'×';runnerAnim(S.playing);});
+document.getElementById('spd').addEventListener('input',e=>{
+  const v=parseInt(e.target.value);
+  if(S.camMode==='chase')S.mult=MULTS[v];else S.speed=v;
+  document.getElementById('spd-lbl').textContent=(S.camMode==='chase'?S.mult:S.speed)+'×';runnerAnim(S.playing);
+});
+document.getElementById('es-alvo').addEventListener('change',e=>{
+  const v=parseT(e.target.value);
+  if(v&&v>=300){PLAN.alvo=v;planChanged();}
+  e.target.value=fmtT(PLAN.alvo||0);
+});
+document.getElementById('es-est').addEventListener('input',e=>{PLAN.est=+e.target.value;planChanged();});
+document.getElementById('es-adj').addEventListener('input',e=>{PLAN.adj=+e.target.value;planChanged();});
 document.getElementById('btn-km').addEventListener('click',()=>{S.showKm=!S.showKm;document.getElementById('btn-km').classList.toggle('on',S.showKm);renderKmMarkers();});
 document.getElementById('btn-hydra').addEventListener('click',()=>{S.hydraMode=!S.hydraMode;document.getElementById('btn-hydra').classList.toggle('on',S.hydraMode);document.getElementById('hydra-tip').hidden=!S.hydraMode;map.getCanvas().style.cursor=S.hydraMode?'crosshair':'';});
 document.getElementById('btn-kml').addEventListener('click',()=>document.getElementById('kml-file').click());
@@ -762,6 +923,7 @@ document.getElementById('btn-zout').addEventListener('click',()=>chaseZoom(1.4))
 window.addEventListener('resize',()=>drawElevProfile());
 
 function showToast(msg,duration=4000){document.querySelectorAll('.toast').forEach(t=>t.remove());const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),duration);}
+updatePanel();
 } // end startMap
 
 initApp();
