@@ -54,7 +54,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .hv small{font-size:13px;font-weight:600;margin-left:2px}
 #hud-lap,#hud-fim{position:absolute;left:50%;transform:translateX(-50%);text-align:center;white-space:nowrap}
 #hud-lap{top:128px;font-size:15px;font-weight:700;letter-spacing:.04em;background:rgba(9,9,15,.35);padding:6px 14px;border-radius:999px}
-#hud-fim{top:18%;font-size:13px;letter-spacing:.1em;text-transform:uppercase}
+#hud.fim .hud-top,#hud.fim .hud-sub,#hud.fim #hud-lap{display:none}
+#hud-fim{top:0;font-size:13px;letter-spacing:.1em;text-transform:uppercase}
 #hud-fim b{display:block;font-size:44px;letter-spacing:0;margin:2px 0 4px}
 #hud-lap[hidden],#hud-fim[hidden]{display:none}
 /* ── painel de estratégia (sempre visível no modo personagem) ── */
@@ -649,7 +650,8 @@ function celebrate(){
     const orbit=ease((t-1.2)/10)*360;
     const k=ease(t/1.5);
     const z=R3.zoom;
-    placeCam(R3.pos,base+orbit,CHASE.camBack*z*(1-0.45*k),CHASE.camUp*z*(1-0.6*k),CHASE.camBack*z*(1-0.45*k),CHASE.runnerH*0.55);
+    // aproxima até ~9 m e ~3 m de altura mirando a 2,5 m: o boneco fica do terço superior até perto do rodapé
+    placeCam(R3.pos,base+orbit,CHASE.camBack*z*(1-0.25*k),CHASE.camUp*z*(1-0.33*k),CHASE.camBack*z*(1-0.25*k),CHASE.runnerH*(0.3+0.44*k));
     R3.celebRaf=requestAnimationFrame(step);
   };
   R3.celebRaf=requestAnimationFrame(step);
@@ -810,6 +812,7 @@ function updateHud(){
 }
 function showFinish(on){
   const el=document.getElementById('hud-fim');
+  document.getElementById('hud').classList.toggle('fim',!!on);
   if(!on){el.hidden=true;return;}
   const has=hasElev();
   el.innerHTML='Chegada<b>'+fmtT(S.raceT)+'</b>Pace médio '+fmtPace(S.raceT/PLAN.tot)+'/km'+(has?' · +'+Math.round(S.cumGain[S.cumGain.length-1])+' m de subida':'');
