@@ -19,6 +19,8 @@ async function rpc(nome, corpo) {
 }
 
 module.exports = async (req, res) => {
+  // robô de percursos mora aqui para não passar do limite de 12 funções do plano Hobby da Vercel
+  if (req.query && req.query.modo === 'percurso') return require('./_buscar-percurso.js')(req, res);
   // quem chama: o agendamento (CRON_SECRET) ou o admin logado no site (token de login do Supabase)
   const peloAdmin = !ehAgendamento(req) && await ehAdmin(req);
   if (!ehAgendamento(req) && !peloAdmin) return res.status(401).json({ erro: 'não autorizado' });

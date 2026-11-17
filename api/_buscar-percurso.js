@@ -1,4 +1,5 @@
-// Robô de percursos: lê a página de inscrição das provas futuras sem GPX e procura o percurso
+// Robô de percursos (chamado por /api/enriquecer?modo=percurso: o plano Hobby da Vercel aceita só 12 funções).
+// Lê a página de inscrição das provas futuras sem GPX e procura o percurso
 // (Google My Maps, RideWithGPS, arquivo GPX/KML/KMZ). O que achar vira SUGESTÃO para o admin aprovar
 // na aba "Robô"; links que exigem login (Strava, Garmin…) ficam guardados para o admin baixar à mão.
 const { web } = require('./extrair.js');
