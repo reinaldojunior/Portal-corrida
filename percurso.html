@@ -768,12 +768,12 @@ function somCorrida(ligar){
   if(!ligar&&SOM.run){const s=SOM.run;SOM.run=null;setTimeout(()=>{try{s.stop();}catch(e){}},1500);}
 }
 // volume da respiração: ninguém larga ofegante; cresce do quase silêncio ao cheio no 1º 1,5 km
-// (ou em 30% do percurso, se for curto) e fica mais forte nas subidas
+// (ou em 30% do percurso, se for curto) e fica mais forte nas subidas; 0.8 = 20% mais baixa a pedido do dono
 function volResp(){
   const tot=S.cumKm[S.cumKm.length-1]||1,rampa=Math.min(1.5,0.3*tot);
   const prog=Math.min(1,Math.max(0,S.distKm/rampa)),aquece=prog*prog*(3-2*prog);
   const g=Math.max(0,Math.min(0.1,S.grade?.[S.idx]||0));
-  return (0.08+0.92*aquece)*(0.45+g*3);
+  return 0.8*(0.08+0.92*aquece)*(0.45+g*3);
 }
 // ritmo da respiração acompanha as pernas
 function somAtualizar(){
