@@ -594,6 +594,10 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 
+/* skip-link de acessibilidade */
+.skip-link{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+.skip-link:focus{position:fixed;left:50%;top:12px;transform:translateX(-50%);width:auto;height:auto;padding:10px 24px;border-radius:6px;background:var(--cone);color:#fff;font-weight:700;font-size:15px;z-index:9999;text-decoration:none;box-shadow:0 4px 16px rgba(0,0,0,.35)}
+
 /* editor de texto do admin */
 .editor{font-weight:400;border:1px solid #D0D4D8;border-radius:10px;background:#fff;overflow:hidden}
 .editor-barra{display:flex;flex-wrap:wrap;gap:4px;padding:6px;border-bottom:1px solid #E3E6E9;background:#F6F7F8}
