@@ -1153,8 +1153,11 @@ async function carregarCorrida(){
   document.body.classList.toggle('race-admin',RACE.admin);nome.readOnly=true;map.resize();drawElevProfile();
   if(!pts){showToast('Esta corrida ainda não tem percurso (GPX).',6000);return;}
   const D=RACE.data;
-  S.groups=D.grupos&&typeof D.grupos==='object'?D.grupos:{};
-  S.hydra=Array.isArray(D.pontos)?D.pontos.filter(p=>Number.isFinite(p.lo)&&Number.isFinite(p.la)).map(p=>({...p,km:null})):[];
+  // pontos são de cada percurso (aba/distância); os salvos antes da separação valem só para a aba em que foram salvos
+  RACE.legado=Array.isArray(D.pontos)&&!D.por?(Object.keys(D.alvos||{}).length===1?Object.keys(D.alvos)[0]:'principal'):null;
+  const P=D.por?.[RACE.key]||(RACE.key===RACE.legado?{pontos:D.pontos,grupos:D.grupos}:{});
+  S.groups=P.grupos&&typeof P.grupos==='object'?P.grupos:{};
+  S.hydra=Array.isArray(P.pontos)?P.pontos.filter(p=>Number.isFinite(p.lo)&&Number.isFinite(p.la)).map(p=>({...p,km:null})):[];
   init(pts.map(p=>[p[1],p[0]]),pts.map(p=>Number.isFinite(p[2])?p[2]:0));
   if(Number.isFinite(D.est))PLAN.est=D.est;
   if(Number.isFinite(D.adj))PLAN.adj=D.adj;
@@ -1186,15 +1189,18 @@ map.on('click',()=>{if(RACE.slug&&!RACE.admin&&S.playing)pause();});
 async function salvarCorrida(){
   if(!RACE.admin||!RACE.id)return;
   const D=RACE.data||{};
-  const payload={v:1,
-    pontos:S.hydra.map(h=>({lo:h.lo,la:h.la,orig:h.orig??null,num:h.num??null,g:h.g??null,name:h.name??null,show:h.show!==false})),
-    grupos:S.groups,alvos:{...(D.alvos||{}),[RACE.key]:PLAN.alvo},est:PLAN.est,adj:PLAN.adj,
+  const pontos=S.hydra.map(h=>({lo:h.lo,la:h.la,orig:h.orig??null,num:h.num??null,g:h.g??null,name:h.name??null,show:h.show!==false}));
+  const payload={...D,v:2,por:{...(D.por||{}),[RACE.key]:{pontos,grupos:S.groups}},
+    alvos:{...(D.alvos||{}),[RACE.key]:PLAN.alvo},est:PLAN.est,adj:PLAN.adj,
     vista:{style:document.querySelector('.stbtn.on')?.dataset.style||null,color:S.color,cam:S.camMode,char:R3.charId||savedChar(),zoom:R3.zoom,showKm:S.showKm,mult:S.mult,speed:S.speed}};
+  // ao salvar, o formato antigo (pontos no topo) passa para por[aba em que foi salvo]
+  if(RACE.legado&&RACE.legado!==RACE.key)payload.por[RACE.legado]??={pontos:D.pontos,grupos:D.grupos};
+  delete payload.pontos;delete payload.grupos;
   const btn=document.getElementById('btn-save');btn.disabled=true;
   const {data,error}=await RACE.sb.from('corridas').update({percurso_3d:payload}).eq('id',RACE.id).select('id');
   btn.disabled=false;
   if(error||!data?.length){showToast('⚠️ Não foi possível salvar'+(error?': '+error.message:' (entre como admin no site)'),6000);return;}
-  RACE.data=payload;showToast('✅ Salvo na corrida. Os visitantes já veem esta versão.',4000);
+  RACE.data=payload;showToast('✅ Salvo '+(RACE.key==='principal'?'no percurso principal':'no percurso '+RACE.key)+'. Os visitantes já veem esta versão.',4000);
 }
 document.getElementById('btn-save').addEventListener('click',salvarCorrida);
 if(RACE.slug)carregarCorrida();
