@@ -120,6 +120,12 @@ body.modo-corrida:not(.race-admin) #ctrl{display:none}
 #start-ov.fim{top:auto;bottom:calc(var(--elev-h) + var(--ctrl-h) + 24px);transform:translateX(-50%);font-size:16px;padding:10px 20px}
 #start-ov[hidden]{display:none}
 #btn-full{display:none}
+#rotas{position:fixed;top:calc(env(safe-area-inset-top,0px) + 46px);left:max(14px,env(safe-area-inset-left,0px));z-index:22;display:flex;flex-wrap:wrap;gap:6px;max-width:44vw}
+#rotas[hidden]{display:none}
+#rotas button{background:rgba(9,9,15,.55);border:1px solid rgba(255,255,255,.22);border-radius:999px;color:#fff;font:600 12px 'Inter',sans-serif;padding:5px 12px;cursor:pointer;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+#rotas button[aria-pressed=true]{background:#fff;color:#09090f;border-color:#fff}
+#rotas .rt-star{border-style:dashed;color:#ffd60a}
+@media (max-width:640px){#rotas{top:calc(env(safe-area-inset-top,0px) + 124px);max-width:none;right:14px}}
 body.embed #btn-full{display:inline-flex;align-items:center;gap:4px;pointer-events:auto;color:var(--text);text-decoration:none;font:600 12px 'Inter',sans-serif;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 10px;white-space:nowrap}
 .pp-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
 .pp-top h3{margin:0;font:700 15px 'Space Grotesk',sans-serif}
@@ -241,6 +247,7 @@ body.embed #btn-full{display:inline-flex;align-items:center;gap:4px;pointer-even
   </div>
 </div>
 
+<div id="rotas" hidden role="group" aria-label="Escolha o percurso"></div>
 <div id="hud" hidden>
   <div class="hud-top">
     <div class="hv"><span>Distância</span><b id="h-dist">0,00<small>km</small></b></div>
@@ -1141,16 +1148,24 @@ async function carregarCorrida(){
     if(!window.supabase)await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js','sha384-K1nraABOP/zFehpLIUksXebbs7jMpB8gYMlb+uhVKZcWT/9Vkq1+qhv6ndC+1Yuz');
     RACE.sb=window.supabase.createClient(SB_URL,SB_KEY);
   }catch(e){showToast('⚠️ Não foi possível carregar a corrida');return;}
-  const {data,error}=await RACE.sb.from('corridas').select('id,slug,nome,percurso,percurso_3d,corrida_distancias(rotulo,km,percurso)').eq('slug',RACE.slug).maybeSingle();
+  const {data,error}=await RACE.sb.from('corridas').select('id,slug,nome,percurso,percurso_km,percurso_3d,corrida_distancias(rotulo,km,percurso,percurso_km)').eq('slug',RACE.slug).maybeSingle();
   if(error||!data){showToast('⚠️ Corrida não encontrada');return;}
   RACE.id=data.id;RACE.data=data.percurso_3d||{};nome.value=data.nome||'';
   // percurso da distância pedida (mesmo rótulo da aba na página da prova); senão o principal; senão o maior
-  const ds=(data.corrida_distancias||[]).filter(d=>Array.isArray(d.percurso)&&d.percurso.length>1);
-  const d=ds.find(x=>x.rotulo===RACE.dist);
-  const pts=d?d.percurso:(Array.isArray(data.percurso)&&data.percurso.length>1?data.percurso:ds.sort((a,b)=>(b.km||0)-(a.km||0))[0]?.percurso);
-  RACE.key=d?d.rotulo:'principal';
+  // percursos da prova (mesma regra da página da prova): um por distância com GPX + o principal, se for diferente
+  const rotas=(data.corrida_distancias||[]).filter(d=>Array.isArray(d.percurso)&&d.percurso.length>1)
+    .sort((a,b)=>(a.km||0)-(b.km||0)).map(d=>({key:d.rotulo,label:d.rotulo,km:+d.km||0,pts:d.percurso,pkm:+d.percurso_km||0}));
+  if(Array.isArray(data.percurso)&&data.percurso.length>1&&!rotas.some(r=>Math.abs(r.pkm-(+data.percurso_km||0))<0.3))
+    rotas.unshift({key:'principal',label:'Principal',km:+data.percurso_km||0,pts:data.percurso});
+  // aba pedida no link; senão a definida como principal pelo admin; senão o percurso principal; senão o maior
+  const want=RACE.dist??RACE.data.padrao;
+  const sel=rotas.find(r=>r.key===want)||(['Principal','Percurso'].includes(want)?rotas.find(r=>r.key==='principal'):null)
+    ||rotas.find(r=>r.key===RACE.data.padrao)||rotas.find(r=>r.key==='principal')||rotas.reduce((a,b)=>(!a||b.km>a.km?b:a),null);
+  const pts=sel?.pts;
+  RACE.key=sel?sel.key:'principal';RACE.rotas=rotas;
   try{const {data:{session}}=await RACE.sb.auth.getSession();if(session){const {data:ok}=await RACE.sb.rpc('is_admin');RACE.admin=!!ok;}}catch(e){}
   document.body.classList.toggle('race-admin',RACE.admin);nome.readOnly=true;map.resize();drawElevProfile();
+  renderRotas();
   if(!pts){showToast('Esta corrida ainda não tem percurso (GPX).',6000);return;}
   const D=RACE.data;
   // pontos são de cada percurso (aba/distância); os salvos antes da separação valem só para a aba em que foram salvos
@@ -1201,6 +1216,30 @@ async function salvarCorrida(){
   btn.disabled=false;
   if(error||!data?.length){showToast('⚠️ Não foi possível salvar'+(error?': '+error.message:' (entre como admin no site)'),6000);return;}
   RACE.data=payload;showToast('✅ Salvo '+(RACE.key==='principal'?'no percurso principal':'no percurso '+RACE.key)+'. Os visitantes já veem esta versão.',4000);
+}
+// abas de percurso (10K, 21K…): trocar recarrega esta página com a outra distância
+function renderRotas(){
+  const box=document.getElementById('rotas'),R=RACE.rotas||[];box.textContent='';
+  box.hidden=R.length<2;if(box.hidden)return;
+  R.forEach(r=>{
+    const b=document.createElement('button');b.type='button';
+    b.textContent=r.label+(r.key===RACE.data.padrao?' ⭐':'');b.setAttribute('aria-pressed',String(r.key===RACE.key));
+    b.addEventListener('click',()=>{if(r.key===RACE.key)return;const u=new URL(location.href);u.searchParams.set('dist',r.key);location.replace(u.href);});
+    box.append(b);
+  });
+  if(RACE.admin){
+    const st=document.createElement('button');st.type='button';st.className='rt-star';
+    const eh=RACE.data.padrao===RACE.key;st.textContent=eh?'⭐ Principal':'☆ Tornar principal';st.disabled=eh;
+    st.title='Abre primeiro no percurso 3D e na página da prova';
+    st.addEventListener('click',definirPadrao);box.append(st);
+  }
+}
+async function definirPadrao(){
+  if(!RACE.admin||!RACE.id)return;
+  const payload={...RACE.data,padrao:RACE.key};
+  const {data,error}=await RACE.sb.from('corridas').update({percurso_3d:payload}).eq('id',RACE.id).select('id');
+  if(error||!data?.length){showToast('⚠️ Não foi possível salvar'+(error?': '+error.message:''),6000);return;}
+  RACE.data=payload;renderRotas();showToast('⭐ '+(RACE.key==='principal'?'Principal':RACE.key)+' é o percurso principal da prova.',4000);
 }
 document.getElementById('btn-save').addEventListener('click',salvarCorrida);
 if(RACE.slug)carregarCorrida();

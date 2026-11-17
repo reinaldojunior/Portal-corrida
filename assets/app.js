@@ -1320,7 +1320,7 @@ function baixarIcs(c) {
 
 // corridas que já aconteceram não vêm na carga inicial: busca no banco quando alguém abre a página
 const passadasBuscadas = new Set();
-function mostrarCorrida(slug, percIdx = 0) {
+function mostrarCorrida(slug, percIdx = null) {
   const c0 = [...estado.corridas, ...(estado.passadas || [])].find((x) => x.slug === slug && (x.status === 'publicado' || estado.admin));
   if (!c0 && sb && !estado.demo && !passadasBuscadas.has(slug)) {
     passadasBuscadas.add(slug);
@@ -1332,6 +1332,9 @@ function mostrarCorrida(slug, percIdx = 0) {
     return;
   }
   const percs = c0 ? percursosDe(c0) : [];
+  // aba inicial: a escolhida pelo admin como principal no percurso 3D (percurso_3d.padrao); senão a primeira
+  const padrao = c0?.percurso_3d?.padrao;
+  if (percIdx == null) percIdx = Math.max(0, percs.findIndex((p) => p.rotulo === padrao || (padrao === 'principal' && !(c0.corrida_distancias || []).some((d) => d.rotulo === p.rotulo))));
   const pSel = percs[Math.min(percIdx, Math.max(0, percs.length - 1))];
   const c = c0 && pSel ? { ...c0, percurso: pSel.percurso, percurso_km: pSel.percurso_km, subida_m: pSel.subida_m, descida_m: pSel.descida_m, km_oficial: pSel.km && Math.abs(pSel.km - pSel.percurso_km) / pSel.km <= 0.15 ? pSel.km : null } : c0;
   const v = $('#vCorrida');
