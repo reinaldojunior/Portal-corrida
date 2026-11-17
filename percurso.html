@@ -120,6 +120,9 @@ body.modo-corrida:not(.race-admin) #ctrl{display:none}
 #start-ov.fim{top:auto;bottom:calc(var(--elev-h) + var(--ctrl-h) + 24px);transform:translateX(-50%);font-size:16px;padding:10px 20px}
 #start-ov[hidden]{display:none}
 #btn-full{display:none}
+#btn-som{pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;width:34px;height:30px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:var(--text);font-size:15px;cursor:pointer;flex-shrink:0}
+#fogos{position:fixed;top:0;left:0;width:100vw;height:calc(100vh - var(--elev-h) - var(--ctrl-h));pointer-events:none;z-index:5}
+#fogos[hidden]{display:none}
 #rotas{position:fixed;top:calc(env(safe-area-inset-top,0px) + 46px);left:max(14px,env(safe-area-inset-left,0px));z-index:22;display:flex;flex-wrap:wrap;gap:6px;max-width:44vw}
 #rotas[hidden]{display:none}
 #rotas button{background:rgba(9,9,15,.55);border:1px solid rgba(255,255,255,.22);border-radius:999px;color:#fff;font:600 12px 'Inter',sans-serif;padding:5px 12px;cursor:pointer;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
@@ -247,6 +250,7 @@ body.embed #btn-full{display:inline-flex;align-items:center;gap:4px;pointer-even
   </div>
 </div>
 
+<canvas id="fogos" hidden aria-hidden="true"></canvas>
 <div id="rotas" hidden role="group" aria-label="Escolha o percurso"></div>
 <div id="hud" hidden>
   <div class="hud-top">
@@ -274,6 +278,7 @@ body.embed #btn-full{display:inline-flex;align-items:center;gap:4px;pointer-even
 <header id="hdr">
   <input id="race-name" type="text" placeholder="Nome da Corrida" maxlength="40">
   <a id="btn-full" target="_blank" rel="noopener">⤢ Tela cheia</a>
+  <button type="button" id="btn-som" aria-label="Desligar o som" title="Som">🔊</button>
   <div id="stats">
     <div class="sv"><span class="sv-n" id="s-km">—</span><span class="sv-u">KM</span></div>
     <div class="sv"><span class="sv-n" id="s-el">—</span><span class="sv-u">m ↑</span></div>
@@ -558,6 +563,10 @@ function play(){
   if(S.raf)cancelAnimationFrame(S.raf);
   S.raf=requestAnimationFrame(animate);
   updateStartOv();
+  // som: só começa num clique (exigência dos navegadores); tiro de largada quando sai do zero
+  const doZero=S.distKm===0;
+  somIniciar()?.then(()=>{if(!S.playing)return;if(doZero)somTocar('tiro',0.8);somCorrida(S.camMode==='chase');});
+  somMusica(true);
 }
 
 function pause(){
@@ -566,6 +575,7 @@ function pause(){
   document.getElementById('btn-play').innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>';
   runnerAnim(false);
   updateStartOv();
+  somCorrida(false);somMusica(false);
 }
 
 // visitante de uma corrida: sem controles, só "clique para iniciar" (clicar no mapa pausa)
@@ -698,6 +708,7 @@ function runnerAnim(state){
 function celebrate(){
   if(S.camMode!=='chase'||!R3.pos)return;
   R3.celebrating=true;runnerAnim('cheer');showFinish(true);
+  somChegada();fogosVisuais(true);
   const t0=performance.now(),h0=R3.heading,base=R3.camHeading;
   const step=now=>{
     if(!R3.celebrating||S.camMode!=='chase')return;
@@ -714,8 +725,105 @@ function celebrate(){
 }
 function stopCelebrate(){
   if(!R3.celebrating)return;
-  R3.celebrating=false;cancelAnimationFrame(R3.celebRaf);showFinish(false);
+  R3.celebrating=false;cancelAnimationFrame(R3.celebRaf);showFinish(false);fogosVisuais(false);
   R3.heading=R3.camHeading;runnerAnim(S.playing);
+}
+
+// ── SOM (Web Audio: loops sem emenda; tudo começa só depois de um clique, como exigem os navegadores) ──
+// efeitos e voz: Higgsfield (gerados para o site); respiração: gravação enviada pelo dono; músicas: Suno do dono + uma gerada
+const SOM={ctx:null,on:true,buf:{},carregando:null,run:null,runGain:null,musica:null,musGain:null,faixa:-1,master:null};
+try{SOM.on=localStorage.getItem('mm-som')!=='0';}catch(e){}
+const SOM_FX={tiro:'tiro-largada',voz:'voz-conseguimos',torcida:'torcida',fogos:'fogos',resp:'respiracao'};
+const MUSICAS=['musica-1','musica-2','musica-3','musica-4'];
+function somIniciar(){
+  if(!SOM.ctx){
+    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;
+    SOM.ctx=new AC();
+    SOM.master=SOM.ctx.createGain();SOM.master.gain.value=SOM.on?1:0;SOM.master.connect(SOM.ctx.destination);
+    SOM.musGain=SOM.ctx.createGain();SOM.musGain.gain.value=0.3;SOM.musGain.connect(SOM.master);
+    SOM.runGain=SOM.ctx.createGain();SOM.runGain.gain.value=0;SOM.runGain.connect(SOM.master);
+  }
+  if(SOM.ctx.state==='suspended')SOM.ctx.resume();
+  SOM.carregando??=Promise.all(Object.entries(SOM_FX).map(async([k,f])=>{
+    try{const r=await fetch('/assets/som/'+f+'.mp3');SOM.buf[k]=await SOM.ctx.decodeAudioData(await r.arrayBuffer());}catch(e){}
+  }));
+  return SOM.carregando;
+}
+function somTocar(k,vol=1,depois=0){
+  const b=SOM.buf[k];if(!SOM.ctx||!b)return;
+  const s=SOM.ctx.createBufferSource(),g=SOM.ctx.createGain();g.gain.value=vol;s.buffer=b;
+  s.connect(g).connect(SOM.master);s.start(SOM.ctx.currentTime+depois);
+}
+// respiração em loop no modo personagem; o MP3 tem ~50 ms de silêncio nas pontas, que o loop pula
+function somCorrida(ligar){
+  if(!SOM.ctx)return;const t=SOM.ctx.currentTime,b=SOM.buf.resp;
+  if(ligar&&!SOM.run&&b){const s=SOM.ctx.createBufferSource();s.buffer=b;s.loop=true;s.loopStart=0.05;s.loopEnd=b.duration-0.05;s.connect(SOM.runGain);s.start(t,0.05);SOM.run=s;}
+  SOM.runGain.gain.cancelScheduledValues(t);SOM.runGain.gain.setTargetAtTime(ligar?0.5:0,t,0.25);
+  if(!ligar&&SOM.run){const s=SOM.run;SOM.run=null;setTimeout(()=>{try{s.stop();}catch(e){}},1500);}
+}
+// ritmo da respiração acompanha as pernas; na subida fica mais forte
+function somAtualizar(){
+  if(!SOM.run)return;
+  const g=Math.max(0,Math.min(0.1,S.grade?.[S.idx]||0));
+  SOM.run.playbackRate.value=Math.max(0.85,Math.min(1.2,0.9+(cadence()-1.4)*0.2));
+  SOM.runGain.gain.setTargetAtTime(0.45+g*3,SOM.ctx.currentTime,0.5);
+}
+// playlist por streaming (só baixa a faixa que toca), começando numa faixa aleatória
+function somMusica(ligar){
+  if(!SOM.ctx)return;
+  if(!SOM.musica){
+    const a=new Audio();a.preload='none';SOM.musica=a;
+    SOM.ctx.createMediaElementSource(a).connect(SOM.musGain);
+    SOM.faixa=Math.floor(Math.random()*MUSICAS.length);a.src='/assets/som/'+MUSICAS[SOM.faixa]+'.mp3';
+    a.addEventListener('ended',()=>{SOM.faixa=(SOM.faixa+1)%MUSICAS.length;a.src='/assets/som/'+MUSICAS[SOM.faixa]+'.mp3';a.play().catch(()=>{});});
+  }
+  if(ligar)SOM.musica.play().catch(()=>{});else SOM.musica.pause();
+}
+// bip duplo de relógio de corrida a cada km (gerado, sem arquivo)
+function somBip(){
+  if(!SOM.ctx)return;const t=SOM.ctx.currentTime;
+  [0,0.16].forEach(d=>{const o=SOM.ctx.createOscillator(),g=SOM.ctx.createGain();o.type='square';o.frequency.value=1760;
+    g.gain.setValueAtTime(0,t+d);g.gain.linearRampToValueAtTime(0.1,t+d+0.01);g.gain.exponentialRampToValueAtTime(0.001,t+d+0.11);
+    o.connect(g).connect(SOM.master);o.start(t+d);o.stop(t+d+0.13);});
+}
+// chegada: torcida, "Yes! Conseguimos!" e fogos; a música abaixa durante a voz
+function somChegada(){
+  if(!SOM.ctx)return;const t=SOM.ctx.currentTime;
+  somCorrida(false);somMusica(true);
+  SOM.musGain.gain.cancelScheduledValues(t);SOM.musGain.gain.setTargetAtTime(0.08,t,0.3);SOM.musGain.gain.setTargetAtTime(0.3,t+6,1.2);
+  somTocar('torcida',0.7);somTocar('voz',1,0.5);somTocar('fogos',0.8,1.2);
+}
+function atualizarBtnSom(){const b=document.getElementById('btn-som');b.textContent=SOM.on?'🔊':'🔇';b.setAttribute('aria-label',SOM.on?'Desligar o som':'Ligar o som');}
+document.getElementById('btn-som').addEventListener('click',()=>{
+  SOM.on=!SOM.on;try{localStorage.setItem('mm-som',SOM.on?'1':'0');}catch(e){}
+  if(SOM.master)SOM.master.gain.setTargetAtTime(SOM.on?1:0,SOM.ctx.currentTime,0.05);
+  atualizarBtnSom();
+});
+atualizarBtnSom();
+
+// fogos desenhados no céu atrás do boneco (chegada); respeita "reduzir movimento"
+const FOGOS={raf:0,parts:[]};
+function fogosVisuais(ligar){
+  const cv=document.getElementById('fogos');cancelAnimationFrame(FOGOS.raf);FOGOS.parts=[];
+  if(!ligar||matchMedia('(prefers-reduced-motion: reduce)').matches){cv.hidden=true;return;}
+  cv.hidden=false;const c=cv.getContext('2d'),dpr=Math.min(2,devicePixelRatio||1);
+  const tam=()=>{cv.width=cv.clientWidth*dpr;cv.height=cv.clientHeight*dpr;};tam();c.clearRect(0,0,cv.width,cv.height);
+  const cores=['#ffd60a','#ff4d6d','#4cc9f0','#06d6a0','#ffffff','#f72585'],t0=performance.now();let prox=t0+1200;
+  const passo=now=>{
+    const t=(now-t0)/1000;if(cv.width!==Math.round(cv.clientWidth*dpr))tam();
+    if(t<10&&now>prox){
+      prox=now+300+Math.random()*500;
+      const x=cv.width*(0.12+Math.random()*0.76),y=cv.height*(0.1+Math.random()*0.32),cor=cores[Math.random()*cores.length|0],n=70;
+      for(let i=0;i<n;i++){const a=Math.PI*2*i/n,v=(1.3+Math.random()*1.9)*dpr;FOGOS.parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,v:1,cor});}
+    }
+    c.globalCompositeOperation='destination-out';c.fillStyle='rgba(0,0,0,0.22)';c.fillRect(0,0,cv.width,cv.height);
+    c.globalCompositeOperation='lighter';
+    FOGOS.parts=FOGOS.parts.filter((p)=>(p.v-=0.011)>0);
+    for(const p of FOGOS.parts){p.vx*=0.985;p.vy=p.vy*0.985+0.035*dpr;p.x+=p.vx;p.y+=p.vy;c.globalAlpha=p.v;c.fillStyle=p.cor;c.fillRect(p.x,p.y,2.4*dpr,2.4*dpr);}
+    c.globalAlpha=1;c.globalCompositeOperation='source-over';
+    if(t<13||FOGOS.parts.length)FOGOS.raf=requestAnimationFrame(passo);else cv.hidden=true;
+  };
+  FOGOS.raf=requestAnimationFrame(passo);
 }
 
 // Atleta: gerado a partir da arte do usuário (Higgsfield/Meshy), um arquivo por animação.
@@ -863,7 +971,7 @@ function updateHud(){
   if(km>S.lastLap&&km>=1&&d<PLAN.tot-0.05){
     S.lastLap=km;const lap=document.getElementById('hud-lap');
     lap.textContent='KM '+km+' · '+fmtPace(timeAtDist(km)-timeAtDist(km-1))+' · '+fmtT(timeAtDist(km));
-    lap.hidden=false;clearTimeout(S.lapTimer);S.lapTimer=setTimeout(()=>lap.hidden=true,2500);
+    lap.hidden=false;somBip();clearTimeout(S.lapTimer);S.lapTimer=setTimeout(()=>lap.hidden=true,2500);
   }
 }
 function showFinish(on){
@@ -917,6 +1025,7 @@ function animate(now){
     map.getSource('route-prog')?.setData({type:'Feature',geometry:{type:'LineString',coordinates:coords}});
     chaseFrame(S.distKm);
     const run=R3.part?.actions.Run;if(run&&R3.part.cur===run)run.timeScale=cadence();
+    somAtualizar();
     updateHud();
   }
   updateStats();
@@ -1077,6 +1186,7 @@ function setCamMode(mode){
   if(chase){S.raceT=timeAtDist(S.distKm);S.lastLap=Math.floor(S.distKm);updateHud();}
   ['btn-char','btn-zin','btn-zout'].forEach(id=>document.getElementById(id).hidden=(mode!=='chase'));
   setMapGestures(mode!=='chase');
+  somCorrida(mode==='chase'&&S.playing);
   if(mode!=='chase'){setTrackStyle(false);if(S.dotMarker)S.dotMarker.getElement().style.display='';}
 }
 
