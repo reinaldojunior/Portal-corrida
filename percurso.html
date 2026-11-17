@@ -77,19 +77,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .es-met{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,.14);text-align:center}
 .es-met span{display:block;font-size:11px;opacity:.75;text-transform:uppercase;letter-spacing:.06em}
 .es-met b{font:700 19px 'Space Grotesk',sans-serif}
-/* celular: o painel vira uma barra que abre ao tocar (no computador fica sempre aberto) */
-#es-tog{display:none}
-@media (max-width:640px){
-  #es-tog{display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;color:#fff;padding:2px 0;cursor:pointer;text-shadow:inherit;font:inherit;min-height:32px}
-  #es-tog .es-rot{font-size:12px}
-  #es-res{margin-left:auto;font:700 14px 'Space Grotesk',sans-serif;white-space:nowrap}
-  .es-chev{flex-shrink:0;transition:transform .2s}
-  #estr:not(.aberto) #es-corpo{display:none}
-  #estr:not(.aberto){padding:6px 12px}
-  #estr.aberto .es-chev{transform:rotate(180deg)}
-  #estr.aberto #es-tog{margin-bottom:2px}
-  #estr .es-top .es-rot{display:none}
-}
 @media (max-width:640px){
   #hud{top:calc(env(safe-area-inset-top,0px) + 50px)}.hv b{font-size:24px}.hv span{font-size:9px}.hud-top{gap:18px}.hud-sub{top:52px;gap:14px}.hud-sub .hv b{font-size:13px}.hud-sub .hv span{font-size:8px}#hud-lap{top:88px;font-size:13px}
   #estr{left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));width:auto;top:auto;transform:none;bottom:calc(var(--elev-h) + var(--ctrl-h) + 8px);padding:8px 10px;border-radius:12px}#estr .es-met b{font-size:15px}#estr input[type=range]{height:16px;margin:3px 0 0}#estr .es-top{margin-bottom:4px}
@@ -281,8 +268,6 @@ body.embed #btn-full{order:9;display:inline-flex;align-items:center;gap:4px;poin
   <div id="hud-fim" hidden></div>
 </div>
 <div id="estr" hidden>
-  <button type="button" id="es-tog" aria-expanded="false" aria-controls="es-corpo"><span class="es-rot">Sua estratégia</span><span id="es-res"></span><svg class="es-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg></button>
-  <div id="es-corpo">
   <div class="es-top"><span class="es-rot">Monte a sua estratégia</span><label>Tempo alvo<input id="es-alvo" inputmode="numeric" aria-label="Tempo alvo (h:mm:ss)"></label></div>
   <div class="es-ctrl"><div class="es-l"><span>Estratégia</span><b id="es-est-txt"></b></div>
     <input type="range" id="es-est" min="-5" max="5" step="1" value="0" aria-label="Estratégia de ritmo">
@@ -291,7 +276,6 @@ body.embed #btn-full{order:9;display:inline-flex;align-items:center;gap:4px;poin
     <input type="range" id="es-adj" min="0" max="100" step="5" value="100" aria-label="Ajuste nas subidas">
     <div class="es-p"><span>Forçar</span><span>Poupar</span></div></div>
   <div class="es-met" id="es-met"></div>
-  </div>
 </div>
 <header id="hdr">
   <input id="race-name" type="text" placeholder="Nome da Corrida" maxlength="40">
@@ -996,17 +980,12 @@ function planChanged(){
   try{localStorage.setItem('mm-estr',JSON.stringify({est:PLAN.est,adj:PLAN.adj}));}catch(e){}
   updatePanel();updateHud();
 }
-document.getElementById('es-tog').addEventListener('click',()=>{
-  const e=document.getElementById('estr'),ab=e.classList.toggle('aberto');
-  document.getElementById('es-tog').setAttribute('aria-expanded',ab);
-});
 function updatePanel(){
   const e=PLAN.est,a=PLAN.adj;
   document.getElementById('es-est').value=e;document.getElementById('es-adj').value=a;
   document.getElementById('es-est-txt').textContent=e===0?'Ritmo igual':e>0?'Guardar pro fim (nível '+e+')':'Sair forte (nível '+(-e)+')';
   document.getElementById('es-adj-txt').textContent=a>=95?'Esforço constante':a<=5?'Pace igual em tudo':a>=50?'Poupa um pouco':'Força um pouco';
   const m1=Math.round(PLAN.metade[0]),m2=Math.round(PLAN.metade[1]),dif=m2-m1;
-  document.getElementById('es-res').textContent=PLAN.trechos.length?fmtT(Math.round(m1+m2))+' · '+(dif===0?'ritmo igual':(dif>0?'+':'−')+fmtT(Math.abs(dif))+' na 2ª metade'):'';
   document.getElementById('es-met').innerHTML=PLAN.trechos.length?[['1ª metade',fmtT(m1)],['2ª metade',fmtT(m2)],['Diferença',dif===0?'0:00':(dif>0?'+':'−')+fmtT(Math.abs(dif))]]
     .map(([l,v])=>'<div><span>'+l+'</span><b>'+v+'</b></div>').join(''):'';
 }
