@@ -738,7 +738,7 @@ try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch(e){}
 // celular: ao voltar para a aba (ou depois de uma ligação) o áudio fica pausado; retoma se a animação estiver rodando
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&SOM.ctx&&S.playing&&SOM.ctx.state!=='running')SOM.ctx.resume().catch(()=>{});});
 const SOM_FX={largada:'corneta-largada',voz:'voz-conseguimos',torcida:'torcida',fogos:'fogos',resp:'respiracao'};
-const MUSICAS=['musica-1','musica-2','musica-3','musica-4'];
+const MUSICAS=['musica-2','musica-3','musica-4'];
 function somIniciar(){
   if(!SOM.ctx){
     const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;
