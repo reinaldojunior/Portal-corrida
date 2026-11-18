@@ -1373,7 +1373,7 @@ function mostrarCorrida(slug, percIdx = null) {
   const brl = (v) => v == null ? 'Preço a confirmar' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const se = pSel?.strava_embed || c0?.strava_embed;
   const usarStrava = !!(pSel?.mapa_principal === 'strava' && se?.id && se?.token);
-  const simHtml = temPerc && !usarStrava && mod('simulador') ? `<section class="caixa sim sim-lado" id="simBox" aria-labelledby="simTit">
+  const simHtml = temPerc && mod('simulador') ? `<section class="caixa sim sim-lado" id="simBox" aria-labelledby="simTit">
     <div class="sim-cab"><div><span class="rot">Simulador da prova</span><h2 class="display" id="simTit">Monte a sua estratégia</h2></div>
       <div class="sim-entrada"><label class="campo">Tempo alvo<input id="simAlvo" inputmode="numeric"></label></div></div>
     <div class="sim-grade">
@@ -1397,7 +1397,7 @@ function mostrarCorrida(slug, percIdx = null) {
       </div>
     </div></section>` : '';
   // percurso 3D animado (mesma página /percurso em modo corrida): GPX da aba escolhida + pontos e estratégia salvos pelo admin
-  const p3dHtml = temPerc && !usarStrava ? `<section class="caixa bloco-3d" aria-labelledby="p3dTit"><div class="perc-topo"><h2 class="display" id="p3dTit">Percurso 3D</h2></div>
+  const p3dHtml = temPerc ? `<section class="caixa bloco-3d" aria-labelledby="p3dTit"><div class="perc-topo"><h2 class="display" id="p3dTit">Percurso 3D</h2></div>
     <div class="p3d-frame"><iframe src="/percurso?corrida=${encodeURIComponent(c.slug)}${pSel ? `&dist=${encodeURIComponent(pSel.rotulo)}` : ''}&embed=1" title="Percurso 3D animado de ${esc(c.nome)}" loading="lazy" allow="fullscreen; autoplay"></iframe></div></section>` : '';
   const stravaHtml = usarStrava ? `<section class="caixa bloco-strava" aria-labelledby="stravaTit"><div class="perc-topo"><h2 class="display" id="stravaTit">Percurso no Strava</h2>
     ${percs.length > 1 ? `<div class="perc-abas" role="group" aria-label="Escolha o percurso">${percs.map((p, i) => `<button type="button" class="filtro" data-perc="${i}" aria-pressed="${p === pSel}">${esc(p.rotulo)}</button>`).join('')}</div>` : ''}</div>
