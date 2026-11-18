@@ -702,8 +702,8 @@ function kmOficialDe(c) {
 }
 function percursosDe(c) {
   const lista = (c.corrida_distancias || []).filter(temTrajeto).slice().sort(porDist)
-    .map((d) => ({ rotulo: d.rotulo, km: +d.km, percurso: d.percurso, percurso_km: d.percurso_km, subida_m: d.subida_m, descida_m: d.descida_m, strava_embed: d.strava_embed || null }));
-  if (temTrajeto(c) && !lista.some((d) => Math.abs((d.percurso_km || 0) - (c.percurso_km || 0)) < 0.3)) lista.unshift({ rotulo: lista.length ? 'Principal' : 'Percurso', km: kmOficialDe(c), percurso: c.percurso, percurso_km: c.percurso_km, subida_m: c.subida_m, descida_m: c.descida_m, strava_embed: c.strava_embed || null });
+    .map((d) => ({ rotulo: d.rotulo, km: +d.km, percurso: d.percurso, percurso_km: d.percurso_km, subida_m: d.subida_m, descida_m: d.descida_m, strava_embed: d.strava_embed || null, mapa_principal: d.mapa_principal || 'gpx' }));
+  if (temTrajeto(c) && !lista.some((d) => Math.abs((d.percurso_km || 0) - (c.percurso_km || 0)) < 0.3)) lista.unshift({ rotulo: lista.length ? 'Principal' : 'Percurso', km: kmOficialDe(c), percurso: c.percurso, percurso_km: c.percurso_km, subida_m: c.subida_m, descida_m: c.descida_m, strava_embed: c.strava_embed || null, mapa_principal: 'gpx' });
   return lista;
 }
 function comPercurso(c) {
@@ -1371,7 +1371,9 @@ function mostrarCorrida(slug, percIdx = null) {
     }).join('')}</ul>
   </section>` : '';
   const brl = (v) => v == null ? 'Preço a confirmar' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  const simHtml = temPerc && mod('simulador') ? `<section class="caixa sim sim-lado" id="simBox" aria-labelledby="simTit">
+  const se = pSel?.strava_embed || c0?.strava_embed;
+  const usarStrava = !!(pSel?.mapa_principal === 'strava' && se?.id && se?.token);
+  const simHtml = temPerc && !usarStrava && mod('simulador') ? `<section class="caixa sim sim-lado" id="simBox" aria-labelledby="simTit">
     <div class="sim-cab"><div><span class="rot">Simulador da prova</span><h2 class="display" id="simTit">Monte a sua estratégia</h2></div>
       <div class="sim-entrada"><label class="campo">Tempo alvo<input id="simAlvo" inputmode="numeric"></label></div></div>
     <div class="sim-grade">
@@ -1395,12 +1397,11 @@ function mostrarCorrida(slug, percIdx = null) {
       </div>
     </div></section>` : '';
   // percurso 3D animado (mesma página /percurso em modo corrida): GPX da aba escolhida + pontos e estratégia salvos pelo admin
-  const p3dHtml = temPerc ? `<section class="caixa bloco-3d" aria-labelledby="p3dTit"><div class="perc-topo"><h2 class="display" id="p3dTit">Percurso 3D</h2></div>
+  const p3dHtml = temPerc && !usarStrava ? `<section class="caixa bloco-3d" aria-labelledby="p3dTit"><div class="perc-topo"><h2 class="display" id="p3dTit">Percurso 3D</h2></div>
     <div class="p3d-frame"><iframe src="/percurso?corrida=${encodeURIComponent(c.slug)}${pSel ? `&dist=${encodeURIComponent(pSel.rotulo)}` : ''}&embed=1" title="Percurso 3D animado de ${esc(c.nome)}" loading="lazy" allow="fullscreen; autoplay"></iframe></div></section>` : '';
-  const se = pSel?.strava_embed || c0?.strava_embed;
-  const stravaHtml = se?.id && se?.token ? `<section class="caixa bloco-strava" aria-labelledby="stravaTit"><div class="perc-topo"><h2 class="display" id="stravaTit">Percurso no Strava</h2></div>
+  const stravaHtml = usarStrava ? `<section class="caixa bloco-strava" aria-labelledby="stravaTit"><div class="perc-topo"><h2 class="display" id="stravaTit">Percurso no Strava</h2></div>
     <div class="strava-wrap"><div class="strava-embed-placeholder" data-embed-type="route" data-embed-id="${esc(se.id)}" data-style="standard"${se.hash ? ` data-map-hash="${esc(se.hash)}"` : ''} data-token="${esc(se.token)}"></div></div></section>` : '';
-  const percHtml = temPerc ? `<div class="caixa bloco-perc${simHtml ? ' com-sim' : ''}" id="caixaPerc"><div class="perc-topo"><h2 class="display">Percurso</h2>
+  const percHtml = temPerc && !usarStrava ? `<div class="caixa bloco-perc${simHtml ? ' com-sim' : ''}" id="caixaPerc"><div class="perc-topo"><h2 class="display">Percurso</h2>
         ${percs.length > 1 ? `<div class="perc-abas" role="group" aria-label="Escolha o percurso">${percs.map((p, i) => `<button type="button" class="filtro" data-perc="${i}" aria-pressed="${p === pSel}">${esc(p.rotulo)}</button>`).join('')}</div>` : ''}
         <div class="perc-stats"><div${c.km_oficial && Math.abs(c.km_oficial - c.percurso_km) >= 0.005 ? ` title="O GPX mediu ${String(c.percurso_km).replace('.', ',')} km. O site ajusta para a distância oficial."` : ''}><span>DISTÂNCIA</span><b>${String(+(c.km_oficial || c.percurso_km).toFixed(2)).replace('.', ',')} km</b></div><div><span>Subida</span><b>${c.subida_m != null ? '+' + c.subida_m + ' m' : '—'}</b></div><div><span>Descida</span><b>${c.descida_m != null ? '−' + c.descida_m + ' m' : '—'}</b></div></div></div>
         <div id="mapaCorrida" class="mapa-perc"></div>
@@ -1449,7 +1450,7 @@ function mostrarCorrida(slug, percIdx = null) {
     </aside>
     </div>
 ${percHtml}${simHtml}${p3dHtml}${stravaHtml}${proximasHtml}</div>`;
-  if (se?.id && se?.token) {
+  if (usarStrava) {
     document.querySelector('script[src*="strava-embeds.com"]')?.remove();
     const ss = document.createElement('script'); ss.src = 'https://strava-embeds.com/embed.js'; document.body.appendChild(ss);
   }
@@ -2120,7 +2121,11 @@ function linhaDist(d = {}) {
     <div class="dist-strava"><label class="campo inteiro">Incorporação do Strava <small>Cole o código HTML do botão "Incorporar" na página do percurso no Strava.</small>
     <textarea data-strava-code rows="2" style="font-size:11px;font-family:monospace;resize:vertical;width:100%" placeholder='<div class="strava-embed-placeholder" data-embed-type="route" data-embed-id="..." data-token="..."></div>'></textarea></label>
     <small>${d.strava_embed?.id ? `✅ Embed salvo: rota ${esc(String(d.strava_embed.id))}. Cole um novo código para substituir.` : 'Sem embed do Strava.'}</small>
-    ${d.strava_embed?.id ? '<label class="check"><input type="checkbox" data-strava-rm> Remover embed</label>' : ''}</div></div>`;
+    ${d.strava_embed?.id ? '<label class="check"><input type="checkbox" data-strava-rm> Remover embed</label>' : ''}
+    <label class="campo">Mapa a exibir na página <select data-mapa-sel>
+      <option value="gpx" ${(d.mapa_principal || 'gpx') !== 'strava' ? 'selected' : ''}>Mapa GPX do site</option>
+      <option value="strava" ${d.mapa_principal === 'strava' ? 'selected' : ''}>Incorporação do Strava</option>
+    </select></label></div></div>`;
 }
 const coordValida = (la, lo) => isFinite(la) && isFinite(lo) && Math.abs(la) <= 90 && Math.abs(lo) <= 180 && !(la === 0 && lo === 0);
 function lerCoordenadas(txt) {
@@ -2485,8 +2490,9 @@ function formCorrida(c = {}, pendente = null) {
         if (idM && tokM) strava_embed = { id: idM[1], token: tokM[1], hash: hashM?.[1] || null };
         else { distParseErr = `"${rotulo}": código Strava inválido. Copie o código completo do botão "Incorporar".`; }
       }
+      const mapa_principal = $('[data-mapa-sel]', el)?.value || 'gpx';
       return { corrida_id: id, rotulo, km: kmV ? Number(kmV) : null, horas: hV ? Number(hV) : null, preco: $('[name=preco]', el).value ? Number($('[name=preco]', el).value) : null,
-        percurso: p ? p.percurso : null, percurso_km: p ? p.percurso_km : null, subida_m: p ? p.subida_m : null, descida_m: p ? p.descida_m : null, strava_embed };
+        percurso: p ? p.percurso : null, percurso_km: p ? p.percurso_km : null, subida_m: p ? p.subida_m : null, descida_m: p ? p.descida_m : null, strava_embed, mapa_principal };
     }).filter((d) => d.rotulo);
     if (distParseErr) { msg.textContent = distParseErr; return; }
     await sb.from('corrida_distancias').delete().eq('corrida_id', id);
