@@ -410,7 +410,7 @@ map.on('load',()=>{
   map.addSource('route-grade',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
   map.addLayer({id:'route-full-line',type:'line',source:'route-full',paint:{'line-color':'#ffffff','line-width':2,'line-opacity':0.08}});
   map.addLayer({id:'route-glow',type:'line',source:'route-prog',paint:{'line-color':S.color,'line-width':14,'line-opacity':0.22,'line-blur':6}});
-  map.addLayer({id:'route-grade-line',type:'line',source:'route-grade',paint:{'line-color':['interpolate',['linear'],['get','g'],-0.1,'#29b6f6',-0.04,'#69f0ae',0.04,'#69f0ae',0.08,'#ffd60a',0.12,'#e63946'],'line-width':3,'line-cap':'round','line-join':'round','line-opacity':0.75}},'route-glow');
+  map.addLayer({id:'route-grade-line',type:'line',source:'route-grade',paint:{'line-color':['interpolate',['linear'],['get','g'],-0.1,'#29b6f6',-0.05,'#4cc9f0',-0.02,'#69f0ae',0.02,'#69f0ae',0.04,'#ffd60a',0.07,'#ff6b35',0.10,'#e63946',0.13,'#c0392b'],'line-width':3,'line-cap':'round','line-join':'round','line-opacity':0.85}},'route-glow');
   map.addLayer({id:'route-line',type:'line',source:'route-prog',paint:{'line-color':S.color,'line-width':3,'line-cap':'round','line-join':'round'}});
   map.on('click',e=>{
     if(!S.hydraMode||!S.raw.length)return;
@@ -1242,16 +1242,19 @@ function drawMiniMap(){
 
 // ── GRADE COLOR SCALE ──────────────────────────────────────────────────────────
 function gradeColor(g){
-  if(g>0.08)return'#e63946';
-  if(g>0.04)return'#ffd60a';
-  if(g>-0.04)return'#69f0ae';
-  return'#29b6f6';
+  if(g>0.10)return'#c0392b';  // vermelho escuro  >10%
+  if(g>0.07)return'#e63946';  // vermelho          7-10%
+  if(g>0.04)return'#ff6b35';  // laranja           4-7%
+  if(g>0.02)return'#ffd60a';  // amarelo           2-4%
+  if(g>-0.02)return'#69f0ae'; // verde             plano
+  if(g>-0.05)return'#4cc9f0'; // azul claro        descida leve
+  return'#29b6f6';             // azul              descida forte
 }
 function updateGradeLayer(){
   if(!S.grade||!S.raw.length)return;
   withStyle(()=>{
     if(!map.getSource('route-grade'))map.addSource('route-grade',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
-    if(!map.getLayer('route-grade-line'))map.addLayer({id:'route-grade-line',type:'line',source:'route-grade',paint:{'line-color':['interpolate',['linear'],['get','g'],-0.1,'#29b6f6',-0.04,'#69f0ae',0.04,'#69f0ae',0.08,'#ffd60a',0.12,'#e63946'],'line-width':3,'line-cap':'round','line-join':'round','line-opacity':0.75}},'route-glow');
+    if(!map.getLayer('route-grade-line'))map.addLayer({id:'route-grade-line',type:'line',source:'route-grade',paint:{'line-color':['interpolate',['linear'],['get','g'],-0.1,'#29b6f6',-0.05,'#4cc9f0',-0.02,'#69f0ae',0.02,'#69f0ae',0.04,'#ffd60a',0.07,'#ff6b35',0.10,'#e63946',0.13,'#c0392b'],'line-width':3,'line-cap':'round','line-join':'round','line-opacity':0.85}},'route-glow');
     const fc={type:'FeatureCollection',features:S.raw.slice(0,-1).map((pt,i)=>({type:'Feature',properties:{g:(S.grade[i]+(S.grade[i+1]??S.grade[i]))/2},geometry:{type:'LineString',coordinates:[pt,S.raw[i+1]]}}))};
     map.getSource('route-grade')?.setData(fc);
   });
@@ -1354,7 +1357,7 @@ function setMapStyle(styleUrl){
     if(!map.getLayer('route-glow'))map.addLayer({id:'route-glow',type:'line',source:'route-prog',paint:{'line-color':S.color,'line-width':14,'line-opacity':0.22,'line-blur':6}});
     if(!map.getLayer('route-line'))map.addLayer({id:'route-line',type:'line',source:'route-prog',paint:{'line-color':S.color,'line-width':3,'line-cap':'round','line-join':'round'}});
     if(!map.getSource('route-grade'))map.addSource('route-grade',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
-    if(!map.getLayer('route-grade-line'))map.addLayer({id:'route-grade-line',type:'line',source:'route-grade',paint:{'line-color':['interpolate',['linear'],['get','g'],-0.1,'#29b6f6',-0.04,'#69f0ae',0.04,'#69f0ae',0.08,'#ffd60a',0.12,'#e63946'],'line-width':3,'line-cap':'round','line-join':'round','line-opacity':0.75}},'route-glow');
+    if(!map.getLayer('route-grade-line'))map.addLayer({id:'route-grade-line',type:'line',source:'route-grade',paint:{'line-color':['interpolate',['linear'],['get','g'],-0.1,'#29b6f6',-0.05,'#4cc9f0',-0.02,'#69f0ae',0.02,'#69f0ae',0.04,'#ffd60a',0.07,'#ff6b35',0.10,'#e63946',0.13,'#c0392b'],'line-width':3,'line-cap':'round','line-join':'round','line-opacity':0.85}},'route-glow');
     if(S.grade&&S.raw.length)updateGradeLayer();
     if(S.camMode==='3d')setupTerrain();
     if(S.camMode==='chase'){setupTerrain(1);setTrackStyle(true);if(R3.layer&&!map.getLayer('runner-3d'))map.addLayer(R3.layer);chaseFrame(S.distKm);}
