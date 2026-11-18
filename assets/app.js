@@ -2288,6 +2288,10 @@ function formCorrida(c = {}, pendente = null) {
       <input type="file" id="gpxArquivo" accept=".gpx,application/gpx+xml" style="height:auto;padding:10px">
       <small id="gpxInfo">${c.percurso ? `Percurso salvo: ${String(c.percurso_km).replace('.', ',')} km${c.subida_m != null ? `, +${c.subida_m} m de subida` : ''}.` : 'Nenhum percurso enviado.'}</small>
       ${c.percurso ? '<label class="check"><input type="checkbox" name="remover_percurso"> Remover o percurso salvo</label>' : ''}</div>
+    <div class="campo inteiro">Incorporação do Strava <small>Cole o código HTML do botão "Incorporar" na página do percurso no Strava. Exibido como mapa quando não há GPX, ou como seção adicional quando há.</small>
+      <textarea id="stravaEmbedCode" rows="3" style="font-size:11px;font-family:monospace;resize:vertical;width:100%" placeholder='<div class="strava-embed-placeholder" data-embed-type="route" data-embed-id="..." data-token="..."></div>'></textarea>
+      <small id="stravaEmbedMsg">${c.strava_embed ? `✅ Embed salvo: rota ${c.strava_embed.id}. Cole um novo código para substituir, ou deixe vazio e salve para manter.` : 'Nenhum embed salvo. Cole o código acima para adicionar.'}</small>
+      ${c.strava_embed ? '<label class="check"><input type="checkbox" id="stravaEmbedRm"> Remover embed do Strava</label>' : ''}</div>
     <div class="inteiro"><div class="campo" style="margin-bottom:8px">Distâncias</div><div id="distancias">${(c.corrida_distancias || [{}]).map(linhaDist).join('')}</div><button type="button" class="btn btn-linha" id="addDist">Adicionar distância</button></div>
     <div class="campo inteiro">Descrição <small>Pode colar texto formatado: negrito, itálico, listas e links são mantidos.</small>${c.descricao_auto ? '<small class="desc-auto">Texto escrito automaticamente a partir da página de inscrição. Confira os dados; ao editar, ele passa a ser seu.</small>' : ''}${editorRico('descricao', c.descricao)}</div>
     <label class="campo">Organizador<input name="organizador" value="${esc(c.organizador || '')}"></label>
@@ -2450,6 +2454,16 @@ function formCorrida(c = {}, pendente = null) {
     };
     if (gpxNovo) Object.assign(dados, gpxNovo);
     else if (f.remover_percurso && f.remover_percurso.checked) Object.assign(dados, { percurso: null, percurso_km: null, subida_m: null, descida_m: null });
+    const stravaCode = document.getElementById('stravaEmbedCode')?.value?.trim();
+    const stravaRm = document.getElementById('stravaEmbedRm')?.checked;
+    if (stravaRm) { dados.strava_embed = null; }
+    else if (stravaCode) {
+      const idM = stravaCode.match(/data-embed-id="([^"]+)"/);
+      const tokM = stravaCode.match(/data-token="([^"]+)"/);
+      const hashM = stravaCode.match(/data-map-hash="([^"]+)"/);
+      if (idM && tokM) dados.strava_embed = { id: idM[1], token: tokM[1], hash: hashM?.[1] || null };
+      else { msg.textContent = 'Não encontrei ID e token no código Strava. Copie o código completo do botão "Incorporar".'; return; }
+    }
     if (!c.id) dados.slug = slugify(`${dados.nome}-${dados.data}`);
     msg.textContent = 'Salvando…';
     const r = c.id ? await sb.from('corridas').update(dados).eq('id', c.id).select().single() : await sb.from('corridas').insert(dados).select().single();
