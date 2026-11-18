@@ -543,7 +543,7 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
   .hero-mapa{position:relative;height:min(66vh,560px);flex-shrink:0}
   #mapaHero,.hero-veu{position:absolute}
   .contagem{left:16px;right:16px;top:16px}
-  .hero-tit{display:none}
+  .hero-tit{font-size:28px;max-width:none;margin-top:6px}
   .relogio{margin-top:10px;gap:6px}
   .dig b{font-size:32px;min-width:54px;padding:6px 7px}
   .dig small{font-size:10px}
