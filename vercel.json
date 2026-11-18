@@ -32,9 +32,6 @@
     "api/sitemap.js": {
       "maxDuration": 20
     },
-    "api/avisos.js": {
-      "maxDuration": 60
-    },
     "api/corridas.js": {
       "maxDuration": 10
     }
@@ -99,10 +96,6 @@
     {
       "path": "/api/enriquecer?so=pinos",
       "schedule": "30 23 * * *"
-    },
-    {
-      "path": "/api/avisos?acao=enviar",
-      "schedule": "0 12 * * *"
     },
     {
       "path": "/api/enriquecer?modo=textos",
