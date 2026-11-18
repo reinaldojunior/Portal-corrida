@@ -249,6 +249,15 @@ a.cartao:hover{color:var(--asfalto);border-color:var(--cone)}
 .cartao-enc{font-size:11px;color:var(--cinza);padding:0 12px 8px}
 .cartoes .vazio{border-top:0;padding:8px 0}
 
+@keyframes cartao-entra{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+#listaPerto .cartao{animation:cartao-entra .35s ease both}
+#listaPerto .cartao:nth-child(2){animation-delay:.06s}
+#listaPerto .cartao:nth-child(3){animation-delay:.12s}
+#listaPerto .cartao:nth-child(4){animation-delay:.18s}
+#listaPerto .cartao:nth-child(5){animation-delay:.24s}
+#listaPerto .cartao:nth-child(6){animation-delay:.30s}
+#listaPerto .cartao:nth-child(n+7){animation-delay:.34s}
+
 /* divisor de altimetria */
 .divisor{display:block;width:100%;height:48px}
 
