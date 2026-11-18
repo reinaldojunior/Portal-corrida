@@ -199,6 +199,18 @@ body.game-active #elev-panel{z-index:201}
 #ghud-grade{color:#ffd60a}
 #btn-game-close{position:absolute;top:14px;right:14px;background:rgba(9,9,15,.82);border:1px solid rgba(255,255,255,.18);color:#fff;border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;z-index:202}
 #btn-game-close:hover{background:rgba(230,57,70,.7)}
+#sv-mode{display:none;position:fixed;inset:0;z-index:200;background:#111}
+body.sv-active #sv-mode{display:block}
+body.sv-active #ctrl{z-index:201;background:rgba(9,9,15,.85);backdrop-filter:blur(6px)}
+body.sv-active #elev-panel{z-index:201}
+#sv-pano{width:100%;height:100%}
+#sv-hud{position:absolute;top:16px;left:50%;transform:translateX(-50%);display:flex;gap:12px;pointer-events:none}
+#sv-hud>div{background:rgba(9,9,15,.82);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:6px 14px;font-size:13px;font-variant-numeric:tabular-nums;font-weight:600;color:#fff;white-space:nowrap}
+#sv-hud-km{font-size:18px;min-width:80px;text-align:center}
+#sv-hud-grade{color:#ffd60a}
+#sv-no-coverage{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(9,9,15,.9);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:16px 24px;text-align:center;color:#fff;font-size:14px;line-height:1.6;pointer-events:none}
+#btn-sv-close{position:absolute;top:14px;right:14px;background:rgba(9,9,15,.82);border:1px solid rgba(255,255,255,.18);color:#fff;border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;z-index:202}
+#btn-sv-close:hover{background:rgba(230,57,70,.7)}
 
 </style>
 </head>
@@ -269,6 +281,9 @@ body.game-active #elev-panel{z-index:201}
     <button class="cb" id="btn-game" title="Modo Jogo 3D">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 10v4M10 12h4"/><circle cx="17" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="10" r="1" fill="currentColor"/></svg>
     </button>
+    <button class="cb" id="btn-sv" title="Street View">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
+    </button>
   </div>
   <div class="ctrl-row">
     <div id="presets">
@@ -307,6 +322,17 @@ body.game-active #elev-panel{z-index:201}
     <div id="ghud-tot"></div>
   </div>
   <button id="btn-game-close" title="Sair do modo jogo">✕</button>
+</div>
+<div id="sv-mode" aria-hidden="true">
+  <div id="sv-pano"></div>
+  <div id="sv-hud">
+    <div id="sv-hud-km"></div>
+    <div id="sv-hud-elev"></div>
+    <div id="sv-hud-grade"></div>
+    <div id="sv-hud-tot"></div>
+  </div>
+  <div id="sv-no-coverage" hidden>📷 Sem cobertura aqui<br><small>Avançando para o próximo ponto…</small></div>
+  <button id="btn-sv-close" title="Sair do Street View">✕</button>
 </div>
 <div id="rotas" hidden role="group" aria-label="Escolha o percurso"></div>
 <div id="hud" hidden>
@@ -805,7 +831,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)somParar();
 const SOM_CANAL=('BroadcastChannel' in window)?new BroadcastChannel('mm-percurso'):null;
 if(SOM_CANAL)SOM_CANAL.onmessage=e=>{if(e.data==='play')somParar();};
 const SOM_FX={largada:'corneta-largada',voz:'voz-conseguimos',torcida:'torcida',fogos:'fogos',resp:'respiracao'};
-const MUSICAS=['musica-2','musica-3','musica-4'];
+const MUSICAS=(()=>{const a=['musica-2','musica-3','musica-4'];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;})();
 function somIniciar(){
   if(!SOM.ctx){
     const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;
@@ -854,11 +880,8 @@ function somMusica(ligar){
   if(!SOM.musica){
     const a=new Audio();a.preload='none';a.setAttribute('playsinline','');SOM.musica=a;
     SOM.ctx.createMediaElementSource(a).connect(SOM.musGain);
-    // continua a faixa de onde parou (ex.: ao abrir em tela cheia, que é outra aba); senão sorteia
-    let salvo=null;try{salvo=JSON.parse(localStorage.getItem('mm-musica')||'null');}catch(e){}
-    const vale=salvo&&MUSICAS.includes(salvo.f)&&Date.now()-salvo.em<30*60e3;
-    SOM.faixa=vale?MUSICAS.indexOf(salvo.f):Math.floor(Math.random()*MUSICAS.length);a.src='/assets/som/'+MUSICAS[SOM.faixa]+'.mp3';
-    if(vale&&salvo.t>0)a.addEventListener('loadedmetadata',()=>{if(salvo.t<a.duration-1)a.currentTime=salvo.t;},{once:true});
+    // começa sempre na primeira da playlist já embaralhada (nova ordem a cada carregamento)
+    SOM.faixa=0;a.src='/assets/som/'+MUSICAS[SOM.faixa]+'.mp3';
     a.addEventListener('ended',()=>{SOM.faixa=(SOM.faixa+1)%MUSICAS.length;a.src='/assets/som/'+MUSICAS[SOM.faixa]+'.mp3';a.play().catch(()=>{});musicaGuardar(0);});
     let ult=0;a.addEventListener('timeupdate',()=>{const n=Date.now();if(n-ult>2000){ult=n;musicaGuardar();}});
   }
@@ -1763,6 +1786,97 @@ function closeGameMode(){
 
 document.getElementById('btn-game').addEventListener('click',openGameMode);
 document.getElementById('btn-game-close').addEventListener('click',closeGameMode);
+
+// ── Street View ──────────────────────────────────────────────────────────────
+let SV={panorama:null,raf:null,lastIdx:-1,googleKey:null};
+
+async function loadGoogleMaps(){
+  if(window.google?.maps?.StreetViewPanorama)return true;
+  if(!SV.googleKey){
+    try{const r=await fetch('/api/google-maps-key');const d=await r.json();SV.googleKey=d.key||'';}catch(e){}
+  }
+  if(!SV.googleKey){showToast('⚠️ Chave do Google Maps não configurada',5000);return false;}
+  await new Promise((ok,fail)=>{
+    window._gmCb=ok;
+    const s=Object.assign(document.createElement('script'),
+      {src:`https://maps.googleapis.com/maps/api/js?key=${SV.googleKey}&callback=_gmCb&libraries=geometry&v=weekly`});
+    s.onerror=fail;document.head.appendChild(s);
+  });
+  return true;
+}
+
+function svHeading(i){
+  const nxt=Math.min(i+3,S.raw.length-1);
+  const from=new google.maps.LatLng(S.raw[i][1],S.raw[i][0]);
+  const to=new google.maps.LatLng(S.raw[nxt][1],S.raw[nxt][0]);
+  return google.maps.geometry.spherical.computeHeading(from,to);
+}
+
+function svUpdateHud(i){
+  const e=S.elev[i]||0;const g=S.grade?.[i]||0;
+  const tot=(S.cumKm[S.cumKm.length-1]||0).toFixed(1).replace('.',',');
+  document.getElementById('sv-hud-km').textContent=S.distKm.toFixed(1).replace('.',',')+' km';
+  document.getElementById('sv-hud-elev').textContent=Math.round(e)+' m alt';
+  document.getElementById('sv-hud-grade').textContent=(g>0?'+':'')+Math.round(g*100)+'%';
+  document.getElementById('sv-hud-tot').textContent='de '+tot+' km';
+}
+
+async function openStreetView(){
+  if(!S.raw.length){showToast('Carregue um percurso primeiro',3000);return;}
+  const ok=await loadGoogleMaps();if(!ok)return;
+  document.body.classList.add('sv-active');
+
+  if(!SV.panorama){
+    SV.panorama=new google.maps.StreetViewPanorama(
+      document.getElementById('sv-pano'),
+      {disableDefaultUI:true,motionTracking:false,motionTrackingControl:false,
+       linksControl:false,panControl:false,zoomControl:false,addressControl:false,
+       fullscreenControl:false,showRoadLabels:false,
+       pov:{heading:0,pitch:0},zoom:0}
+    );
+  }
+
+  const sv=SV.panorama;
+  const svc=new google.maps.StreetViewService();
+  const noCov=document.getElementById('sv-no-coverage');
+
+  const goTo=async(i)=>{
+    if(i>=S.raw.length)return;
+    const pos={lat:S.raw[i][1],lng:S.raw[i][0]};
+    svc.getPanorama({location:pos,radius:50,source:google.maps.StreetViewSource.OUTDOOR},(data,status)=>{
+      if(status===google.maps.StreetViewStatus.OK){
+        noCov.hidden=true;
+        sv.setPosition(data.location.latLng);
+        sv.setPov({heading:svHeading(i),pitch:0});
+      } else {
+        noCov.hidden=false;
+        setTimeout(()=>{noCov.hidden=true;},1500);
+      }
+    });
+    svUpdateHud(i);
+    SV.lastIdx=i;
+  };
+
+  // initial position
+  await goTo(Math.min(S.idx,S.raw.length-1));
+
+  // keep synced with animation
+  const loop=()=>{
+    if(!document.body.classList.contains('sv-active'))return;
+    SV.raf=requestAnimationFrame(loop);
+    const i=Math.min(S.idx,S.raw.length-1);
+    if(i!==SV.lastIdx)goTo(i);
+  };
+  SV.raf=requestAnimationFrame(loop);
+}
+
+function closeStreetView(){
+  document.body.classList.remove('sv-active');
+  cancelAnimationFrame(SV.raf);SV.raf=null;SV.lastIdx=-1;
+}
+
+document.getElementById('btn-sv').addEventListener('click',openStreetView);
+document.getElementById('btn-sv-close').addEventListener('click',closeStreetView);
 document.getElementById('btn-save').addEventListener('click',salvarCorrida);
 if(RACE.slug)carregarCorrida();
 } // end startMap
