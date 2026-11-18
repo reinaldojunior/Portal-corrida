@@ -805,7 +805,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)somParar();
 const SOM_CANAL=('BroadcastChannel' in window)?new BroadcastChannel('mm-percurso'):null;
 if(SOM_CANAL)SOM_CANAL.onmessage=e=>{if(e.data==='play')somParar();};
 const SOM_FX={largada:'corneta-largada',voz:'voz-conseguimos',torcida:'torcida',fogos:'fogos',resp:'respiracao'};
-const MUSICAS=['musica-2','musica-3','musica-4'];
+const MUSICAS=(()=>{const a=['musica-2','musica-3','musica-4'];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;})();
 function somIniciar(){
   if(!SOM.ctx){
     const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;
@@ -854,11 +854,8 @@ function somMusica(ligar){
   if(!SOM.musica){
     const a=new Audio();a.preload='none';a.setAttribute('playsinline','');SOM.musica=a;
     SOM.ctx.createMediaElementSource(a).connect(SOM.musGain);
-    // continua a faixa de onde parou (ex.: ao abrir em tela cheia, que é outra aba); senão sorteia
-    let salvo=null;try{salvo=JSON.parse(localStorage.getItem('mm-musica')||'null');}catch(e){}
-    const vale=salvo&&MUSICAS.includes(salvo.f)&&Date.now()-salvo.em<30*60e3;
-    SOM.faixa=vale?MUSICAS.indexOf(salvo.f):Math.floor(Math.random()*MUSICAS.length);a.src='/assets/som/'+MUSICAS[SOM.faixa]+'.mp3';
-    if(vale&&salvo.t>0)a.addEventListener('loadedmetadata',()=>{if(salvo.t<a.duration-1)a.currentTime=salvo.t;},{once:true});
+    // começa sempre na primeira da playlist já embaralhada (nova ordem a cada carregamento)
+    SOM.faixa=0;a.src='/assets/som/'+MUSICAS[SOM.faixa]+'.mp3';
     a.addEventListener('ended',()=>{SOM.faixa=(SOM.faixa+1)%MUSICAS.length;a.src='/assets/som/'+MUSICAS[SOM.faixa]+'.mp3';a.play().catch(()=>{});musicaGuardar(0);});
     let ult=0;a.addEventListener('timeupdate',()=>{const n=Date.now();if(n-ult>2000){ult=n;musicaGuardar();}});
   }
