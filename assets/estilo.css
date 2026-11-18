@@ -1072,3 +1072,31 @@ a.q-linha:focus-visible .q-st::after{opacity:1}
 .perc-mini{color:var(--cone,#e63946);background:rgba(0,0,0,.04);border-radius:8px}
 .perc-sug-links{margin:8px 0 0;padding-left:18px}
 @media (max-width:600px){.perc-sug-trilha{grid-template-columns:64px minmax(0,1fr)}.perc-sug-acoes{grid-column:1/-1}}
+
+/* ===== dark mode ===== */
+@media (prefers-color-scheme:dark){
+  :root{
+    color-scheme:dark;
+    --asfalto:#EDEEEA;
+    --concreto:#15181B;
+    --papel:#1E2327;
+    --cone-txt:#FF6A2B;
+    --texto2:#A9AFB4;
+    --cinza:#80878D;
+    --linha:#2A2F34;
+    --linha2:#343A40;
+    --chip:#343A40;
+    --realce:rgba(255,77,0,.12);
+    --ok:#34D399;
+    --erro:#F87171;
+  }
+  .cartao{background:var(--papel)}
+  .bib,.bib.p{background:var(--papel)}
+  .campo input,.campo select,.campo textarea,
+  .ferr-calc select,.ferr-calc input{background:var(--papel);color:var(--asfalto);border-color:var(--linha)}
+  .rk-item{background:var(--papel)}
+  .rk-filtros{background:var(--papel);border-color:var(--linha)}
+  .rk-indice b{background:var(--papel)}
+  .topo .btn-entrar{background:var(--noite3);border:1px solid var(--borda-esc);color:var(--claro-esc)}
+  .topo .btn-entrar:hover{background:var(--noite2);color:#fff}
+}
