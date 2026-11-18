@@ -186,8 +186,9 @@ table.tab{width:100%;border-collapse:collapse;font-size:15px}
 /* topo escuro */
 .topo{background:var(--noite);border-bottom:1px solid var(--linha-esc);position:sticky;top:0;z-index:600;color:#fff}
 .topo .wrap{height:68px;display:flex;align-items:center;gap:32px}
-.logo{font-family:var(--display);font-size:38px;line-height:1;letter-spacing:1px;color:#fff}
+.logo{font-family:var(--display);font-size:38px;line-height:1;letter-spacing:1px;color:#fff;display:inline-flex;align-items:center;gap:8px}
 .logo span{color:var(--cone)}
+.logo-symbol{width:34px;height:34px;object-fit:contain;flex-shrink:0}
 .menu{display:flex;gap:24px;font-size:16px;font-weight:600;color:var(--claro-esc)}
 .menu a:hover{color:#fff}
 .spacer{flex:1}
