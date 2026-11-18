@@ -1706,12 +1706,9 @@ async function closeEditMode(save){
           const d=(EDIT.origRaw[i][0]-lo)**2+(EDIT.origRaw[i][1]-la)**2;
           if(d<minD){minD=d;nearI=i;}
         }
-        // interpolar entre nearI e vizinho mais próximo pelo km
-        const kmN=EDIT.origCumKm[nearI];
+        const nxt=nearI+1<EDIT.origRaw.length?nearI+1:nearI-1;
         const ptLo=EDIT.origRaw[nearI][0],ptLa=EDIT.origRaw[nearI][1];
         const dLo=lo-ptLo,dLa=la-ptLa;
-        // direção para próximo ponto
-        const nxt=nearI+1<EDIT.origRaw.length?nearI+1:nearI-1;
         const segLo=EDIT.origRaw[nxt][0]-ptLo,segLa=EDIT.origRaw[nxt][1]-ptLa;
         const segLen=segLo**2+segLa**2;
         const t=segLen>0?Math.max(0,Math.min(1,(dLo*segLo+dLa*segLa)/segLen)):0;
