@@ -7,7 +7,7 @@
 // Campos confirmados: title, date (DD/MM/YYYY), address ("Cidade, UF"),
 //                     organizer, uri (link), eventId, status
 
-const { ehAgendamento } = require('./_seguranca.js');
+const { ehAgendamento, ehAdmin } = require('./_seguranca.js');
 
 // ─── CONSTANTES ───────────────────────────────────────────────────────────────
 
@@ -215,7 +215,8 @@ async function coletarTicketSports() {
 // ─── HANDLER VERCEL ───────────────────────────────────────────────────────────
 
 module.exports = async (req, res) => {
-  if (!ehAgendamento(req)) return res.status(401).json({ erro: 'não autorizado' });
+  const autorizado = ehAgendamento(req) || await ehAdmin(req);
+  if (!autorizado) return res.status(401).json({ erro: 'não autorizado' });
   try {
     const resultado = await coletarTicketSports();
     res.status(200).json({ quando: new Date().toISOString(), ...resultado });
