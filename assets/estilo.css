@@ -60,7 +60,8 @@ img{max-width:100%;display:block}
 /* Mapa expandido */
 .tela-mapa{position:fixed;inset:0;z-index:1000;background:var(--concreto);display:flex;flex-direction:column}
 .tela-mapa .barra{height:72px;flex-shrink:0;background:var(--papel);border-bottom:1px solid var(--linha);display:flex;align-items:center;gap:20px;padding:0 32px}
-.tela-mapa .barra .logo{font-size:36px}
+.tela-mapa .barra .logo{font-size:36px;color:var(--asfalto)}
+.tela-mapa .barra .logo span{color:var(--cone)}
 .busca{display:flex;align-items:center;gap:10px;height:44px;width:380px;max-width:100%;padding:0 16px;border:1px solid var(--chip);border-radius:22px;background:var(--papel)}
 .busca input{border:0;outline:0;flex:1;font-size:16px;background:transparent;min-width:0}
 .tela-mapa .corpo{flex:1;display:flex;min-height:0}
@@ -188,7 +189,7 @@ table.tab{width:100%;border-collapse:collapse;font-size:15px}
 .topo .wrap{height:68px;display:flex;align-items:center;gap:32px}
 .logo{font-family:var(--display);font-size:38px;line-height:1;letter-spacing:1px;color:#fff;display:inline-flex;align-items:center;gap:8px}
 .logo span{color:var(--cone)}
-.logo-symbol{width:34px;height:34px;object-fit:contain;flex-shrink:0}
+.logo-symbol{width:42px;height:42px;object-fit:contain;flex-shrink:0}
 .menu{display:flex;gap:24px;font-size:16px;font-weight:600;color:var(--claro-esc)}
 .menu a:hover{color:#fff}
 .spacer{flex:1}
