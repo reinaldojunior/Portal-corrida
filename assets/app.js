@@ -1399,7 +1399,8 @@ function mostrarCorrida(slug, percIdx = null) {
   // percurso 3D animado (mesma página /percurso em modo corrida): GPX da aba escolhida + pontos e estratégia salvos pelo admin
   const p3dHtml = temPerc && !usarStrava ? `<section class="caixa bloco-3d" aria-labelledby="p3dTit"><div class="perc-topo"><h2 class="display" id="p3dTit">Percurso 3D</h2></div>
     <div class="p3d-frame"><iframe src="/percurso?corrida=${encodeURIComponent(c.slug)}${pSel ? `&dist=${encodeURIComponent(pSel.rotulo)}` : ''}&embed=1" title="Percurso 3D animado de ${esc(c.nome)}" loading="lazy" allow="fullscreen; autoplay"></iframe></div></section>` : '';
-  const stravaHtml = usarStrava ? `<section class="caixa bloco-strava" aria-labelledby="stravaTit"><div class="perc-topo"><h2 class="display" id="stravaTit">Percurso no Strava</h2></div>
+  const stravaHtml = usarStrava ? `<section class="caixa bloco-strava" aria-labelledby="stravaTit"><div class="perc-topo"><h2 class="display" id="stravaTit">Percurso no Strava</h2>
+    ${percs.length > 1 ? `<div class="perc-abas" role="group" aria-label="Escolha o percurso">${percs.map((p, i) => `<button type="button" class="filtro" data-perc="${i}" aria-pressed="${p === pSel}">${esc(p.rotulo)}</button>`).join('')}</div>` : ''}</div>
     <div class="strava-wrap"><div class="strava-embed-placeholder" data-embed-type="route" data-embed-id="${esc(se.id)}" data-style="standard"${se.hash ? ` data-map-hash="${esc(se.hash)}"` : ''} data-token="${esc(se.token)}"></div></div></section>` : '';
   const percHtml = temPerc && !usarStrava ? `<div class="caixa bloco-perc${simHtml ? ' com-sim' : ''}" id="caixaPerc"><div class="perc-topo"><h2 class="display">Percurso</h2>
         ${percs.length > 1 ? `<div class="perc-abas" role="group" aria-label="Escolha o percurso">${percs.map((p, i) => `<button type="button" class="filtro" data-perc="${i}" aria-pressed="${p === pSel}">${esc(p.rotulo)}</button>`).join('')}</div>` : ''}
