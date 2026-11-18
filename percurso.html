@@ -188,6 +188,17 @@ body.embed #btn-full{order:9;display:inline-flex;align-items:center;gap:4px;poin
 #elev-tip{position:absolute;bottom:calc(100% + 5px);transform:translateX(-50%);background:rgba(9,9,15,.92);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:5px 10px;font-size:11px;white-space:nowrap;pointer-events:none;z-index:11;font-variant-numeric:tabular-nums}
 #mini-map{position:fixed;bottom:calc(var(--ctrl-h) + var(--elev-h) + 10px);left:10px;width:90px;height:90px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(9,9,15,.82);z-index:15;pointer-events:none;display:none}
 body.embed #mini-map{display:block}
+#game-mode{display:none;position:fixed;inset:0;z-index:200;background:#000;overflow:hidden}
+body.game-active #game-mode{display:block}
+body.game-active #ctrl{z-index:201;background:rgba(9,9,15,.85);backdrop-filter:blur(6px)}
+body.game-active #elev-panel{z-index:201}
+#game-canvas{width:100%;height:100%;display:block}
+#ghud{position:absolute;top:16px;left:50%;transform:translateX(-50%);display:flex;gap:12px;pointer-events:none}
+#ghud>div{background:rgba(9,9,15,.82);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:6px 14px;font-size:13px;font-variant-numeric:tabular-nums;font-weight:600;color:#fff;white-space:nowrap}
+#ghud-dist{font-size:18px;min-width:80px;text-align:center}
+#ghud-grade{color:#ffd60a}
+#btn-game-close{position:absolute;top:14px;right:14px;background:rgba(9,9,15,.82);border:1px solid rgba(255,255,255,.18);color:#fff;border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;z-index:202}
+#btn-game-close:hover{background:rgba(230,57,70,.7)}
 
 </style>
 </head>
@@ -255,6 +266,9 @@ body.embed #mini-map{display:block}
     <label class="cb" id="btn-up" for="gpx-file" title="Importar arquivo" style="cursor:pointer">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
     </label>
+    <button class="cb" id="btn-game" title="Modo Jogo 3D">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 10v4M10 12h4"/><circle cx="17" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="10" r="1" fill="currentColor"/></svg>
+    </button>
   </div>
   <div class="ctrl-row">
     <div id="presets">
@@ -284,6 +298,16 @@ body.embed #mini-map{display:block}
 
 <canvas id="fogos" hidden aria-hidden="true"></canvas>
 <canvas id="mini-map" aria-hidden="true"></canvas>
+<div id="game-mode" aria-hidden="true">
+  <canvas id="game-canvas"></canvas>
+  <div id="ghud">
+    <div id="ghud-dist"></div>
+    <div id="ghud-elev"></div>
+    <div id="ghud-grade"></div>
+    <div id="ghud-tot"></div>
+  </div>
+  <button id="btn-game-close" title="Sair do modo jogo">✕</button>
+</div>
 <div id="rotas" hidden role="group" aria-label="Escolha o percurso"></div>
 <div id="hud" hidden>
   <div class="hud-top">
@@ -1578,6 +1602,167 @@ async function matchToRoads(){
   setTimeout(()=>{btn.textContent='🛣 Ajustar ao mapa';},3000);
 }
 document.getElementById('btn-match').addEventListener('click',matchToRoads);
+
+// ── Modo Jogo 3D ────────────────────────────────────────────────────────────
+let GM={};
+async function openGameMode(){
+  if(!S.raw.length){showToast('Carregue um percurso primeiro',3000);return;}
+  document.body.classList.add('game-active');
+  if(GM.renderer)return;
+
+  if(!window.THREE){
+    await new Promise((ok,fail)=>{
+      const s=Object.assign(document.createElement('script'),
+        {src:'https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js'});
+      s.onload=ok;s.onerror=fail;document.head.appendChild(s);
+    });
+  }
+  const T=window.THREE;
+
+  const canvas=document.getElementById('game-canvas');
+  const W=window.innerWidth,H=window.innerHeight;
+  const renderer=new T.WebGLRenderer({canvas,antialias:true});
+  renderer.setSize(W,H);renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+
+  const scene=new T.Scene();
+  scene.background=new T.Color(0x87ceeb);
+  scene.fog=new T.FogExp2(0xb0d8f0,0.0010);
+
+  const camera=new T.PerspectiveCamera(72,W/H,0.5,3000);
+
+  scene.add(new T.AmbientLight(0xffffff,0.65));
+  const sun=new T.DirectionalLight(0xfffde7,1.1);sun.position.set(300,500,200);scene.add(sun);
+
+  // coord transform: origin = first point, Y = elevation, 1 unit ≈ 1 m
+  const lo0=S.raw[0][0],la0=S.raw[0][1],e0=S.elev[0]||0;
+  const toW=(lo,la,e)=>new T.Vector3(
+    (lo-lo0)*Math.cos(la0*Math.PI/180)*111320,
+    ((e||0)-e0),
+    -(la-la0)*111320
+  );
+  const pts=S.raw.map((p,i)=>toW(p[0],p[1],S.elev[i]||0));
+
+  // ground
+  const gnd=new T.Mesh(new T.PlaneGeometry(30000,30000),new T.MeshLambertMaterial({color:0x3a7d44}));
+  gnd.rotation.x=-Math.PI/2;gnd.position.y=-0.5;scene.add(gnd);
+
+  // road ribbon with grade colors
+  const roadW=5,pos=[],col=[],idx2=[];
+  const UP=new T.Vector3(0,1,0);
+  for(let i=0;i<pts.length-1;i++){
+    const p0=pts[i],p1=pts[i+1];
+    const tan=p1.clone().sub(p0);if(tan.length()<0.001)continue;tan.normalize();
+    const right=tan.clone().cross(UP).normalize();
+    const g=S.grade?.[i]||0;const c=new T.Color(gradeColor(g));
+    const base=pos.length/3;
+    [p0.clone().addScaledVector(right,-roadW/2),p0.clone().addScaledVector(right,roadW/2),
+     p1.clone().addScaledVector(right,-roadW/2),p1.clone().addScaledVector(right,roadW/2)
+    ].forEach(v=>{pos.push(v.x,v.y+0.15,v.z);col.push(c.r,c.g,c.b);});
+    idx2.push(base,base+1,base+2,base+1,base+3,base+2);
+  }
+  const roadGeo=new T.BufferGeometry();
+  roadGeo.setAttribute('position',new T.Float32BufferAttribute(pos,3));
+  roadGeo.setAttribute('color',new T.Float32BufferAttribute(col,3));
+  roadGeo.setIndex(idx2);roadGeo.computeVertexNormals();
+  scene.add(new T.Mesh(roadGeo,new T.MeshLambertMaterial({vertexColors:true,side:T.DoubleSide})));
+
+  // trees (deterministic seeded random)
+  const rng=s=>{let x=Math.sin(s+1)*73856;return x-Math.floor(x);};
+  const treeMats=[0x2d6a2d,0x1f5c1f,0x3d8b3d].map(c=>new T.MeshLambertMaterial({color:c}));
+  const trunkMat=new T.MeshLambertMaterial({color:0x5c3d1e});
+  for(let i=0;i<pts.length-1;i+=12){
+    const p=pts[i];
+    const tan=i+1<pts.length?pts[i+1].clone().sub(p).normalize():new T.Vector3(1,0,0);
+    const right=tan.clone().cross(UP).normalize();
+    for(let side=-1;side<=1;side+=2){
+      const dist=11+rng(i*7+side*3)*14;
+      const shift=rng(i*13+side)*8-4;
+      const tx=p.x+right.x*side*dist+tan.x*shift;
+      const tz=p.z+right.z*side*dist+tan.z*shift;
+      const h=3.5+rng(i*11+side*5)*4;
+      const trunk=new T.Mesh(new T.CylinderGeometry(0.2,0.3,h*0.4,5),trunkMat);
+      trunk.position.set(tx,p.y+h*0.2,tz);scene.add(trunk);
+      const crown=new T.Mesh(new T.ConeGeometry(1.4+rng(i+side)*1.2,h*0.9,6),treeMats[Math.floor(rng(i*5+side)*3)]);
+      crown.position.set(tx,p.y+h*0.6,tz);scene.add(crown);
+    }
+  }
+
+  // start (green pole) / finish (orange pole)
+  const poleGeo=new T.CylinderGeometry(0.3,0.3,10,8);
+  const sp=new T.Mesh(poleGeo,new T.MeshBasicMaterial({color:0x69f0ae}));
+  sp.position.copy(pts[0]).setY(pts[0].y+5);scene.add(sp);
+  const fp=new T.Mesh(poleGeo,new T.MeshBasicMaterial({color:0xff9800}));
+  fp.position.copy(pts[pts.length-1]).setY(pts[pts.length-1].y+5);scene.add(fp);
+
+  // hydration markers (blue spheres)
+  S.hydra.forEach(h=>{
+    if(h.km==null)return;
+    const hi=Math.min(distToIdx(h.km),pts.length-1);
+    const p2=pts[hi];
+    const m=new T.Mesh(new T.SphereGeometry(0.9,8,8),new T.MeshBasicMaterial({color:0x29b6f6}));
+    m.position.set(p2.x,p2.y+2.2,p2.z);scene.add(m);
+  });
+
+  // character: glowing white sphere (same as today's dot)
+  const charMesh=new T.Mesh(new T.SphereGeometry(1.0,16,16),new T.MeshBasicMaterial({color:0xffffff}));
+  charMesh.add(new T.PointLight(0xffffff,3,28));
+  scene.add(charMesh);
+
+  // camera state
+  const camPos=new T.Vector3(),camTgt=new T.Vector3();
+  let firstFrame=true;
+
+  const renderLoop=()=>{
+    if(!document.body.classList.contains('game-active')){return;}
+    GM.raf=requestAnimationFrame(renderLoop);
+    const i=Math.min(S.idx,pts.length-1);
+    const p=pts[i];
+
+    // character position
+    charMesh.position.set(p.x,p.y+1.0,p.z);
+
+    // chase camera: behind + above
+    const nxt=Math.min(i+3,pts.length-1);
+    const tan=pts[nxt].clone().sub(p);
+    if(tan.lengthSq()<0.0001)tan.set(0,0,-1);tan.normalize();
+    const behind=p.clone().addScaledVector(tan,-18).add(new T.Vector3(0,7,0));
+    const tgt=p.clone().add(new T.Vector3(0,2,0));
+
+    if(firstFrame){camPos.copy(behind);camTgt.copy(tgt);firstFrame=false;}
+    camPos.lerp(behind,0.07);camTgt.lerp(tgt,0.07);
+    camera.position.copy(camPos);camera.lookAt(camTgt);
+
+    // HUD
+    const e=S.elev[i]||0;const g=S.grade?.[i]||0;
+    const tot=(S.cumKm[S.cumKm.length-1]||0).toFixed(1).replace('.',',');
+    document.getElementById('ghud-dist').textContent=S.distKm.toFixed(1).replace('.',',')+' km';
+    document.getElementById('ghud-elev').textContent=Math.round(e)+' m alt';
+    document.getElementById('ghud-grade').textContent=(g>0?'+':'')+Math.round(g*100)+'%';
+    document.getElementById('ghud-tot').textContent='de '+tot+' km';
+
+    renderer.render(scene,camera);
+  };
+
+  GM.onresize=()=>{
+    camera.aspect=window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth,window.innerHeight);
+  };
+  window.addEventListener('resize',GM.onresize);
+  GM={renderer,scene,camera,renderLoop,raf:null,onresize:GM.onresize};
+  renderLoop();
+}
+
+function closeGameMode(){
+  document.body.classList.remove('game-active');
+  cancelAnimationFrame(GM.raf);
+  if(GM.onresize)window.removeEventListener('resize',GM.onresize);
+  if(GM.renderer){GM.renderer.dispose();GM.renderer=null;}
+  GM={};
+}
+
+document.getElementById('btn-game').addEventListener('click',openGameMode);
+document.getElementById('btn-game-close').addEventListener('click',closeGameMode);
 document.getElementById('btn-save').addEventListener('click',salvarCorrida);
 if(RACE.slug)carregarCorrida();
 } // end startMap
