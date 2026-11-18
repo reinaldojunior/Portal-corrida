@@ -189,7 +189,7 @@ table.tab{width:100%;border-collapse:collapse;font-size:15px}
 .topo .wrap{height:68px;display:flex;align-items:center;gap:32px}
 .logo{font-family:var(--display);font-size:38px;line-height:1;letter-spacing:1px;color:#fff;display:inline-flex;align-items:center;gap:8px}
 .logo span{color:var(--cone)}
-.logo-symbol{width:42px;height:42px;object-fit:contain;flex-shrink:0}
+.logo-symbol{width:42px;height:42px;object-fit:contain;flex-shrink:0;position:relative;top:-3px}
 .menu{display:flex;gap:24px;font-size:16px;font-weight:600;color:var(--claro-esc)}
 .menu a:hover{color:#fff}
 .spacer{flex:1}
