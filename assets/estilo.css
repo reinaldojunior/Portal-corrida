@@ -703,9 +703,9 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
 .pagina-corrida .bloco-3d{grid-column:1/-1}
 .pagina-corrida .bloco-strava{grid-column:1/-1}
 .pagina-corrida .bloco-strava.com-sim{grid-column:span 7;display:flex;flex-direction:column}
-.pagina-corrida .bloco-strava.com-sim .strava-wrap{flex:1 1 auto;min-height:320px}
-.strava-wrap{margin-top:12px;border-radius:14px;overflow:hidden;min-height:420px}
-.strava-wrap .strava-embed-placeholder,.strava-wrap iframe{width:100%;min-height:420px;border:0;display:block}
+.pagina-corrida .bloco-strava.com-sim .strava-wrap{min-height:320px}
+.strava-wrap{margin-top:12px;border-radius:14px;min-height:420px}
+.strava-wrap .strava-embed-placeholder,.strava-wrap iframe{width:100%!important;max-width:none!important;min-height:420px;border:0;display:block}
 .p3d-frame{position:relative;height:min(80vh,680px);min-height:560px;margin-top:12px;border-radius:14px;overflow:hidden;background:#09090f}
 .p3d-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .pagina-corrida .bloco-perc.com-sim{grid-column:span 7}
@@ -750,7 +750,8 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
 .bloco-perc .alt-ajuda{font-size:12px;margin-top:4px}
 /* lado a lado cabendo na tela */
 @media (min-width:1101px){
-  .pagina-corrida .bloco-perc.com-sim,.pagina-corrida .bloco-strava.com-sim,.pagina-corrida .sim.sim-lado{height:clamp(560px,calc(100vh - 110px),860px)}
+  .pagina-corrida .bloco-perc.com-sim,.pagina-corrida .sim.sim-lado{height:clamp(560px,calc(100vh - 110px),860px)}
+  .pagina-corrida .bloco-strava.com-sim{min-height:clamp(560px,calc(100vh - 110px),860px)}
   .pagina-corrida .bloco-perc.com-sim{padding:20px 22px}
   .pagina-corrida .bloco-perc.com-sim .mapa-perc{min-height:200px}
   .pagina-corrida .sim.sim-lado{display:flex;flex-direction:column;padding:18px 20px;overflow:hidden}
