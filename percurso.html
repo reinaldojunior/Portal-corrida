@@ -1600,9 +1600,9 @@ async function matchToRoads(){
     const batch=S.raw.slice(start,end);
     btn.textContent=`⏳ ${++done}/${total}`;
     const coords=batch.map(c=>`${c[0].toFixed(6)},${c[1].toFixed(6)}`).join(';');
-    const radiuses=batch.map(()=>'25').join(';');
+    const radiuses=batch.map(()=>'50').join(';');
     try{
-      const r=await fetch(`https://api.mapbox.com/matching/v5/mapbox/walking/${coords}?access_token=${mapboxgl.accessToken}&geometries=geojson&radiuses=${radiuses}&tidy=true`);
+      const r=await fetch(`https://api.mapbox.com/matching/v5/mapbox/walking/${coords}?access_token=${mapboxgl.accessToken}&geometries=geojson&radiuses=${radiuses}`);
       const d=await r.json();
       if(d.code==='Ok'&&d.tracepoints){
         d.tracepoints.forEach((tp,i)=>{if(tp)result[start+i]=[tp.location[0],tp.location[1]];});
