@@ -186,8 +186,9 @@ table.tab{width:100%;border-collapse:collapse;font-size:15px}
 /* topo escuro */
 .topo{background:var(--noite);border-bottom:1px solid var(--linha-esc);position:sticky;top:0;z-index:600;color:#fff}
 .topo .wrap{height:68px;display:flex;align-items:center;gap:32px}
-.logo{font-family:var(--display);font-size:38px;line-height:1;letter-spacing:1px;color:#fff}
+.logo{font-family:var(--display);font-size:38px;line-height:1;letter-spacing:1px;color:#fff;display:inline-flex;align-items:center;gap:8px}
 .logo span{color:var(--cone)}
+.logo-symbol{width:34px;height:34px;object-fit:contain;flex-shrink:0}
 .menu{display:flex;gap:24px;font-size:16px;font-weight:600;color:var(--claro-esc)}
 .menu a:hover{color:#fff}
 .spacer{flex:1}
@@ -247,6 +248,15 @@ a.cartao:hover{color:var(--asfalto);border-color:var(--cone)}
 .cartao-nome{font-size:13px;font-weight:600;line-height:1.2}
 .cartao-enc{font-size:11px;color:var(--cinza);padding:0 12px 8px}
 .cartoes .vazio{border-top:0;padding:8px 0}
+
+@keyframes cartao-entra{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+#listaPerto .cartao{animation:cartao-entra .35s ease both}
+#listaPerto .cartao:nth-child(2){animation-delay:.06s}
+#listaPerto .cartao:nth-child(3){animation-delay:.12s}
+#listaPerto .cartao:nth-child(4){animation-delay:.18s}
+#listaPerto .cartao:nth-child(5){animation-delay:.24s}
+#listaPerto .cartao:nth-child(6){animation-delay:.30s}
+#listaPerto .cartao:nth-child(n+7){animation-delay:.34s}
 
 /* divisor de altimetria */
 .divisor{display:block;width:100%;height:48px}
@@ -542,7 +552,7 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
   .hero-mapa{position:relative;height:min(66vh,560px);flex-shrink:0}
   #mapaHero,.hero-veu{position:absolute}
   .contagem{left:16px;right:16px;top:16px}
-  .hero-tit{display:none}
+  .hero-tit{font-size:28px;max-width:none;margin-top:6px}
   .relogio{margin-top:10px;gap:6px}
   .dig b{font-size:32px;min-width:54px;padding:6px 7px}
   .dig small{font-size:10px}
@@ -593,6 +603,10 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
   .pagina-corrida h1{font-size:44px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+
+/* skip-link de acessibilidade */
+.skip-link{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+.skip-link:focus{position:fixed;left:50%;top:12px;transform:translateX(-50%);width:auto;height:auto;padding:10px 24px;border-radius:6px;background:var(--cone);color:#fff;font-weight:700;font-size:15px;z-index:9999;text-decoration:none;box-shadow:0 4px 16px rgba(0,0,0,.35)}
 
 /* editor de texto do admin */
 .editor{font-weight:400;border:1px solid #D0D4D8;border-radius:10px;background:#fff;overflow:hidden}
@@ -1058,3 +1072,31 @@ a.q-linha:focus-visible .q-st::after{opacity:1}
 .perc-mini{color:var(--cone,#e63946);background:rgba(0,0,0,.04);border-radius:8px}
 .perc-sug-links{margin:8px 0 0;padding-left:18px}
 @media (max-width:600px){.perc-sug-trilha{grid-template-columns:64px minmax(0,1fr)}.perc-sug-acoes{grid-column:1/-1}}
+
+/* ===== dark mode ===== */
+@media (prefers-color-scheme:dark){
+  :root{
+    color-scheme:dark;
+    --asfalto:#EDEEEA;
+    --concreto:#15181B;
+    --papel:#1E2327;
+    --cone-txt:#FF6A2B;
+    --texto2:#A9AFB4;
+    --cinza:#80878D;
+    --linha:#2A2F34;
+    --linha2:#343A40;
+    --chip:#343A40;
+    --realce:rgba(255,77,0,.12);
+    --ok:#34D399;
+    --erro:#F87171;
+  }
+  .cartao{background:var(--papel)}
+  .bib,.bib.p{background:var(--papel)}
+  .campo input,.campo select,.campo textarea,
+  .ferr-calc select,.ferr-calc input{background:var(--papel);color:var(--asfalto);border-color:var(--linha)}
+  .rk-item{background:var(--papel)}
+  .rk-filtros{background:var(--papel);border-color:var(--linha)}
+  .rk-indice b{background:var(--papel)}
+  .topo .btn-entrar{background:var(--noite3);border:1px solid var(--borda-esc);color:var(--claro-esc)}
+  .topo .btn-entrar:hover{background:var(--noite2);color:#fff}
+}

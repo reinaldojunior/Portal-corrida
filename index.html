@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mapmove · Corridas e eventos esportivos pelo Brasil</title>
 <meta name="description" content="Ache a próxima corrida, trilha, pedal ou prova no mapa. Agenda de corridas e eventos esportivos pelo Brasil.">
+<meta name="robots" content="index, follow">
 <meta name="theme-color" content="#15181B">
 <link rel="canonical" id="canonicalUrl" href="https://mapmove.com.br/">
 <meta property="og:site_name" content="Mapmove">
@@ -13,10 +14,15 @@
 <meta property="og:title" id="ogTitle" content="Mapmove · Corridas e eventos esportivos pelo Brasil">
 <meta property="og:description" id="ogDesc" content="Ache a próxima corrida, trilha, pedal ou prova no mapa. Agenda de corridas e eventos esportivos pelo Brasil.">
 <meta property="og:locale" content="pt_BR">
+<meta property="og:image" id="ogImage" content="https://mapmove.com.br/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" id="twTitle" content="Mapmove · Corridas e eventos esportivos pelo Brasil">
 <meta name="twitter:description" id="twDesc" content="Ache a próxima corrida, trilha, pedal ou prova no mapa. Agenda de corridas e eventos esportivos pelo Brasil.">
+<meta name="twitter:image" content="https://mapmove.com.br/assets/og-image.png">
 <script type="application/ld+json" id="ldJson">{"@context":"https://schema.org","@type":"WebSite","name":"Mapmove","url":"https://mapmove.com.br","description":"Agenda de corridas e eventos esportivos pelo Brasil"}</script>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -27,9 +33,10 @@
 </head>
 <body>
 
+<a class="skip-link" href="#vHome">Pular para o conteúdo</a>
 <header class="topo">
   <div class="wrap">
-    <a href="#" class="logo" aria-label="Mapmove, página inicial">Map<span>move</span></a>
+    <a href="#" class="logo" aria-label="Mapmove, página inicial"><img src="/assets/logo-symbol.png" class="logo-symbol" alt="" aria-hidden="true">Map<span>move</span></a>
     <nav class="menu" aria-label="Principal">
       <a href="#mapa" data-mod="mapa">Mapa</a>
       <a href="#" data-mod="agenda" data-ir="quadro">Agenda</a>
@@ -261,7 +268,7 @@
 
 <footer class="rodape">
   <div class="wrap">
-    <span class="logo">Map<span>move</span></span>
+    <span class="logo"><img src="/assets/logo-symbol.png" class="logo-symbol" alt="" aria-hidden="true">Map<span>move</span></span>
     <span>Ache a próxima corrida, trilha, pedal ou prova no mapa.</span>
     <div class="spacer"></div>
     <a href="/privacidade.html">Privacidade</a>
@@ -281,7 +288,7 @@
 <!-- MAPA EXPANDIDO -->
 <div class="tela-mapa" id="vMapa" hidden role="dialog" aria-modal="true" aria-labelledby="mapaTit">
   <div class="barra">
-    <a href="#" class="logo">Map<span>move</span></a>
+    <a href="#" class="logo"><img src="/assets/logo-symbol.png" class="logo-symbol" alt="" aria-hidden="true">Map<span>move</span></a>
     <label class="busca">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
       <input id="buscaMapa" type="search" placeholder="Digite uma cidade ou estado" aria-label="Digite uma cidade ou estado">
