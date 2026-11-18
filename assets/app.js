@@ -1450,7 +1450,7 @@ function mostrarCorrida(slug, percIdx = null) {
     <a href="#mapa" class="ci-mapa" data-mod="mapa"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Ver corridas próximas no mapa</a>
     </aside>
     </div>
-${percHtml}${simHtml}${p3dHtml}${stravaHtml}${proximasHtml}</div>`;
+${percHtml}${stravaHtml}${simHtml}${p3dHtml}${proximasHtml}</div>`;
   if (usarStrava) {
     document.querySelector('script[src*="strava-embeds.com"]')?.remove();
     const ss = document.createElement('script'); ss.src = 'https://strava-embeds.com/embed.js'; document.body.appendChild(ss);
