@@ -702,8 +702,8 @@ function kmOficialDe(c) {
 }
 function percursosDe(c) {
   const lista = (c.corrida_distancias || []).filter(temTrajeto).slice().sort(porDist)
-    .map((d) => ({ rotulo: d.rotulo, km: +d.km, percurso: d.percurso, percurso_km: d.percurso_km, subida_m: d.subida_m, descida_m: d.descida_m }));
-  if (temTrajeto(c) && !lista.some((d) => Math.abs((d.percurso_km || 0) - (c.percurso_km || 0)) < 0.3)) lista.unshift({ rotulo: lista.length ? 'Principal' : 'Percurso', km: kmOficialDe(c), percurso: c.percurso, percurso_km: c.percurso_km, subida_m: c.subida_m, descida_m: c.descida_m });
+    .map((d) => ({ rotulo: d.rotulo, km: +d.km, percurso: d.percurso, percurso_km: d.percurso_km, subida_m: d.subida_m, descida_m: d.descida_m, strava_embed: d.strava_embed || null }));
+  if (temTrajeto(c) && !lista.some((d) => Math.abs((d.percurso_km || 0) - (c.percurso_km || 0)) < 0.3)) lista.unshift({ rotulo: lista.length ? 'Principal' : 'Percurso', km: kmOficialDe(c), percurso: c.percurso, percurso_km: c.percurso_km, subida_m: c.subida_m, descida_m: c.descida_m, strava_embed: c.strava_embed || null });
   return lista;
 }
 function comPercurso(c) {
@@ -1397,7 +1397,7 @@ function mostrarCorrida(slug, percIdx = null) {
   // percurso 3D animado (mesma página /percurso em modo corrida): GPX da aba escolhida + pontos e estratégia salvos pelo admin
   const p3dHtml = temPerc ? `<section class="caixa bloco-3d" aria-labelledby="p3dTit"><div class="perc-topo"><h2 class="display" id="p3dTit">Percurso 3D</h2></div>
     <div class="p3d-frame"><iframe src="/percurso?corrida=${encodeURIComponent(c.slug)}${pSel ? `&dist=${encodeURIComponent(pSel.rotulo)}` : ''}&embed=1" title="Percurso 3D animado de ${esc(c.nome)}" loading="lazy" allow="fullscreen; autoplay"></iframe></div></section>` : '';
-  const se = c0?.strava_embed;
+  const se = pSel?.strava_embed || c0?.strava_embed;
   const stravaHtml = se?.id && se?.token ? `<section class="caixa bloco-strava" aria-labelledby="stravaTit"><div class="perc-topo"><h2 class="display" id="stravaTit">Percurso no Strava</h2></div>
     <div class="strava-wrap"><div class="strava-embed-placeholder" data-embed-type="route" data-embed-id="${esc(se.id)}" data-style="standard"${se.hash ? ` data-map-hash="${esc(se.hash)}"` : ''} data-token="${esc(se.token)}"></div></div></section>` : '';
   const percHtml = temPerc ? `<div class="caixa bloco-perc${simHtml ? ' com-sim' : ''}" id="caixaPerc"><div class="perc-topo"><h2 class="display">Percurso</h2>
@@ -2112,10 +2112,15 @@ async function adminPendentes(recarregar = true) {
 const percDist = new WeakMap();
 const infoPerc = (p) => `${String(p.percurso_km).replace('.', ',')} km${p.subida_m != null ? `, +${p.subida_m} m` : ''}`;
 function linhaDist(d = {}) {
-  return `<div class="dist-form"><label class="campo">Nome<input name="rotulo" value="${esc(d.rotulo || '')}" placeholder="10K" required></label><label class="campo">Km <small>ou vazio</small><input name="km" type="number" step="any" min="0" inputmode="decimal" value="${d.km ?? ''}" placeholder="10"></label><label class="campo">Duração (h) <small>prova por tempo</small><input name="horas" type="number" step="0.5" min="0" value="${d.horas ?? ''}" placeholder="6"></label><label class="campo">Preço (R$)<input name="preco" type="number" step="0.01" min="0" value="${d.preco ?? ''}"></label><button type="button" class="btn btn-linha" data-rm aria-label="Remover distância">×</button>
+  const seJson = JSON.stringify(d.strava_embed || null).replace(/"/g, '&quot;');
+  return `<div class="dist-form" data-strava-json="${seJson}"><label class="campo">Nome<input name="rotulo" value="${esc(d.rotulo || '')}" placeholder="10K" required></label><label class="campo">Km <small>ou vazio</small><input name="km" type="number" step="any" min="0" inputmode="decimal" value="${d.km ?? ''}" placeholder="10"></label><label class="campo">Duração (h) <small>prova por tempo</small><input name="horas" type="number" step="0.5" min="0" value="${d.horas ?? ''}" placeholder="6"></label><label class="campo">Preço (R$)<input name="preco" type="number" step="0.01" min="0" value="${d.preco ?? ''}"></label><button type="button" class="btn btn-linha" data-rm aria-label="Remover distância">×</button>
     <div class="dist-gpx"><label class="btn btn-linha gpx-btn">GPX desta distância<input type="file" accept=".gpx,application/gpx+xml" data-gpx-dist hidden></label>
     <small data-gpx-info>${temTrajeto(d) ? `Percurso salvo: ${infoPerc(d)}.` : 'Sem percurso próprio.'}</small>
-    ${temTrajeto(d) ? '<label class="check"><input type="checkbox" data-gpx-rm> Remover</label>' : ''}</div></div>`;
+    ${temTrajeto(d) ? '<label class="check"><input type="checkbox" data-gpx-rm> Remover</label>' : ''}</div>
+    <div class="dist-strava"><label class="campo inteiro">Incorporação do Strava <small>Cole o código HTML do botão "Incorporar" na página do percurso no Strava.</small>
+    <textarea data-strava-code rows="2" style="font-size:11px;font-family:monospace;resize:vertical;width:100%" placeholder='<div class="strava-embed-placeholder" data-embed-type="route" data-embed-id="..." data-token="..."></div>'></textarea></label>
+    <small>${d.strava_embed?.id ? `✅ Embed salvo: rota ${esc(String(d.strava_embed.id))}. Cole um novo código para substituir.` : 'Sem embed do Strava.'}</small>
+    ${d.strava_embed?.id ? '<label class="check"><input type="checkbox" data-strava-rm> Remover embed</label>' : ''}</div></div>`;
 }
 const coordValida = (la, lo) => isFinite(la) && isFinite(lo) && Math.abs(la) <= 90 && Math.abs(lo) <= 180 && !(la === 0 && lo === 0);
 function lerCoordenadas(txt) {
@@ -2464,12 +2469,26 @@ function formCorrida(c = {}, pendente = null) {
     const r = c.id ? await sb.from('corridas').update(dados).eq('id', c.id).select().single() : await sb.from('corridas').insert(dados).select().single();
     if (r.error) { msg.textContent = r.error.code === '23505' ? 'Já existe uma corrida com esse nome nessa data.' : 'Não foi possível salvar. Confira os campos e tente de novo.'; return; }
     const id = r.data.id;
+    let distParseErr = null;
     const dists = $$('.dist-form', f).map((el) => {
       const p = $('[data-gpx-rm]', el)?.checked ? null : percDist.get(el);
       const kmV = $('[name=km]', el).value, hV = $('[name=horas]', el).value;
-      return { corrida_id: id, rotulo: $('[name=rotulo]', el).value.trim(), km: kmV ? Number(kmV) : null, horas: hV ? Number(hV) : null, preco: $('[name=preco]', el).value ? Number($('[name=preco]', el).value) : null,
-        percurso: p ? p.percurso : null, percurso_km: p ? p.percurso_km : null, subida_m: p ? p.subida_m : null, descida_m: p ? p.descida_m : null };
+      const rotulo = $('[name=rotulo]', el).value.trim();
+      const stravaCode = $('[data-strava-code]', el)?.value?.trim();
+      const stravaRm = $('[data-strava-rm]', el)?.checked;
+      let strava_embed = JSON.parse(el.dataset.stravaJson || 'null');
+      if (stravaRm) { strava_embed = null; }
+      else if (stravaCode) {
+        const idM = stravaCode.match(/data-embed-id="([^"]+)"/);
+        const tokM = stravaCode.match(/data-token="([^"]+)"/);
+        const hashM = stravaCode.match(/data-map-hash="([^"]+)"/);
+        if (idM && tokM) strava_embed = { id: idM[1], token: tokM[1], hash: hashM?.[1] || null };
+        else { distParseErr = `"${rotulo}": código Strava inválido. Copie o código completo do botão "Incorporar".`; }
+      }
+      return { corrida_id: id, rotulo, km: kmV ? Number(kmV) : null, horas: hV ? Number(hV) : null, preco: $('[name=preco]', el).value ? Number($('[name=preco]', el).value) : null,
+        percurso: p ? p.percurso : null, percurso_km: p ? p.percurso_km : null, subida_m: p ? p.subida_m : null, descida_m: p ? p.descida_m : null, strava_embed };
     }).filter((d) => d.rotulo);
+    if (distParseErr) { msg.textContent = distParseErr; return; }
     await sb.from('corrida_distancias').delete().eq('corrida_id', id);
     if (dists.length) await sb.from('corrida_distancias').insert(dists);
     if (pendente) await sb.from('corridas_pendentes').update({ status: 'aprovada', corrida_id: id, revisado_em: new Date().toISOString() }).eq('id', pendente.id);
