@@ -135,6 +135,7 @@ body.modo-corrida #empty{display:none}
 body.modo-corrida:not(.race-admin) #btn-up,body.modo-corrida:not(.race-admin) #btn-kml,body.modo-corrida:not(.race-admin) #btn-hydra,
 body.modo-corrida:not(.race-admin) #btn-pois,body.modo-corrida:not(.race-admin) #pp-import{display:none!important}
 body:not(.race-admin) #btn-save{display:none}
+body:not(.race-admin) #btn-match{display:none}
 body.modo-corrida:not(.race-admin){--ctrl-h:0px}
 body.modo-corrida:not(.race-admin) #ctrl{display:none}
 #start-ov{position:fixed;left:50%;top:calc((100vh - var(--elev-h) - var(--ctrl-h)) / 2);transform:translate(-50%,-50%);z-index:30;cursor:pointer;
@@ -185,7 +186,7 @@ body.embed #btn-full{order:9;display:inline-flex;align-items:center;gap:4px;poin
 .toast{position:fixed;bottom:calc(var(--ctrl-h) + var(--elev-h) + 52px);left:50%;transform:translateX(-50%);background:rgba(15,15,27,.95);border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:20px;font-size:12px;z-index:50;white-space:pre-wrap;max-width:88vw;text-align:center;pointer-events:none;line-height:1.4}
 #gpx-file,#kml-file{display:none}
 #elev-tip{position:absolute;bottom:calc(100% + 5px);transform:translateX(-50%);background:rgba(9,9,15,.92);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:5px 10px;font-size:11px;white-space:nowrap;pointer-events:none;z-index:11;font-variant-numeric:tabular-nums}
-#mini-map{position:fixed;bottom:calc(var(--elev-h) + 10px);left:10px;width:90px;height:90px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(9,9,15,.82);z-index:15;pointer-events:none;display:none}
+#mini-map{position:fixed;bottom:calc(var(--ctrl-h) + var(--elev-h) + 10px);left:10px;width:90px;height:90px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(9,9,15,.82);z-index:15;pointer-events:none;display:none}
 body.embed #mini-map{display:block}
 
 </style>
@@ -276,6 +277,7 @@ body.embed #mini-map{display:block}
     <div class="csep"></div>
     <button class="tbtn" id="btn-kml">📂 KMZ</button>
     <button class="hbtn" id="btn-pois" hidden>📍 Pontos</button>
+    <button class="hbtn" id="btn-match">🛣 Ajustar ao mapa</button>
     <button class="hbtn" id="btn-save">💾 Salvar na corrida</button>
   </div>
 </div>
@@ -1538,6 +1540,44 @@ async function definirPadrao(){
   if(error||!data?.length){showToast('⚠️ Não foi possível salvar'+(error?': '+error.message:''),6000);return;}
   RACE.data=payload;renderRotas();showToast('⭐ '+(RACE.key==='principal'?'Principal':RACE.key)+' é o percurso principal da prova.',4000);
 }
+async function matchToRoads(){
+  if(!S.raw.length)return;
+  const btn=document.getElementById('btn-match');
+  btn.disabled=true;
+  const BATCH=99;
+  const result=[...S.raw];
+  const total=Math.ceil((S.raw.length-1)/Math.max(1,BATCH-1));
+  let done=0;
+  for(let start=0;start<S.raw.length;start+=BATCH-1){
+    const end=Math.min(start+BATCH,S.raw.length);
+    const batch=S.raw.slice(start,end);
+    btn.textContent=`⏳ ${++done}/${total}`;
+    const coords=batch.map(c=>`${c[0].toFixed(6)},${c[1].toFixed(6)}`).join(';');
+    const radiuses=batch.map(()=>'25').join(';');
+    try{
+      const r=await fetch(`https://api.mapbox.com/matching/v5/mapbox/walking/${coords}?access_token=${mapboxgl.accessToken}&geometries=geojson&radiuses=${radiuses}&tidy=true`);
+      const d=await r.json();
+      if(d.code==='Ok'&&d.tracepoints){
+        d.tracepoints.forEach((tp,i)=>{if(tp)result[start+i]=[tp.location[0],tp.location[1]];});
+      }
+    }catch(e){/* keep original coords for this batch */}
+  }
+  const newCumKm=[0];
+  for(let i=1;i<result.length;i++){
+    const[lo1,la1]=result[i-1],[lo2,la2]=result[i];
+    const dlat=(la2-la1)*Math.PI/180,dlon=(lo2-lo1)*Math.PI/180;
+    const a=Math.sin(dlat/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dlon/2)**2;
+    newCumKm.push(newCumKm[i-1]+6371*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
+  }
+  S.raw=result;S.cumKm=newCumKm;
+  S.hydra.forEach(h=>h.km=nearestKm(h.lo,h.la));
+  withStyle(()=>setupRoute(S.raw.map(([lo,la])=>[lo,la])));
+  computeGrades();drawElevProfile();updateStats();
+  miniMapCache=null;drawMiniMap();
+  btn.disabled=false;btn.textContent='✅ Ajustado';
+  setTimeout(()=>{btn.textContent='🛣 Ajustar ao mapa';},3000);
+}
+document.getElementById('btn-match').addEventListener('click',matchToRoads);
 document.getElementById('btn-save').addEventListener('click',salvarCorrida);
 if(RACE.slug)carregarCorrida();
 } // end startMap
