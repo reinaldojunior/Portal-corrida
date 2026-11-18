@@ -1645,9 +1645,9 @@ async function matchToRoads(){
     try{
       let err;
       if(RACE.key==='principal'){
-        ({error:err}=await RACE.sb.from('corridas').update({percurso:newPts,percurso_km:newKm}).eq('id',RACE.id));
+        ({error:err}=await RACE.sb.from('corridas').update({percurso:newPts}).eq('id',RACE.id));
       }else{
-        ({error:err}=await RACE.sb.from('corrida_distancias').update({percurso:newPts,percurso_km:newKm}).eq('corrida_id',RACE.id).eq('rotulo',RACE.key));
+        ({error:err}=await RACE.sb.from('corrida_distancias').update({percurso:newPts}).eq('corrida_id',RACE.id).eq('rotulo',RACE.key));
       }
       btn.textContent=err?'✅ Ajustado (não salvo)':'✅ Ajustado e salvo';
     }catch(e){btn.textContent='✅ Ajustado (não salvo)';}
@@ -1727,8 +1727,8 @@ async function closeEditMode(save){
         const newPts=S.raw.map(([lo,la],i)=>[la,lo,S.elev[i]??0]);
         const newKm=S.cumKm[S.cumKm.length-1]||0;
         try{
-          if(RACE.key==='principal')await RACE.sb.from('corridas').update({percurso:newPts,percurso_km:newKm}).eq('id',RACE.id);
-          else await RACE.sb.from('corrida_distancias').update({percurso:newPts,percurso_km:newKm}).eq('corrida_id',RACE.id).eq('rotulo',RACE.key);
+          if(RACE.key==='principal')await RACE.sb.from('corridas').update({percurso:newPts}).eq('id',RACE.id);
+          else await RACE.sb.from('corrida_distancias').update({percurso:newPts}).eq('corrida_id',RACE.id).eq('rotulo',RACE.key);
           showToast('✅ Percurso salvo.',3000);
         }catch(e){showToast('⚠️ Erro ao salvar percurso.',4000);}
         document.getElementById('btn-edit-save').textContent='💾 Salvar edição';
@@ -1767,8 +1767,8 @@ async function repairElev(){
     const newPts=S.raw.map(([lo,la],i)=>[la,lo,S.elev[i]??0]);
     const newKm=S.cumKm[S.cumKm.length-1]||0;
     try{
-      if(RACE.key==='principal')await RACE.sb.from('corridas').update({percurso:newPts,percurso_km:newKm}).eq('id',RACE.id);
-      else await RACE.sb.from('corrida_distancias').update({percurso:newPts,percurso_km:newKm}).eq('corrida_id',RACE.id).eq('rotulo',RACE.key);
+      if(RACE.key==='principal')await RACE.sb.from('corridas').update({percurso:newPts}).eq('id',RACE.id);
+      else await RACE.sb.from('corrida_distancias').update({percurso:newPts}).eq('corrida_id',RACE.id).eq('rotulo',RACE.key);
       btn.textContent='✅ Elevação reparada';
     }catch(e){btn.textContent='⚠️ Erro ao salvar';}
   }else{btn.textContent='✅ Reparado (não salvo)';}
