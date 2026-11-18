@@ -1397,6 +1397,9 @@ function mostrarCorrida(slug, percIdx = null) {
   // percurso 3D animado (mesma página /percurso em modo corrida): GPX da aba escolhida + pontos e estratégia salvos pelo admin
   const p3dHtml = temPerc ? `<section class="caixa bloco-3d" aria-labelledby="p3dTit"><div class="perc-topo"><h2 class="display" id="p3dTit">Percurso 3D</h2></div>
     <div class="p3d-frame"><iframe src="/percurso?corrida=${encodeURIComponent(c.slug)}${pSel ? `&dist=${encodeURIComponent(pSel.rotulo)}` : ''}&embed=1" title="Percurso 3D animado de ${esc(c.nome)}" loading="lazy" allow="fullscreen; autoplay"></iframe></div></section>` : '';
+  const se = c0?.strava_embed;
+  const stravaHtml = se?.id && se?.token ? `<section class="caixa bloco-strava" aria-labelledby="stravaTit"><div class="perc-topo"><h2 class="display" id="stravaTit">Percurso no Strava</h2></div>
+    <div class="strava-wrap"><div class="strava-embed-placeholder" data-embed-type="route" data-embed-id="${esc(se.id)}" data-style="standard"${se.hash ? ` data-map-hash="${esc(se.hash)}"` : ''} data-token="${esc(se.token)}"></div></div></section>` : '';
   const percHtml = temPerc ? `<div class="caixa bloco-perc${simHtml ? ' com-sim' : ''}" id="caixaPerc"><div class="perc-topo"><h2 class="display">Percurso</h2>
         ${percs.length > 1 ? `<div class="perc-abas" role="group" aria-label="Escolha o percurso">${percs.map((p, i) => `<button type="button" class="filtro" data-perc="${i}" aria-pressed="${p === pSel}">${esc(p.rotulo)}</button>`).join('')}</div>` : ''}
         <div class="perc-stats"><div${c.km_oficial && Math.abs(c.km_oficial - c.percurso_km) >= 0.005 ? ` title="O GPX mediu ${String(c.percurso_km).replace('.', ',')} km. O site ajusta para a distância oficial."` : ''}><span>DISTÂNCIA</span><b>${String(+(c.km_oficial || c.percurso_km).toFixed(2)).replace('.', ',')} km</b></div><div><span>Subida</span><b>${c.subida_m != null ? '+' + c.subida_m + ' m' : '—'}</b></div><div><span>Descida</span><b>${c.descida_m != null ? '−' + c.descida_m + ' m' : '—'}</b></div></div></div>
@@ -1445,7 +1448,11 @@ function mostrarCorrida(slug, percIdx = null) {
     <a href="#mapa" class="ci-mapa" data-mod="mapa"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Ver corridas próximas no mapa</a>
     </aside>
     </div>
-${percHtml}${simHtml}${p3dHtml}${proximasHtml}</div>`;
+${percHtml}${simHtml}${p3dHtml}${stravaHtml}${proximasHtml}</div>`;
+  if (se?.id && se?.token) {
+    document.querySelector('script[src*="strava-embeds.com"]')?.remove();
+    const ss = document.createElement('script'); ss.src = 'https://strava-embeds.com/embed.js'; document.body.appendChild(ss);
+  }
   $('#baixarIcs', v)?.addEventListener('click', () => baixarIcs(c));
   $('#btnCompartilhar', v)?.addEventListener('click', async () => {
     const url = `https://mapmove.com.br/corrida/${encodeURIComponent(c.slug)}`;
@@ -2276,6 +2283,10 @@ function formCorrida(c = {}, pendente = null) {
       <input type="file" id="gpxArquivo" accept=".gpx,application/gpx+xml" style="height:auto;padding:10px">
       <small id="gpxInfo">${c.percurso ? `Percurso salvo: ${String(c.percurso_km).replace('.', ',')} km${c.subida_m != null ? `, +${c.subida_m} m de subida` : ''}.` : 'Nenhum percurso enviado.'}</small>
       ${c.percurso ? '<label class="check"><input type="checkbox" name="remover_percurso"> Remover o percurso salvo</label>' : ''}</div>
+    <div class="campo inteiro">Incorporação do Strava <small>Cole o código HTML do botão "Incorporar" na página do percurso no Strava. Exibido como mapa quando não há GPX, ou como seção adicional quando há.</small>
+      <textarea id="stravaEmbedCode" rows="3" style="font-size:11px;font-family:monospace;resize:vertical;width:100%" placeholder='<div class="strava-embed-placeholder" data-embed-type="route" data-embed-id="..." data-token="..."></div>'></textarea>
+      <small id="stravaEmbedMsg">${c.strava_embed ? `✅ Embed salvo: rota ${c.strava_embed.id}. Cole um novo código para substituir, ou deixe vazio e salve para manter.` : 'Nenhum embed salvo. Cole o código acima para adicionar.'}</small>
+      ${c.strava_embed ? '<label class="check"><input type="checkbox" id="stravaEmbedRm"> Remover embed do Strava</label>' : ''}</div>
     <div class="inteiro"><div class="campo" style="margin-bottom:8px">Distâncias</div><div id="distancias">${(c.corrida_distancias || [{}]).map(linhaDist).join('')}</div><button type="button" class="btn btn-linha" id="addDist">Adicionar distância</button></div>
     <div class="campo inteiro">Descrição <small>Pode colar texto formatado: negrito, itálico, listas e links são mantidos.</small>${c.descricao_auto ? '<small class="desc-auto">Texto escrito automaticamente a partir da página de inscrição. Confira os dados; ao editar, ele passa a ser seu.</small>' : ''}${editorRico('descricao', c.descricao)}</div>
     <label class="campo">Organizador<input name="organizador" value="${esc(c.organizador || '')}"></label>
@@ -2438,6 +2449,16 @@ function formCorrida(c = {}, pendente = null) {
     };
     if (gpxNovo) Object.assign(dados, gpxNovo);
     else if (f.remover_percurso && f.remover_percurso.checked) Object.assign(dados, { percurso: null, percurso_km: null, subida_m: null, descida_m: null });
+    const stravaCode = document.getElementById('stravaEmbedCode')?.value?.trim();
+    const stravaRm = document.getElementById('stravaEmbedRm')?.checked;
+    if (stravaRm) { dados.strava_embed = null; }
+    else if (stravaCode) {
+      const idM = stravaCode.match(/data-embed-id="([^"]+)"/);
+      const tokM = stravaCode.match(/data-token="([^"]+)"/);
+      const hashM = stravaCode.match(/data-map-hash="([^"]+)"/);
+      if (idM && tokM) dados.strava_embed = { id: idM[1], token: tokM[1], hash: hashM?.[1] || null };
+      else { msg.textContent = 'Não encontrei ID e token no código Strava. Copie o código completo do botão "Incorporar".'; return; }
+    }
     if (!c.id) dados.slug = slugify(`${dados.nome}-${dados.data}`);
     msg.textContent = 'Salvando…';
     const r = c.id ? await sb.from('corridas').update(dados).eq('id', c.id).select().single() : await sb.from('corridas').insert(dados).select().single();
