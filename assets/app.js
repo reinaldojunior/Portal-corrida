@@ -1484,7 +1484,10 @@ ${percHtml}${stravaHtml}${simHtml}${p3dHtml}${proximasHtml}</div>`;
     const y = window.scrollY; mostrarCorrida(slug, Number(b.dataset.perc)); window.scrollTo(0, y);
     setTimeout(() => $(`[data-perc="${b.dataset.perc}"]`)?.focus(), 60);
   }));
-  if (temPerc || c.lat != null) {
+  if (temPerc && !$('#mapaCorrida')) {
+    if (mapaCorrida) { mapaCorrida.remove(); mapaCorrida = null; }
+    if (mod('simulador')) setTimeout(() => montarSimulador(c), 30);
+  } else if (temPerc || c.lat != null) {
     setTimeout(() => {
       if (mapaCorrida) mapaCorrida.remove();
       mapaCorrida = L.map('mapaCorrida', { scrollWheelZoom: false }).setView(temPerc ? [c.percurso[0][0], c.percurso[0][1]] : [c.lat, c.lng], 14);
