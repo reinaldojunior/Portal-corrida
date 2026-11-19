@@ -44,3 +44,9 @@ end $$;
 revoke all on function strava_token_servico() from public, anon, authenticated;
 revoke all on function strava_salvar_token_servico(text) from public, anon, authenticated;
 -- só acessíveis com service role (SUPABASE_SERVICE_KEY)
+
+-- O robô (SUPABASE_SERVICE_KEY) roda como service_role, que neste projeto não tem grants padrão.
+grant select on strava_clubes, corridas to service_role;
+grant select, update on corridas_pendentes to service_role;
+grant execute on function strava_token_servico() to service_role;
+grant execute on function strava_salvar_token_servico(text) to service_role;
