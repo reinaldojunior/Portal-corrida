@@ -22,9 +22,6 @@
     "api/coletar-o2corre.js": {
       "maxDuration": 60
     },
-    "api/coletar-strava.js": {
-      "maxDuration": 60
-    },
     "api/extrair.js": {
       "maxDuration": 30
     },
@@ -117,7 +114,7 @@
       "schedule": "40 13 * * *"
     },
     {
-      "path": "/api/coletar-strava",
+      "path": "/api/coletar?grupo=strava",
       "schedule": "0 11 * * *"
     }
   ],
