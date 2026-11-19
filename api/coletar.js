@@ -2,7 +2,7 @@
 // descobre quais provas são novas e grava só essas na fila de pendentes do Supabase.
 // Guarda apenas dados factuais (nome, data, cidade, distâncias, local, organizador, links).
 
-const { ehAgendamento } = require('./_seguranca.js');
+const { ehAgendamento, ehAdmin } = require('./_seguranca.js');
 
 const UA = 'Mozilla/5.0 (compatible; MapmoveBot/1.0; +https://mapmove.com.br)';
 const DOMINIOS_BLOQUEADOS = ['kmaisclube.com.br'];
@@ -23,10 +23,10 @@ async function baixar(url) {
   return { ok: r.ok, status: r.status, texto };
 }
 
-async function rpc(nome, corpo) {
+async function rpc(nome, corpo, chave = SUPABASE_KEY) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${nome}`, {
     method: 'POST',
-    headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${SUPABASE_KEY}`, 'content-type': 'application/json' },
+    headers: { apikey: chave, authorization: `Bearer ${chave}`, 'content-type': 'application/json' },
     body: JSON.stringify(corpo)
   });
   const j = await r.json().catch(() => null);
@@ -145,7 +145,146 @@ async function coletar(estados, gravar, MAX_DETALHES = 35) {
   return relatorio;
 }
 
+// ─── STRAVA CLUBES ───────────────────────────────────────────────────────────
+
+async function sbGet(path, params = {}) {
+  const u = new URL(`${SUPABASE_URL}/rest/v1/${path}`);
+  for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
+  const r = await fetch(u.toString(), {
+    headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${SUPABASE_KEY}`, accept: 'application/json' }
+  });
+  const j = await r.json().catch(() => null);
+  if (!r.ok) throw new Error(`Supabase GET ${path}: ${r.status} ${j?.message || ''}`);
+  return j;
+}
+
+async function stravaAccessToken() {
+  const clientId = process.env.STRAVA_CLIENT_ID;
+  const clientSecret = process.env.STRAVA_CLIENT_SECRET;
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+  if (!clientId || !clientSecret) throw new Error('STRAVA_CLIENT_ID ou STRAVA_CLIENT_SECRET não configurados.');
+  if (!serviceKey) throw new Error('SUPABASE_SERVICE_KEY não configurado.');
+  const refreshToken = await rpc('strava_token_servico', {}, serviceKey);
+  if (!refreshToken) throw new Error('Nenhum token do Strava salvo. Conecte o Strava no admin primeiro.');
+  const r = await fetch('https://www.strava.com/oauth/token', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: 'refresh_token' }),
+    signal: AbortSignal.timeout(15000)
+  });
+  const t = await r.json().catch(() => null);
+  if (!r.ok || !t?.access_token) throw new Error(`Strava token: ${r.status} ${t?.message || ''}`);
+  if (t.refresh_token && t.refresh_token !== refreshToken) {
+    await rpc('strava_salvar_token_servico', { t: t.refresh_token }, process.env.SUPABASE_SERVICE_KEY).catch(() => null);
+  }
+  return t.access_token;
+}
+
+async function stravaEventosClubeStrava(clubeSlug, accessToken) {
+  const r = await fetch(`https://www.strava.com/api/v3/clubs/${encodeURIComponent(clubeSlug)}/group_events`, {
+    headers: { authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(15000)
+  });
+  if (r.status === 404) { console.warn(`[Strava] Clube ${clubeSlug}: não encontrado (404).`); return []; }
+  if (!r.ok) { console.warn(`[Strava] Clube ${clubeSlug}: HTTP ${r.status}`); return []; }
+  return (await r.json().catch(() => [])) || [];
+}
+
+const stravaHoje = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+
+function stravaEventosParaItens(eventos, clubeNome) {
+  const itens = [];
+  for (const ev of eventos) {
+    if (!ev.upcoming_occurrences?.length) continue;
+    const nome = limpar(ev.title || ev.name || '');
+    if (!nome) continue;
+    const cidade = limpar(ev.city || '');
+    const estado = limpar(ev.state || '');
+    const lat = ev.latitude || null;
+    const lng = ev.longitude || null;
+    for (const ocorrencia of ev.upcoming_occurrences) {
+      const data = String(ocorrencia).slice(0, 10);
+      if (data < stravaHoje()) continue;
+      const eventoId = `${ev.id}-${data}`;
+      itens.push({
+        chave: `strava-${slug(nome)}-${data}`,
+        strava_event_id: eventoId,
+        nome, cidade,
+        estado: estado.length === 2 ? estado.toUpperCase() : null,
+        data,
+        lat: lat && Math.abs(lat) > 0.001 ? lat : null,
+        lng: lng && Math.abs(lng) > 0.001 ? lng : null,
+        local_largada: limpar(ev.address || ''),
+        organizador: clubeNome || null,
+        distancias: null,
+        link_inscricao: `https://www.strava.com/clubs/${ev.club_id}/group_events/${ev.id}`,
+        fonte: 'Strava Clubes',
+        fonte_url: `https://www.strava.com/clubs/${ev.club_id}`
+      });
+    }
+  }
+  return itens;
+}
+
+async function stravaFiltrarExistentes(itens) {
+  if (!itens.length) return [];
+  const ids = itens.map((i) => i.strava_event_id);
+  const publ = await sbGet('corridas', { select: 'strava_event_id', strava_event_id: `in.(${ids.join(',')})` }).catch(() => []);
+  const pend = await sbGet('corridas_pendentes', { select: 'strava_event_id', strava_event_id: `in.(${ids.join(',')})` }).catch(() => []);
+  const existentes = new Set([...(publ || []).map((r) => r.strava_event_id), ...(pend || []).map((r) => r.strava_event_id)]);
+  return itens.filter((i) => !existentes.has(i.strava_event_id));
+}
+
+async function coletarStrava() {
+  const token = process.env.ROBO_TOKEN;
+  if (!token) throw new Error('ROBO_TOKEN não configurado.');
+  const logId = await rpc('robo_log_inicio', { p_token: token, p_rota: 'coletar-strava', p_parametros: 'clubes', p_origem: 'agendado' }).catch(() => null);
+  const logFim = (ok, resultado, erro) => rpc('robo_log_fim', { p_token: token, p_id: logId, p_ok: ok, p_resultado: resultado, p_erro: erro }).catch(() => null);
+  try {
+    const clubes = await sbGet('strava_clubes', { select: 'id,slug,nome', ativo: 'eq.true' });
+    if (!clubes?.length) { await logFim(true, { coletados: 0, novos: 0 }, null); return { coletados: 0, novos: 0 }; }
+    const accessToken = await stravaAccessToken();
+    const todosItens = [];
+    for (const clube of clubes) {
+      const eventos = await stravaEventosClubeStrava(clube.slug, accessToken);
+      todosItens.push(...stravaEventosParaItens(eventos, clube.nome));
+    }
+    if (!todosItens.length) { await logFim(true, { coletados: 0, novos: 0 }, null); return { coletados: 0, novos: 0 }; }
+    const novos = await stravaFiltrarExistentes(todosItens);
+    let inseridas = 0;
+    if (novos.length) {
+      const novosChaves = new Set(await rpc('robo_novos', { p_token: token, p_itens: novos.map(({ chave, nome, cidade, data, link_inscricao }) => ({ chave, nome, cidade, data, link_inscricao })) }));
+      const paraInserir = novos.filter((i) => novosChaves.has(i.chave));
+      if (paraInserir.length) {
+        inseridas = await rpc('robo_inserir_pendentes', { p_token: token, p_itens: paraInserir });
+        await Promise.all(paraInserir.map((i) =>
+          fetch(`${SUPABASE_URL}/rest/v1/corridas_pendentes?chave=eq.${encodeURIComponent(i.chave)}`, {
+            method: 'PATCH',
+            headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${SUPABASE_KEY}`, 'content-type': 'application/json', prefer: 'return=minimal' },
+            body: JSON.stringify({ strava_event_id: i.strava_event_id })
+          }).catch(() => null)
+        ));
+      }
+    }
+    await logFim(true, { coletados: todosItens.length, novos: inseridas }, null);
+    return { coletados: todosItens.length, novos: inseridas };
+  } catch (e) { await logFim(false, null, e.message); throw e; }
+}
+
+// ─── HANDLER ─────────────────────────────────────────────────────────────────
+
 module.exports = async (req, res) => {
+  // grupo=strava: aceita agendamento ou admin (para sincronização manual)
+  if (req.query.grupo === 'strava') {
+    const autorizado = ehAgendamento(req) || await ehAdmin(req);
+    if (!autorizado) return res.status(401).json({ erro: 'não autorizado' });
+    try {
+      const r = await coletarStrava();
+      return res.status(200).json(r);
+    } catch (e) {
+      console.error('[coletar-strava]', e.message);
+      return res.status(500).json({ erro: e.message });
+    }
+  }
+
   // só roda pelo agendamento da Vercel (que envia a chave do cron no cabeçalho)
   if (!ehAgendamento(req)) return res.status(401).json({ erro: 'não autorizado' });
   const todos = String(process.env.ESTADOS || 'SP').toUpperCase().split(/[,\s]+/).filter((x) => /^[A-Z]{2}$/.test(x));
