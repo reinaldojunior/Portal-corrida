@@ -2284,6 +2284,9 @@ function formCorrida(c = {}, pendente = null) {
     <div class="campo inteiro busca-topo">Link de inscrição <small>Cole o link da página de inscrição (Ticket Sports, Sympla…) e clique no botão para trazer a imagem e o local.</small>
       <div class="busca-linha"><input name="link_inscricao" type="url" value="${esc(c.link_inscricao || '')}" placeholder="https://"><button type="button" class="btn btn-cone btn-buscar" id="buscarInfo">Buscar imagem e local</button></div>
       <small id="buscarMsg" role="status"></small><div id="sugTopo"></div></div>
+    <div class="campo inteiro">Percursos do Strava na página do organizador <small>Cole o link da página que mostra os mapas do Strava. Cada rota vira o embed e o GPX da distância com a mesma quilometragem. Vazio: usa o link de inscrição.</small>
+      <div class="busca-linha"><input id="stravaPagina" type="url" placeholder="https://"><button type="button" class="btn btn-cone" id="buscarStrava">Buscar percursos do Strava</button></div>
+      <small id="stravaPaginaInfo"></small></div>
     <label class="campo inteiro">Nome da corrida<input name="nome" required value="${esc(c.nome || '')}"></label>
     <label class="campo">Cidade<input name="cidade" required value="${esc(c.cidade || '')}" list="cidadesSug"></label>
     <datalist id="cidadesSug"><option>Indaiatuba</option><option>Salto</option><option>Itu</option><option>Elias Fausto</option><option>Monte Mor</option></datalist>
