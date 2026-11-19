@@ -234,9 +234,7 @@ async function stravaOcorrenciasPublicas(clubId, eventId) {
 function stravaEventosParaItens(eventos, clubeNome, clubId) {
   const itens = [];
   for (const ev of eventos) {
-    const ocorrencias = ev.upcoming_occurrences?.length
-      ? ev.upcoming_occurrences.map((q) => ({ quando: q }))
-      : (ev._ocorrencias || []);
+    const ocorrencias = [...(ev.upcoming_occurrences || []).map((q) => ({ quando: q })), ...(ev._ocorrencias || [])];
     const cidade = limpar(ev.city || '');
     const estado = limpar(ev.state || '');
     const lat = ev.latitude || null;
@@ -286,7 +284,9 @@ async function coletarStrava() {
     const todosItens = [], porClube = [];
     for (const clube of clubes) {
       const { id, eventos, erro } = await stravaEventosClubeStrava(clube.slug, accessToken);
-      const semData = eventos.filter((ev) => !ev.upcoming_occurrences?.length && ev.id);
+      // a API pode devolver upcoming_occurrences com datas já passadas; nesse caso consulta a página pública
+      const temFutura = (ev) => (ev.upcoming_occurrences || []).some((q) => String(q).slice(0, 10) >= stravaHoje());
+      const semData = eventos.filter((ev) => ev.id && !temFutura(ev));
       for (let k = 0; k < semData.length; k += 4) {
         await Promise.all(semData.slice(k, k + 4).map(async (ev) => { ev._ocorrencias = await stravaOcorrenciasPublicas(id, ev.id); }));
       }
