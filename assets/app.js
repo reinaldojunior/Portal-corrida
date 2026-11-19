@@ -476,6 +476,44 @@ $('#esTabela').innerHTML = '<tbody>' + [8, 9, 10, 11, 12, 13, 14, 15, 16].map((v
 const RAD = Math.PI / 180;
 const metros = (a, b) => { const dLat = (b[0] - a[0]) * RAD, dLng = (b[1] - a[1]) * RAD; const x = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * RAD) * Math.cos(b[0] * RAD) * Math.sin(dLng / 2) ** 2; return 12742000 * Math.asin(Math.sqrt(x)); };
 
+// Carrega JSZip sob demanda (só para arquivos KMZ)
+let _jszip = null;
+async function carregarJsZip() {
+  if (_jszip) return _jszip;
+  await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; s.onload = res; s.onerror = () => rej(new Error('Não foi possível carregar o JSZip.')); document.head.appendChild(s); });
+  _jszip = window.JSZip; return _jszip;
+}
+
+// Lê um arquivo KML e devolve os pontos [lat, lng, altitude]
+function lerKml(texto) {
+  const doc = new DOMParser().parseFromString(texto, 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('Arquivo KML inválido.');
+  const pts = [];
+  for (const tag of doc.getElementsByTagName('coordinates')) {
+    for (const par of tag.textContent.trim().split(/[\s\n]+/)) {
+      const p = par.split(','); if (p.length < 2) continue;
+      const lon = parseFloat(p[0]), lat = parseFloat(p[1]), ele = p[2] ? parseFloat(p[2]) : NaN;
+      if (Number.isFinite(lat) && Number.isFinite(lon)) pts.push([lat, lon, Number.isFinite(ele) && ele !== 0 ? ele : null]);
+    }
+  }
+  if (pts.length < 2) throw new Error('O arquivo não tem um trajeto com pontos.');
+  return pts;
+}
+
+// Lê GPX, KML ou KMZ e devolve os pontos
+async function lerArquivoPercurso(arq) {
+  const n = arq.name.toLowerCase();
+  if (n.endsWith('.kmz')) {
+    const JSZip = await carregarJsZip();
+    const zip = await JSZip.loadAsync(arq);
+    const ent = Object.values(zip.files).find((f) => !f.dir && f.name.toLowerCase().endsWith('.kml'));
+    if (!ent) throw new Error('Nenhum .kml encontrado dentro do KMZ.');
+    return lerKml(await ent.async('text'));
+  }
+  if (n.endsWith('.kml')) return lerKml(await arq.text());
+  return lerGpx(await arq.text());
+}
+
 // Lê o texto de um arquivo GPX e devolve os pontos [lat, lng, altitude]
 function lerGpx(texto) {
   const doc = new DOMParser().parseFromString(texto, 'application/xml');
@@ -2121,7 +2159,7 @@ function linhaDist(d = {}) {
   const seJson = JSON.stringify(d.strava_embed || null).replace(/"/g, '&quot;');
   const temEmbed = !!d.strava_embed?.id;
   return `<div class="dist-form" data-strava-json="${seJson}"><label class="campo">Nome<input name="rotulo" value="${esc(d.rotulo || '')}" placeholder="10K" required></label><label class="campo">Km <small>ou vazio</small><input name="km" type="number" step="any" min="0" inputmode="decimal" value="${d.km ?? ''}" placeholder="10"></label><label class="campo">Duração (h) <small>prova por tempo</small><input name="horas" type="number" step="0.5" min="0" value="${d.horas ?? ''}" placeholder="6"></label><label class="campo">Preço (R$)<input name="preco" type="number" step="0.01" min="0" value="${d.preco ?? ''}"></label><button type="button" class="btn btn-linha" data-rm aria-label="Remover distância">×</button>
-    <div class="dist-gpx"><label class="btn btn-linha gpx-btn">GPX desta distância<input type="file" accept=".gpx,application/gpx+xml" data-gpx-dist hidden></label>
+    <div class="dist-gpx"><label class="btn btn-linha gpx-btn">GPX / KML / KMZ<input type="file" accept=".gpx,.kml,.kmz,application/gpx+xml" data-gpx-dist hidden></label>
     <small data-gpx-info>${temTrajeto(d) ? `Percurso salvo: ${infoPerc(d)}.` : 'Sem percurso próprio.'}</small>
     ${temTrajeto(d) ? '<label class="check"><input type="checkbox" data-gpx-rm> Remover</label>' : ''}</div>
     <div class="dist-strava">
@@ -2306,14 +2344,14 @@ function formCorrida(c = {}, pendente = null) {
       <small id="localInfo" role="status" style="display:block;margin-top:6px"></small>
       <div style="display:flex;gap:12px;margin-top:8px"><input name="lat" placeholder="Latitude" value="${c.lat ?? ''}" style="flex:1"><input name="lng" placeholder="Longitude" value="${c.lng ?? ''}" style="flex:1"></div></div>
     <div class="campo inteiro">Percurso principal (arquivo GPX) <small>Exporte do Strava, do Garmin ou do site da prova. Se cada distância tiver um trajeto diferente, envie o GPX de cada uma lá embaixo, em Distâncias; este campo pode ficar vazio.</small>
-      <input type="file" id="gpxArquivo" accept=".gpx,application/gpx+xml" style="height:auto;padding:10px">
+      <input type="file" id="gpxArquivo" accept=".gpx,.kml,.kmz,application/gpx+xml" style="height:auto;padding:10px">
       <small id="gpxInfo">${c.percurso ? `Percurso salvo: ${String(c.percurso_km).replace('.', ',')} km${c.subida_m != null ? `, +${c.subida_m} m de subida` : ''}.` : 'Nenhum percurso enviado.'}</small>
       ${c.percurso ? '<label class="check"><input type="checkbox" name="remover_percurso"> Remover o percurso salvo</label>' : ''}</div>
     <div class="campo inteiro">Incorporação do Strava <small>Cole o código HTML do botão "Incorporar" na página do percurso no Strava. Exibido como mapa quando não há GPX, ou como seção adicional quando há.</small>
       <textarea id="stravaEmbedCode" rows="3" style="font-size:11px;font-family:monospace;resize:vertical;width:100%" placeholder='<div class="strava-embed-placeholder" data-embed-type="route" data-embed-id="..." data-token="..."></div>'></textarea>
       <small id="stravaEmbedMsg">${c.strava_embed ? `✅ Embed salvo: rota ${c.strava_embed.id}. Cole um novo código para substituir, ou deixe vazio e salve para manter.` : 'Nenhum embed salvo. Cole o código acima para adicionar.'}</small>
       ${c.strava_embed ? '<label class="check"><input type="checkbox" id="stravaEmbedRm"> Remover embed do Strava</label>' : ''}</div>
-    <div class="inteiro"><div class="campo" style="margin-bottom:8px">Distâncias</div><div id="distancias">${(c.corrida_distancias || [{}]).map(linhaDist).join('')}</div><button type="button" class="btn btn-linha" id="addDist">Adicionar distância</button>
+    <div class="inteiro"><div class="campo" style="margin-bottom:8px">Distâncias</div><div id="distancias">${(c.corrida_distancias || [{}]).map(linhaDist).join('')}</div><div class="dist-acoes"><button type="button" class="btn btn-linha" id="addDist">Adicionar distância</button><label class="btn btn-linha">Importar vários percursos<input type="file" id="lotePercursos" accept=".gpx,.kml,.kmz,application/gpx+xml" multiple hidden></label><small id="loteInfo"></small></div>
       <div class="campo" style="margin-top:14px">Percursos do Strava na página do organizador <small>Cole o link da página que mostra os mapas do Strava. Cada rota vira o embed e o GPX da distância com a mesma quilometragem. Vazio: usa o link de inscrição.</small>
         <div class="busca-linha"><input id="stravaPagina" type="url" placeholder="https://"><button type="button" class="btn btn-cone" id="buscarStrava">Buscar percursos do Strava</button></div>
         <small id="stravaPaginaInfo"></small></div></div>
@@ -2351,11 +2389,11 @@ function formCorrida(c = {}, pendente = null) {
     if (e.target.matches('[data-gpx-rm]')) { $('[data-gpx-info]', el).textContent = e.target.checked ? 'O percurso desta distância será removido ao salvar.' : `Percurso salvo: ${infoPerc(percDist.get(el))}.`; return; }
     if (!e.target.matches('[data-gpx-dist]')) return;
     const arq = e.target.files[0]; if (!arq) return;
-    try { aplicarGpx(el, await arq.text(), 'lido'); }
-    catch (err) { $('[data-gpx-info]', el).textContent = `${err.message} Confira se é um arquivo .gpx.`; }
+    try { aplicarPontos(el, await lerArquivoPercurso(arq), 'lido'); }
+    catch (err) { $('[data-gpx-info]', el).textContent = `${err.message} Confira se é um arquivo GPX, KML ou KMZ.`; }
   });
-  const aplicarGpx = (el, texto, como) => {
-    const pts = lerGpx(texto); const p = prepararPercurso(pts);
+  const aplicarPontos = (el, pts, como = 'lido') => {
+    const p = prepararPercurso(pts);
     percDist.set(el, p); el.dataset.gpxNovo = '1';
     const rm = $('[data-gpx-rm]', el); if (rm) rm.checked = false;
     $('[data-gpx-info]', el).textContent = `Percurso ${como}: ${infoPerc(p)}. É salvo junto com a corrida.`;
@@ -2363,6 +2401,7 @@ function formCorrida(c = {}, pendente = null) {
     if (!f.lat.value) { f.lat.value = pts[0][0].toFixed(6); f.lng.value = pts[0][1].toFixed(6); }
     desenharDist(el, p);
   };
+  const aplicarGpx = (el, texto, como) => { aplicarPontos(el, lerGpx(texto), como); };
   const importarStrava = async (el, btn) => {
     const cod = $('[data-strava-code]', el)?.value || '';
     const id = (cod.match(/data-embed-id="(\d+)"/) || cod.match(/strava\.com\/routes\/(\d+)/) || [])[1] || JSON.parse(el.dataset.stravaJson || 'null')?.id;
@@ -2427,6 +2466,30 @@ function formCorrida(c = {}, pendente = null) {
     finally { btn.disabled = false; btn.textContent = 'Buscar percursos do Strava'; }
   });
   $('#addDist').addEventListener('click', () => $('#distancias').insertAdjacentHTML('beforeend', linhaDist()));
+
+  $('#lotePercursos').addEventListener('change', async (e) => {
+    const arqs = [...e.target.files]; if (!arqs.length) return;
+    const info = $('#loteInfo'); info.textContent = 'Lendo arquivos…';
+    const usadas = new Set(); const msgs = [];
+    for (const arq of arqs) {
+      let pts, p;
+      try { pts = await lerArquivoPercurso(arq); p = prepararPercurso(pts); }
+      catch (err) { msgs.push(`${arq.name}: ${err.message}`); continue; }
+      const km = p.percurso_km;
+      let el = $$('.dist-form', f).find((r) => !usadas.has(r) && (() => { const v = parseFloat($('[name=km]', r).value) || prepararPercurso(percDist.get(r)?.percurso?.map((x) => x) || [])?.percurso_km; return v && Math.abs(v - km) / km <= 0.15; })());
+      if (!el) {
+        const rotulo = arq.name.replace(/\.[^.]+$/, '').replace(/_/g, ' ');
+        $('#distancias').insertAdjacentHTML('beforeend', linhaDist({ rotulo }));
+        el = $$('.dist-form', f).pop();
+      }
+      usadas.add(el);
+      aplicarPontos(el, pts, `lido (${arq.name})`);
+      msgs.push(`${arq.name} → ${$('[name=rotulo]', el).value || Math.round(km) + 'K'}`);
+    }
+    info.textContent = msgs.join(' · ');
+    e.target.value = '';
+  });
+
   $('#distancias').addEventListener('click', (e) => {
     if (e.target.closest('[data-rm]')) e.target.closest('.dist-form').remove();
     const b = e.target.closest('[data-strava-gpx]'); if (b) importarStrava(b.closest('.dist-form'), b);
@@ -2522,14 +2585,14 @@ function formCorrida(c = {}, pendente = null) {
   $('#gpxArquivo').addEventListener('change', async (e) => {
     const arq = e.target.files[0]; if (!arq) return;
     try {
-      const pts = lerGpx(await arq.text());
+      const pts = await lerArquivoPercurso(arq);
       gpxNovo = prepararPercurso(pts);
       $('#gpxInfo').textContent = `Percurso lido: ${String(gpxNovo.percurso_km).replace('.', ',')} km` + (gpxNovo.subida_m != null ? `, +${gpxNovo.subida_m} m de subida e −${gpxNovo.descida_m} m de descida.` : '. O arquivo não tem altitude, então a altimetria e o simulador vão considerar o trajeto plano.') + ' Ele é salvo junto com a corrida.';
       if (!f.lat.value) { f.lat.value = pts[0][0].toFixed(6); f.lng.value = pts[0][1].toFixed(6); marcar(L.latLng(pts[0][0], pts[0][1])); }
       if (gpxLinha) gpxLinha.remove();
       gpxLinha = L.polyline(gpxNovo.percurso.map((p) => [p[0], p[1]]), { color: '#FF4D00', weight: 3 }).addTo(mapaForm);
       mapaForm.fitBounds(gpxLinha.getBounds().pad(0.1));
-    } catch (err) { gpxNovo = null; $('#gpxInfo').textContent = `${err.message} Confira se é um arquivo .gpx exportado de um app de corrida.`; }
+    } catch (err) { gpxNovo = null; $('#gpxInfo').textContent = `${err.message} Confira se é um arquivo GPX, KML ou KMZ exportado de um app de corrida.`; }
   });
 
   // descrição automática: continua marcada enquanto ninguém editar o texto
