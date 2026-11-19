@@ -1845,7 +1845,7 @@ async function carregarStravaClubs() {
         </tr>`).join('') : '<tr><td colspan="4" class="muted">Nenhum clube cadastrado.</td></tr>'}
       </tbody></table>
       <form id="formAddClub" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
-        <label class="campo" style="flex:1;min-width:140px">Slug ou ID<input id="clubSlug" placeholder="corredeterca" required></label>
+        <label class="campo" style="flex:1;min-width:140px">Link ou slug do clube<input id="clubSlug" placeholder="https://www.strava.com/clubs/corredeterca" required></label>
         <label class="campo" style="flex:2;min-width:160px">Nome<input id="clubNome" placeholder="Corre de Terça"></label>
         <button type="submit" class="btn btn-cone">Adicionar clube</button>
       </form>`;
@@ -1874,7 +1874,8 @@ async function carregarStravaClubs() {
 
     $('#formAddClub', box)?.addEventListener('submit', async (ev) => {
       ev.preventDefault();
-      const slugVal = $('#clubSlug', box).value.trim();
+      const bruto = $('#clubSlug', box).value.trim();
+      const slugVal = (bruto.match(/strava\.com\/clubs\/([^/?#\s]+)/i)?.[1] || bruto).replace(/^\/+|\/+$/g, '');
       const nomeVal = $('#clubNome', box).value.trim();
       if (!slugVal) return;
       const { error: e } = await sb.from('strava_clubes').insert({ slug: slugVal, nome: nomeVal || null });
