@@ -1811,6 +1811,81 @@ async function adminRobo() {
   ${execs.map((e) => { const st = situacaoExec(e); return `<tr><td>${quando(e.inicio)}${e.origem === 'admin' ? '<br><small class="muted">pelo admin</small>' : ''}</td><td><b>${esc(e.rota)}</b><br><small class="muted">${esc(e.parametros || '')}</small></td><td><span class="status ${ROT[st][0]}">${ROT[st][1]}</span></td><td>${dur(e)}</td><td>${resumo(e)}</td></tr>`; }).join('') || '<tr><td colspan="5" class="muted">Nenhuma rodada registrada ainda.</td></tr>'}
   </tbody></table></div>`;
   carregarSugestoesPercurso();
+  carregarStravaClubs();
+}
+
+// ── Clubes do Strava monitorados pelo robô ────────────────────────────────────
+async function carregarStravaClubs() {
+  const box = document.createElement('div');
+  box.id = 'stravaClubs';
+  box.className = 'caixa';
+  box.innerHTML = '<p class="muted">Carregando clubes…</p>';
+  $('#conteudoAdmin').appendChild(box);
+
+  const renderClubes = async () => {
+    const { data, error } = await sb.from('strava_clubes').select('*').order('id');
+    if (error) {
+      box.innerHTML = `<div class="aviso erro">Tabela strava_clubes não existe. Rode o script <b>sql/28-strava-clubes.sql</b> no Supabase.</div>`;
+      return;
+    }
+    const lista = data || [];
+    box.innerHTML = `
+      <div class="robo-sec-topo" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+        <h2 class="display" style="margin:0">Clubes do Strava <small class="muted">(${lista.length})</small></h2>
+        <button type="button" class="btn btn-cone" id="btnSincStrava">Sincronizar agora</button>
+        <small id="sincStravaInfo" class="muted"></small>
+      </div>
+      <p class="muted"><small>O robô roda diariamente às 11h e importa os próximos eventos de cada clube ativo como rascunhos em Pendentes. Você precisa ser membro do clube no Strava.</small></p>
+      <table class="tab" style="margin-bottom:12px"><thead><tr><th>Slug / ID do clube</th><th>Nome</th><th>Ativo</th><th></th></tr></thead><tbody>
+        ${lista.length ? lista.map((c) => `<tr>
+          <td><a href="https://www.strava.com/clubs/${esc(c.slug)}" target="_blank" rel="noopener noreferrer">${esc(c.slug)}</a></td>
+          <td>${esc(c.nome || '')}</td>
+          <td><label class="check"><input type="checkbox" data-ativo="${c.id}"${c.ativo ? ' checked' : ''}> ativo</label></td>
+          <td><button type="button" class="btn btn-linha" data-rm-clube="${c.id}">×</button></td>
+        </tr>`).join('') : '<tr><td colspan="4" class="muted">Nenhum clube cadastrado.</td></tr>'}
+      </tbody></table>
+      <form id="formAddClub" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <label class="campo" style="flex:1;min-width:140px">Slug ou ID<input id="clubSlug" placeholder="corredeterca" required></label>
+        <label class="campo" style="flex:2;min-width:160px">Nome<input id="clubNome" placeholder="Corre de Terça"></label>
+        <button type="submit" class="btn btn-cone">Adicionar clube</button>
+      </form>`;
+
+    $('#btnSincStrava', box)?.addEventListener('click', async (ev) => {
+      const btn = ev.currentTarget, info = $('#sincStravaInfo', box);
+      btn.disabled = true; info.textContent = 'Sincronizando…';
+      try {
+        const r = await fetch('/api/coletar-strava', { headers: { authorization: `Bearer ${session.access_token}` } });
+        const j = await r.json().catch(() => ({}));
+        info.textContent = r.ok ? `${j.novos} novos de ${j.coletados} ocorrências.` : (j.erro || `Erro ${r.status}`);
+      } catch (e) { info.textContent = e.message; }
+      btn.disabled = false;
+    });
+
+    $$('[data-rm-clube]', box).forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm('Remover clube?')) return;
+      const { error: e } = await sb.from('strava_clubes').delete().eq('id', b.dataset.rmClube);
+      if (e) return toast('Erro: ' + e.message);
+      renderClubes();
+    }));
+
+    $$('[data-ativo]', box).forEach((cb) => cb.addEventListener('change', async () => {
+      await sb.from('strava_clubes').update({ ativo: cb.checked }).eq('id', cb.dataset.ativo);
+    }));
+
+    $('#formAddClub', box)?.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const slugVal = $('#clubSlug', box).value.trim();
+      const nomeVal = $('#clubNome', box).value.trim();
+      if (!slugVal) return;
+      const { error: e } = await sb.from('strava_clubes').insert({ slug: slugVal, nome: nomeVal || null });
+      if (e) return toast('Erro: ' + e.message);
+      $('#clubSlug', box).value = '';
+      $('#clubNome', box).value = '';
+      renderClubes();
+    });
+  };
+
+  await renderClubes();
 }
 
 // ── Percursos achados pelo robô (/api/enriquecer?modo=percurso): admin aprova (vai para a distância) ou descarta ──
