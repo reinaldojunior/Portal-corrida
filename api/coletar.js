@@ -209,10 +209,13 @@ async function stravaEventosClubeStrava(clubeSlug, accessToken) {
 
 const stravaHoje = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
 
+const stravaDiag = [];
+
 // a API às vezes não traz upcoming_occurrences; a página pública do evento traz a próxima data
 async function stravaOcorrenciasPublicas(clubId, eventId) {
   const r = await fetch(`https://www.strava.com/clubs/${clubId}/group_events/${eventId}`, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR' }, signal: AbortSignal.timeout(15000) }).catch(() => null);
   const html = r && r.ok ? await r.text() : '';
+  stravaDiag.push({ ev: String(eventId), status: r ? r.status : 'falhou', bytes: html.length, next: html.includes('__NEXT_DATA__') });
   const s = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/)?.[1] || '';
   const i = s.indexOf('"occurrences"');
   if (i < 0) return [];
@@ -288,7 +291,8 @@ async function coletarStrava() {
         await Promise.all(semData.slice(k, k + 4).map(async (ev) => { ev._ocorrencias = await stravaOcorrenciasPublicas(id, ev.id); }));
       }
       const itens = stravaEventosParaItens(eventos, clube.nome, id);
-      porClube.push({ clube: clube.slug, eventos: eventos.length, ocorrencias: itens.length, ...(erro ? { erro } : {}) });
+      const amostra = eventos.slice(0, 4).map((ev) => ({ id: String(ev.id), titulo: ev.title, upcoming: ev.upcoming_occurrences, campos: Object.keys(ev).join(',') }));
+      porClube.push({ clube: clube.slug, eventos: eventos.length, ocorrencias: itens.length, ...(erro ? { erro } : {}), amostra, paginas: stravaDiag.splice(0).slice(0, 6) });
       todosItens.push(...itens);
     }
     if (!todosItens.length) { await logFim(true, { coletados: 0, novos: 0, clubes: porClube }, null); return { coletados: 0, novos: 0, clubes: porClube }; }
