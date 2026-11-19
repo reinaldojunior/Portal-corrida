@@ -2,7 +2,7 @@
   "cleanUrls": true,
   "functions": {
     "api/kml-proxy.js": {
-      "maxDuration": 20
+      "maxDuration": 40
     },
     "api/mapbox-token.js": {
       "maxDuration": 5

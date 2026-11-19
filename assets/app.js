@@ -2303,7 +2303,10 @@ function formCorrida(c = {}, pendente = null) {
       <textarea id="stravaEmbedCode" rows="3" style="font-size:11px;font-family:monospace;resize:vertical;width:100%" placeholder='<div class="strava-embed-placeholder" data-embed-type="route" data-embed-id="..." data-token="..."></div>'></textarea>
       <small id="stravaEmbedMsg">${c.strava_embed ? `✅ Embed salvo: rota ${c.strava_embed.id}. Cole um novo código para substituir, ou deixe vazio e salve para manter.` : 'Nenhum embed salvo. Cole o código acima para adicionar.'}</small>
       ${c.strava_embed ? '<label class="check"><input type="checkbox" id="stravaEmbedRm"> Remover embed do Strava</label>' : ''}</div>
-    <div class="inteiro"><div class="campo" style="margin-bottom:8px">Distâncias</div><div id="distancias">${(c.corrida_distancias || [{}]).map(linhaDist).join('')}</div><button type="button" class="btn btn-linha" id="addDist">Adicionar distância</button></div>
+    <div class="inteiro"><div class="campo" style="margin-bottom:8px">Distâncias</div><div id="distancias">${(c.corrida_distancias || [{}]).map(linhaDist).join('')}</div><button type="button" class="btn btn-linha" id="addDist">Adicionar distância</button>
+      <div class="campo" style="margin-top:14px">Percursos do Strava na página do organizador <small>Cole o link da página que mostra os mapas do Strava. Cada rota vira o embed e o GPX da distância com a mesma quilometragem. Vazio: usa o link de inscrição.</small>
+        <div class="busca-linha"><input id="stravaPagina" type="url" placeholder="https://"><button type="button" class="btn btn-cone" id="buscarStrava">Buscar percursos do Strava</button></div>
+        <small id="stravaPaginaInfo"></small></div></div>
     <div class="campo inteiro">Descrição <small>Pode colar texto formatado: negrito, itálico, listas e links são mantidos.</small>${c.descricao_auto ? '<small class="desc-auto">Texto escrito automaticamente a partir da página de inscrição. Confira os dados; ao editar, ele passa a ser seu.</small>' : ''}${editorRico('descricao', c.descricao)}</div>
     <label class="campo">Organizador<input name="organizador" value="${esc(c.organizador || '')}"></label>
     ${campoFoto(c.imagem_url)}
@@ -2361,16 +2364,58 @@ function formCorrida(c = {}, pendente = null) {
       const r = await fetch(`/api/kml-proxy?strava=${encodeURIComponent(id)}`, { headers: { authorization: `Bearer ${session.access_token}` } });
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
-        if (j.conectar) {
-          if (confirm(`${j.erro}\n\nVocê vai para o Strava autorizar e volta para o admin. O que não foi salvo neste formulário se perde. Continuar?`)) location.href = '/api/kml-proxy?strava_auth=1';
-          info.textContent = j.erro; return;
-        }
+        if (j.conectar) { pedirConexaoStrava(j); info.textContent = j.erro; return; }
         throw new Error(j.erro || `erro ${r.status}`);
       }
       aplicarGpx(el, await r.text(), `importado do Strava (rota ${id})`);
     } catch (err) { info.textContent = `Não deu para importar: ${err.message}`; }
     finally { btn.disabled = false; btn.textContent = txt; }
   };
+  const pedirConexaoStrava = (j) => {
+    if (confirm(`${j.erro}\n\nVocê vai para o Strava autorizar e volta para o admin. O que não foi salvo neste formulário se perde. Continuar?`)) location.href = '/api/kml-proxy?strava_auth=1';
+  };
+  $('#buscarStrava').addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget, info = $('#stravaPaginaInfo');
+    const link = $('#stravaPagina').value.trim() || f.link_inscricao.value.trim();
+    if (!link) { info.textContent = 'Cole o link da página do organizador.'; return; }
+    const { data: { session } } = await sb.auth.getSession();
+    btn.disabled = true; btn.textContent = 'Buscando… (até 30 s)'; info.textContent = '';
+    try {
+      const r = await fetch(`/api/kml-proxy?strava_pagina=${encodeURIComponent(link)}`, { headers: { authorization: `Bearer ${session.access_token}` } });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { if (j.conectar) pedirConexaoStrava(j); throw new Error(j.erro || `erro ${r.status}`); }
+      const usadas = new Set(), msgs = [];
+      for (const rt of j.rotas) {
+        if (rt.erro || !rt.gpx) { msgs.push(`rota ${rt.id}: ${rt.erro || 'sem GPX'}`); continue; }
+        const km = rt.km || prepararPercurso(lerGpx(rt.gpx)).percurso_km;
+        // casa com a distância de km mais próximo (até 15% de diferença); senão cria uma nova
+        let el = null, melhor = 0.15;
+        for (const d of $$('.dist-form', f)) {
+          if (usadas.has(d)) continue;
+          const alvo = Number($('[name=km]', d).value) || Number((($('[name=rotulo]', d).value.match(/[\d.,]+/) || [])[0] || '').replace(',', '.'));
+          if (!alvo) continue;
+          const dif = Math.abs(km - alvo) / alvo;
+          if (dif <= melhor) { melhor = dif; el = d; }
+        }
+        if (!el) {
+          const vazio = $$('.dist-form', f).find((d) => !usadas.has(d) && !$('[name=rotulo]', d).value.trim() && !$('[name=km]', d).value);
+          if (vazio) el = vazio;
+          else { $('#distancias').insertAdjacentHTML('beforeend', linhaDist()); el = $$('.dist-form', f).pop(); }
+          $('[name=rotulo]', el).value = `${Math.round(km)}K`;
+        }
+        usadas.add(el);
+        aplicarGpx(el, rt.gpx, `importado do Strava (${rt.nome || 'rota ' + rt.id})`);
+        if (rt.token) {
+          el.dataset.stravaJson = JSON.stringify({ id: rt.id, token: rt.token, hash: rt.hash || null });
+          const aviso = $('.dist-strava > small', el); if (aviso) aviso.textContent = `✅ Embed encontrado: rota ${rt.id}. É salvo junto com a corrida.`;
+          $('[data-mapa-sel]', el).value = 'strava';
+        }
+        msgs.push(`${$('[name=rotulo]', el).value}: ${rt.nome || 'rota ' + rt.id}`);
+      }
+      info.textContent = `${j.rotas.length} rota(s) na página. ${msgs.join(' · ')}. Confira e clique em Salvar.`;
+    } catch (err) { info.textContent = `Não deu para buscar: ${err.message}`; }
+    finally { btn.disabled = false; btn.textContent = 'Buscar percursos do Strava'; }
+  });
   $('#addDist').addEventListener('click', () => $('#distancias').insertAdjacentHTML('beforeend', linhaDist()));
   $('#distancias').addEventListener('click', (e) => {
     if (e.target.closest('[data-rm]')) e.target.closest('.dist-form').remove();
