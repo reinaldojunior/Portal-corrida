@@ -2306,7 +2306,10 @@ function formCorrida(c = {}, pendente = null) {
       <textarea id="stravaEmbedCode" rows="3" style="font-size:11px;font-family:monospace;resize:vertical;width:100%" placeholder='<div class="strava-embed-placeholder" data-embed-type="route" data-embed-id="..." data-token="..."></div>'></textarea>
       <small id="stravaEmbedMsg">${c.strava_embed ? `✅ Embed salvo: rota ${c.strava_embed.id}. Cole um novo código para substituir, ou deixe vazio e salve para manter.` : 'Nenhum embed salvo. Cole o código acima para adicionar.'}</small>
       ${c.strava_embed ? '<label class="check"><input type="checkbox" id="stravaEmbedRm"> Remover embed do Strava</label>' : ''}</div>
-    <div class="inteiro"><div class="campo" style="margin-bottom:8px">Distâncias</div><div id="distancias">${(c.corrida_distancias || [{}]).map(linhaDist).join('')}</div><button type="button" class="btn btn-linha" id="addDist">Adicionar distância</button></div>
+    <div class="inteiro"><div class="campo" style="margin-bottom:8px">Distâncias</div><div id="distancias">${(c.corrida_distancias || [{}]).map(linhaDist).join('')}</div><button type="button" class="btn btn-linha" id="addDist">Adicionar distância</button>
+      <div class="campo" style="margin-top:14px">Percursos do Strava na página do organizador <small>Cole o link da página que mostra os mapas do Strava. Cada rota vira o embed e o GPX da distância com a mesma quilometragem. Vazio: usa o link de inscrição.</small>
+        <div class="busca-linha"><input id="stravaPagina" type="url" placeholder="https://"><button type="button" class="btn btn-cone" id="buscarStrava">Buscar percursos do Strava</button></div>
+        <small id="stravaPaginaInfo"></small></div></div>
     <div class="campo inteiro">Descrição <small>Pode colar texto formatado: negrito, itálico, listas e links são mantidos.</small>${c.descricao_auto ? '<small class="desc-auto">Texto escrito automaticamente a partir da página de inscrição. Confira os dados; ao editar, ele passa a ser seu.</small>' : ''}${editorRico('descricao', c.descricao)}</div>
     <label class="campo">Organizador<input name="organizador" value="${esc(c.organizador || '')}"></label>
     ${campoFoto(c.imagem_url)}
