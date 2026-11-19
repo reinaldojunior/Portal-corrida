@@ -623,6 +623,10 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
 .dist-gpx{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:2px}
 .dist-gpx .gpx-btn{height:36px;font-size:13px;cursor:pointer}
 .dist-gpx small{color:var(--cinza)}
+.dist-strava{grid-column:1/-1;margin-top:4px}
+.dist-strava-topo{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.dist-strava-status{color:var(--cinza)}
+.btn-mini{padding:0 10px;height:28px;font-size:12px;border-radius:6px;border:1px solid var(--borda);background:var(--fundo-card);cursor:pointer;color:var(--texto);line-height:1}
 .perc-abas{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
 
 /* plano de prova: estratégia e subidas */
