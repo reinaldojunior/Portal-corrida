@@ -483,4 +483,4 @@ module.exports.conferirPino = conferirPino;
 module.exports.centroCidade = centroCidade;
 
 module.exports.textoDaPagina = textoDaPagina;
-module.exports.web = { urlValida, hostPublico, baixarEvento, UA };
+module.exports.web = { urlValida, hostPublico, baixarEvento, baixar, UA };
