@@ -752,6 +752,7 @@ a.ferr-zonas:hover{color:#fff;outline:2px solid var(--cone)}
 @media (min-width:1101px){
   .pagina-corrida .bloco-perc.com-sim,.pagina-corrida .sim.sim-lado{height:clamp(560px,calc(100vh - 110px),860px)}
   .pagina-corrida .bloco-strava.com-sim{min-height:clamp(560px,calc(100vh - 110px),860px)}
+  .pagina-corrida .sim.sim-lado.com-strava{height:auto;min-height:clamp(560px,calc(100vh - 110px),860px)}
   .pagina-corrida .bloco-perc.com-sim{padding:20px 22px}
   .pagina-corrida .bloco-perc.com-sim .mapa-perc{min-height:200px}
   .pagina-corrida .sim.sim-lado{display:flex;flex-direction:column;padding:18px 20px;overflow:hidden}

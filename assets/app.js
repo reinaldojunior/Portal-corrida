@@ -625,9 +625,10 @@ async function montarSimulador(c) {
   if (!box) return;
   simCorrida = c; simPts = comDistancia(c);
   const tot = simPts[simPts.length - 1].km;
-  if (!simEstado.alvo || simEstado.corrida !== c.id) {
+  const chave = `${c.id}|${tot.toFixed(1)}`;
+  if (!simEstado.alvo || simEstado.corrida !== chave) {
     const ref = estado.pace10 ? estado.pace10 * Math.pow(tot / 10, 1.06) * 10 : tot * 330;
-    simEstado = { alvo: fmt(Math.round(ref / 60) * 60), comClima: false, km: 0, corrida: c.id, est: 0, adj: 100, passo: 1 };
+    simEstado = { alvo: fmt(Math.round(ref / 60) * 60), comClima: false, km: 0, corrida: chave, est: 0, adj: 100, passo: 1 };
   }
   $('#simAlvo').value = simEstado.alvo;
   $('#simEst').value = simEstado.est; $('#simAdj').value = simEstado.adj; $('#simPasso').value = String(simEstado.passo);
@@ -1373,7 +1374,7 @@ function mostrarCorrida(slug, percIdx = null) {
   const brl = (v) => v == null ? 'Preço a confirmar' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const se = pSel?.strava_embed || c0?.strava_embed;
   const usarStrava = !!(pSel?.mapa_principal === 'strava' && se?.id && se?.token);
-  const simHtml = temPerc && mod('simulador') ? `<section class="caixa sim sim-lado" id="simBox" aria-labelledby="simTit">
+  const simHtml = temPerc && mod('simulador') ? `<section class="caixa sim sim-lado${usarStrava ? ' com-strava' : ''}" id="simBox" aria-labelledby="simTit">
     <div class="sim-cab"><div><span class="rot">Simulador da prova</span><h2 class="display" id="simTit">Monte a sua estratégia</h2></div>
       <div class="sim-entrada"><label class="campo">Tempo alvo<input id="simAlvo" inputmode="numeric"></label></div></div>
     <div class="sim-grade">
