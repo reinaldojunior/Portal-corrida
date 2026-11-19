@@ -1854,7 +1854,7 @@ async function carregarStravaClubs() {
       const btn = ev.currentTarget, info = $('#sincStravaInfo', box);
       btn.disabled = true; info.textContent = 'Sincronizando…';
       try {
-        const r = await fetch('/api/coletar?grupo=strava', { headers: { authorization: `Bearer ${session.access_token}` } });
+        const r = await fetchAdmin('/api/coletar?grupo=strava');
         const j = await r.json().catch(() => ({}));
         info.textContent = r.ok ? `${j.novos} novos de ${j.coletados} ocorrências.` : (j.erro || `Erro ${r.status}`);
       } catch (e) { info.textContent = e.message; }
