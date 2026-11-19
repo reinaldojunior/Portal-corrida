@@ -871,7 +871,8 @@ function desenharPos(centralizar) {
   [circuloGrande, circuloCompacto].forEach((c) => c && c.setLatLng(o));
   desenharVoce(); rotuloPerto();
   if (centralizar) {
-    if (mapaGrande) mapaGrande.setView(estado.pos || [-14.2, -51.9], estado.pos ? 11 : 4);
+    const centro = estado.pos || estado.posCidade;
+    if (mapaGrande) mapaGrande.setView(centro || [-14.2, -51.9], centro ? 11 : 4);
     if (mapaCompacto) centralizarCompacto();
   }
   montarCartoes();
