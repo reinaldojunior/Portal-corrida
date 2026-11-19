@@ -147,11 +147,16 @@ async function coletar(estados, gravar, MAX_DETALHES = 35) {
 
 // ─── STRAVA CLUBES ───────────────────────────────────────────────────────────
 
+const chaveServico = () => {
+  if (!process.env.SUPABASE_SERVICE_KEY) throw new Error('SUPABASE_SERVICE_KEY não configurado.');
+  return process.env.SUPABASE_SERVICE_KEY;
+};
+
 async function sbGet(path, params = {}) {
   const u = new URL(`${SUPABASE_URL}/rest/v1/${path}`);
   for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
   const r = await fetch(u.toString(), {
-    headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${SUPABASE_KEY}`, accept: 'application/json' }
+    headers: { apikey: chaveServico(), authorization: `Bearer ${chaveServico()}`, accept: 'application/json' }
   });
   const j = await r.json().catch(() => null);
   if (!r.ok) throw new Error(`Supabase GET ${path}: ${r.status} ${j?.message || ''}`);
@@ -258,7 +263,7 @@ async function coletarStrava() {
         await Promise.all(paraInserir.map((i) =>
           fetch(`${SUPABASE_URL}/rest/v1/corridas_pendentes?chave=eq.${encodeURIComponent(i.chave)}`, {
             method: 'PATCH',
-            headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${SUPABASE_KEY}`, 'content-type': 'application/json', prefer: 'return=minimal' },
+            headers: { apikey: chaveServico(), authorization: `Bearer ${chaveServico()}`, 'content-type': 'application/json', prefer: 'return=minimal' },
             body: JSON.stringify({ strava_event_id: i.strava_event_id })
           }).catch(() => null)
         ));

@@ -12,6 +12,8 @@ create table if not exists strava_clubes (
 alter table strava_clubes enable row level security;
 create policy "admin_tudo" on strava_clubes
   using (is_admin()) with check (is_admin());
+grant select, insert, update, delete on strava_clubes to authenticated;
+grant usage, select on sequence strava_clubes_id_seq to authenticated;
 
 -- Rastreia quais eventos do Strava já foram importados (evita duplicatas)
 alter table corridas add column if not exists strava_event_id text;
