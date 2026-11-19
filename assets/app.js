@@ -2476,7 +2476,7 @@ function formCorrida(c = {}, pendente = null) {
       try { pts = await lerArquivoPercurso(arq); p = prepararPercurso(pts); }
       catch (err) { msgs.push(`${arq.name}: ${err.message}`); continue; }
       const km = p.percurso_km;
-      let el = $$('.dist-form', f).find((r) => !usadas.has(r) && (() => { const v = parseFloat($('[name=km]', r).value) || prepararPercurso(percDist.get(r)?.percurso?.map((x) => x) || [])?.percurso_km; return v && Math.abs(v - km) / km <= 0.15; })());
+      let el = $$('.dist-form', f).find((r) => !usadas.has(r) && (() => { const v = parseFloat($('[name=km]', r).value) || percDist.get(r)?.percurso_km; return v && Math.abs(v - km) / km <= 0.15; })());
       if (!el) {
         const rotulo = arq.name.replace(/\.[^.]+$/, '').replace(/_/g, ' ');
         $('#distancias').insertAdjacentHTML('beforeend', linhaDist({ rotulo }));
