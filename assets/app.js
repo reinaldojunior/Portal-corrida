@@ -489,12 +489,20 @@ function lerKml(texto) {
   const doc = new DOMParser().parseFromString(texto, 'application/xml');
   if (doc.querySelector('parsererror')) throw new Error('Arquivo KML inválido.');
   const pts = [];
-  for (const tag of doc.getElementsByTagName('coordinates')) {
+  const parseCoordsTag = (tag) => {
     for (const par of tag.textContent.trim().split(/[\s\n]+/)) {
       const p = par.split(','); if (p.length < 2) continue;
       const lon = parseFloat(p[0]), lat = parseFloat(p[1]), ele = p[2] ? parseFloat(p[2]) : NaN;
       if (Number.isFinite(lat) && Number.isFinite(lon)) pts.push([lat, lon, Number.isFinite(ele) && ele !== 0 ? ele : null]);
     }
+  };
+  // Usa só LineString (trajeto), ignorando Point/waypoints que inflariam a distância
+  for (const ls of doc.getElementsByTagName('LineString')) {
+    for (const tag of ls.getElementsByTagName('coordinates')) parseCoordsTag(tag);
+  }
+  // Fallback: se não houver LineString, tenta qualquer coordinates (ex.: gx:Track)
+  if (pts.length < 2) {
+    for (const tag of doc.getElementsByTagName('coordinates')) parseCoordsTag(tag);
   }
   if (pts.length < 2) throw new Error('O arquivo não tem um trajeto com pontos.');
   return pts;
@@ -2476,7 +2484,7 @@ function formCorrida(c = {}, pendente = null) {
       try { pts = await lerArquivoPercurso(arq); p = prepararPercurso(pts); }
       catch (err) { msgs.push(`${arq.name}: ${err.message}`); continue; }
       const km = p.percurso_km;
-      let el = $$('.dist-form', f).find((r) => !usadas.has(r) && (() => { const v = parseFloat($('[name=km]', r).value) || prepararPercurso(percDist.get(r)?.percurso?.map((x) => x) || [])?.percurso_km; return v && Math.abs(v - km) / km <= 0.15; })());
+      let el = $$('.dist-form', f).find((r) => !usadas.has(r) && (() => { const v = parseFloat($('[name=km]', r).value) || percDist.get(r)?.percurso_km; return v && Math.abs(v - km) / km <= 0.15; })());
       if (!el) {
         const rotulo = arq.name.replace(/\.[^.]+$/, '').replace(/_/g, ' ');
         $('#distancias').insertAdjacentHTML('beforeend', linhaDist({ rotulo }));
