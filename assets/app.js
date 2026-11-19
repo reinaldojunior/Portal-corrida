@@ -1856,7 +1856,8 @@ async function carregarStravaClubs() {
       try {
         const r = await fetchAdmin('/api/coletar?grupo=strava');
         const j = await r.json().catch(() => ({}));
-        info.textContent = r.ok ? `${j.novos} novos de ${j.coletados} ocorrências.` : (j.erro || `Erro ${r.status}`);
+        const det = (j.clubes || []).map((c) => c.erro ? `${c.clube}: ${c.erro}` : `${c.clube}: ${c.eventos} evento(s)`).join(' · ');
+        info.textContent = r.ok ? `${j.novos} novos de ${j.coletados} ocorrências.${det ? ' ' + det : ''}` : (j.erro || `Erro ${r.status}`);
       } catch (e) { info.textContent = e.message; }
       btn.disabled = false;
     });

@@ -188,9 +188,12 @@ async function stravaEventosClubeStrava(clubeSlug, accessToken) {
   const r = await fetch(`https://www.strava.com/api/v3/clubs/${encodeURIComponent(clubeSlug)}/group_events`, {
     headers: { authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(15000)
   });
-  if (r.status === 404) { console.warn(`[Strava] Clube ${clubeSlug}: não encontrado (404).`); return []; }
-  if (!r.ok) { console.warn(`[Strava] Clube ${clubeSlug}: HTTP ${r.status}`); return []; }
-  return (await r.json().catch(() => [])) || [];
+  if (!r.ok) {
+    const motivo = r.status === 404 ? 'não encontrado ou a conta conectada não é membro' : r.status === 403 ? 'sem permissão (a conta conectada não é membro?)' : `HTTP ${r.status}`;
+    return { eventos: [], erro: motivo };
+  }
+  const j = await r.json().catch(() => null);
+  return { eventos: Array.isArray(j) ? j : [] };
 }
 
 const stravaHoje = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
@@ -247,12 +250,14 @@ async function coletarStrava() {
     const clubes = await sbGet('strava_clubes', { select: 'id,slug,nome', ativo: 'eq.true' });
     if (!clubes?.length) { await logFim(true, { coletados: 0, novos: 0 }, null); return { coletados: 0, novos: 0 }; }
     const accessToken = await stravaAccessToken();
-    const todosItens = [];
+    const todosItens = [], porClube = [];
     for (const clube of clubes) {
-      const eventos = await stravaEventosClubeStrava(clube.slug, accessToken);
-      todosItens.push(...stravaEventosParaItens(eventos, clube.nome));
+      const { eventos, erro } = await stravaEventosClubeStrava(clube.slug, accessToken);
+      const itens = stravaEventosParaItens(eventos, clube.nome);
+      porClube.push({ clube: clube.slug, eventos: eventos.length, ocorrencias: itens.length, ...(erro ? { erro } : {}) });
+      todosItens.push(...itens);
     }
-    if (!todosItens.length) { await logFim(true, { coletados: 0, novos: 0 }, null); return { coletados: 0, novos: 0 }; }
+    if (!todosItens.length) { await logFim(true, { coletados: 0, novos: 0, clubes: porClube }, null); return { coletados: 0, novos: 0, clubes: porClube }; }
     const novos = await stravaFiltrarExistentes(todosItens);
     let inseridas = 0;
     if (novos.length) {
@@ -269,8 +274,8 @@ async function coletarStrava() {
         ));
       }
     }
-    await logFim(true, { coletados: todosItens.length, novos: inseridas }, null);
-    return { coletados: todosItens.length, novos: inseridas };
+    await logFim(true, { coletados: todosItens.length, novos: inseridas, clubes: porClube }, null);
+    return { coletados: todosItens.length, novos: inseridas, clubes: porClube };
   } catch (e) { await logFim(false, null, e.message); throw e; }
 }
 
