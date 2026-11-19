@@ -199,42 +199,63 @@ async function stravaEventosClubeStrava(clubeSlug, accessToken) {
   });
   if (!r.ok) {
     const motivo = r.status === 404 ? 'não encontrado ou a conta conectada não é membro' : r.status === 403 ? 'sem permissão (a conta conectada não é membro?)' : `HTTP ${r.status}`;
-    return { eventos: [], erro: motivo };
+    return { id, eventos: [], erro: motivo };
   }
-  const j = await r.json().catch(() => null);
-  return { eventos: Array.isArray(j) ? j : [] };
+  // ids de evento passam de 2^53: lê como texto antes do JSON.parse para não perder dígitos
+  const txt = (await r.text().catch(() => '')).replace(/("id"\s*:\s*)(\d{16,})/g, '$1"$2"');
+  let j = null; try { j = JSON.parse(txt); } catch {}
+  return { id, eventos: Array.isArray(j) ? j : [] };
 }
 
 const stravaHoje = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
 
-function stravaEventosParaItens(eventos, clubeNome) {
+// a API às vezes não traz upcoming_occurrences; a página pública do evento traz a próxima data
+async function stravaOcorrenciasPublicas(clubId, eventId) {
+  const r = await fetch(`https://www.strava.com/clubs/${clubId}/group_events/${eventId}`, { headers: { 'user-agent': UA, 'accept-language': 'pt-BR' }, signal: AbortSignal.timeout(15000) }).catch(() => null);
+  const html = r && r.ok ? await r.text() : '';
+  const s = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/)?.[1] || '';
+  const i = s.indexOf('"occurrences"');
+  if (i < 0) return [];
+  try {
+    const arr = s.slice(s.indexOf('[', i));
+    let prof = 0, fim = 0;
+    for (let k = 0; k < arr.length; k++) {
+      if (arr[k] === '"') { for (k++; k < arr.length && arr[k] !== '"'; k++) if (arr[k] === '\\') k++; continue; }
+      if (arr[k] === '[' || arr[k] === '{') prof++;
+      else if ((arr[k] === ']' || arr[k] === '}') && --prof === 0) { fim = k + 1; break; }
+    }
+    return JSON.parse(arr.slice(0, fim)).map((o) => ({ quando: o.occurrenceDateTime, titulo: o.title, endereco: o.address }));
+  } catch { return []; }
+}
+
+function stravaEventosParaItens(eventos, clubeNome, clubId) {
   const itens = [];
   for (const ev of eventos) {
-    if (!ev.upcoming_occurrences?.length) continue;
-    const nome = limpar(ev.title || ev.name || '');
-    if (!nome) continue;
+    const ocorrencias = ev.upcoming_occurrences?.length
+      ? ev.upcoming_occurrences.map((q) => ({ quando: q }))
+      : (ev._ocorrencias || []);
     const cidade = limpar(ev.city || '');
     const estado = limpar(ev.state || '');
     const lat = ev.latitude || null;
     const lng = ev.longitude || null;
-    for (const ocorrencia of ev.upcoming_occurrences) {
-      const data = String(ocorrencia).slice(0, 10);
-      if (data < stravaHoje()) continue;
-      const eventoId = `${ev.id}-${data}`;
+    for (const oc of ocorrencias) {
+      const nome = limpar(oc.titulo || ev.title || ev.name || '');
+      const data = String(oc.quando || '').slice(0, 10);
+      if (!nome || !/^\d{4}-\d{2}-\d{2}$/.test(data) || data < stravaHoje()) continue;
       itens.push({
         chave: `strava-${slug(nome)}-${data}`,
-        strava_event_id: eventoId,
+        strava_event_id: `${ev.id}-${data}`,
         nome, cidade,
-        estado: estado.length === 2 ? estado.toUpperCase() : null,
+        estado: estado.length === 2 ? estado.toUpperCase() : (String(oc.endereco || ev.address || '').match(/\s([A-Z]{2})\s+\d{5}-?\d{3}/)?.[1] || null),
         data,
         lat: lat && Math.abs(lat) > 0.001 ? lat : null,
         lng: lng && Math.abs(lng) > 0.001 ? lng : null,
-        local_largada: limpar(ev.address || ''),
+        local_largada: limpar(oc.endereco || ev.address || ''),
         organizador: clubeNome || null,
         distancias: null,
-        link_inscricao: `https://www.strava.com/clubs/${ev.club_id}/group_events/${ev.id}`,
+        link_inscricao: `https://www.strava.com/clubs/${clubId}/group_events/${ev.id}`,
         fonte: 'Strava Clubes',
-        fonte_url: `https://www.strava.com/clubs/${ev.club_id}`
+        fonte_url: `https://www.strava.com/clubs/${clubId}`
       });
     }
   }
@@ -261,8 +282,12 @@ async function coletarStrava() {
     const accessToken = await stravaAccessToken();
     const todosItens = [], porClube = [];
     for (const clube of clubes) {
-      const { eventos, erro } = await stravaEventosClubeStrava(clube.slug, accessToken);
-      const itens = stravaEventosParaItens(eventos, clube.nome);
+      const { id, eventos, erro } = await stravaEventosClubeStrava(clube.slug, accessToken);
+      const semData = eventos.filter((ev) => !ev.upcoming_occurrences?.length && ev.id);
+      for (let k = 0; k < semData.length; k += 4) {
+        await Promise.all(semData.slice(k, k + 4).map(async (ev) => { ev._ocorrencias = await stravaOcorrenciasPublicas(id, ev.id); }));
+      }
+      const itens = stravaEventosParaItens(eventos, clube.nome, id);
       porClube.push({ clube: clube.slug, eventos: eventos.length, ocorrencias: itens.length, ...(erro ? { erro } : {}) });
       todosItens.push(...itens);
     }
