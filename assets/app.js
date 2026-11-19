@@ -2126,6 +2126,7 @@ function linhaDist(d = {}) {
     <div class="dist-strava"><label class="campo inteiro">Incorporação do Strava <small>Cole o código HTML do botão "Incorporar" na página do percurso no Strava.</small>
     <textarea data-strava-code rows="2" style="font-size:11px;font-family:monospace;resize:vertical;width:100%" placeholder='<div class="strava-embed-placeholder" data-embed-type="route" data-embed-id="..." data-token="..."></div>'></textarea></label>
     <small>${d.strava_embed?.id ? `✅ Embed salvo: rota ${esc(String(d.strava_embed.id))}. Cole um novo código para substituir.` : 'Sem embed do Strava.'}</small>
+    <button type="button" class="btn btn-linha" data-strava-gpx>Importar GPX do Strava</button>
     ${d.strava_embed?.id ? '<label class="check"><input type="checkbox" data-strava-rm> Remover embed</label>' : ''}
     <label class="campo">Mapa a exibir na página <select data-mapa-sel>
       <option value="gpx" ${(d.mapa_principal || 'gpx') !== 'strava' ? 'selected' : ''}>Mapa GPX do site</option>
@@ -2337,18 +2338,44 @@ function formCorrida(c = {}, pendente = null) {
     if (e.target.matches('[data-gpx-rm]')) { $('[data-gpx-info]', el).textContent = e.target.checked ? 'O percurso desta distância será removido ao salvar.' : `Percurso salvo: ${infoPerc(percDist.get(el))}.`; return; }
     if (!e.target.matches('[data-gpx-dist]')) return;
     const arq = e.target.files[0]; if (!arq) return;
-    try {
-      const pts = lerGpx(await arq.text()); const p = prepararPercurso(pts);
-      percDist.set(el, p); el.dataset.gpxNovo = '1';
-      const rm = $('[data-gpx-rm]', el); if (rm) rm.checked = false;
-      $('[data-gpx-info]', el).textContent = `Percurso lido: ${infoPerc(p)}. É salvo junto com a corrida.`;
-      const km = $('[name=km]', el); if (!km.value) km.value = p.percurso_km;
-      if (!f.lat.value) { f.lat.value = pts[0][0].toFixed(6); f.lng.value = pts[0][1].toFixed(6); }
-      desenharDist(el, p);
-    } catch (err) { $('[data-gpx-info]', el).textContent = `${err.message} Confira se é um arquivo .gpx.`; }
+    try { aplicarGpx(el, await arq.text(), 'lido'); }
+    catch (err) { $('[data-gpx-info]', el).textContent = `${err.message} Confira se é um arquivo .gpx.`; }
   });
+  const aplicarGpx = (el, texto, como) => {
+    const pts = lerGpx(texto); const p = prepararPercurso(pts);
+    percDist.set(el, p); el.dataset.gpxNovo = '1';
+    const rm = $('[data-gpx-rm]', el); if (rm) rm.checked = false;
+    $('[data-gpx-info]', el).textContent = `Percurso ${como}: ${infoPerc(p)}. É salvo junto com a corrida.`;
+    const km = $('[name=km]', el); if (!km.value) km.value = p.percurso_km;
+    if (!f.lat.value) { f.lat.value = pts[0][0].toFixed(6); f.lng.value = pts[0][1].toFixed(6); }
+    desenharDist(el, p);
+  };
+  const importarStrava = async (el, btn) => {
+    const cod = $('[data-strava-code]', el)?.value || '';
+    const id = (cod.match(/data-embed-id="(\d+)"/) || cod.match(/strava\.com\/routes\/(\d+)/) || [])[1] || JSON.parse(el.dataset.stravaJson || 'null')?.id;
+    const info = $('[data-gpx-info]', el);
+    if (!id) { info.textContent = 'Cole antes o código de incorporação (ou o link da rota) do Strava.'; return; }
+    const { data: { session } } = await sb.auth.getSession();
+    btn.disabled = true; const txt = btn.textContent; btn.textContent = 'Importando…';
+    try {
+      const r = await fetch(`/api/kml-proxy?strava=${encodeURIComponent(id)}`, { headers: { authorization: `Bearer ${session.access_token}` } });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        if (j.conectar) {
+          if (confirm(`${j.erro}\n\nVocê vai para o Strava autorizar e volta para o admin. O que não foi salvo neste formulário se perde. Continuar?`)) location.href = '/api/kml-proxy?strava_auth=1';
+          info.textContent = j.erro; return;
+        }
+        throw new Error(j.erro || `erro ${r.status}`);
+      }
+      aplicarGpx(el, await r.text(), `importado do Strava (rota ${id})`);
+    } catch (err) { info.textContent = `Não deu para importar: ${err.message}`; }
+    finally { btn.disabled = false; btn.textContent = txt; }
+  };
   $('#addDist').addEventListener('click', () => $('#distancias').insertAdjacentHTML('beforeend', linhaDist()));
-  $('#distancias').addEventListener('click', (e) => { if (e.target.closest('[data-rm]')) e.target.closest('.dist-form').remove(); });
+  $('#distancias').addEventListener('click', (e) => {
+    if (e.target.closest('[data-rm]')) e.target.closest('.dist-form').remove();
+    const b = e.target.closest('[data-strava-gpx]'); if (b) importarStrava(b.closest('.dist-form'), b);
+  });
   $('#cancelar').addEventListener('click', pendente ? adminPendentes : adminCorridas);
 
   if (mapaForm) mapaForm.remove();
@@ -2798,4 +2825,22 @@ if (sb) sb.auth.getSession().then(async ({ data }) => {
   const h = rotaAtual();
   if (h.startsWith('#corrida/') && !$('#vCorrida .admin-corrida')) mostrarCorrida(h.slice(9));
 }).catch(() => {});
+// volta da autorização do Strava (admin → Conectar Strava)
+{
+  const q = new URLSearchParams(location.search);
+  if (q.get('state') === 'mapmove-strava' && sb) {
+    history.replaceState(null, '', '/#admin');
+    (async () => {
+      if (!q.get('code')) { toast('Conexão com o Strava cancelada.'); return; }
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { toast('Entre no admin e conecte o Strava de novo.'); return; }
+      try {
+        const r = await fetch(`/api/kml-proxy?strava_code=${encodeURIComponent(q.get('code'))}`, { headers: { authorization: `Bearer ${session.access_token}` } });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.erro || `erro ${r.status}`);
+        toast(`Strava conectado${j.atleta ? ` (${j.atleta})` : ''}. Agora é só usar "Importar GPX do Strava".`);
+      } catch (e) { toast('Não deu para conectar o Strava: ' + e.message); }
+    })();
+  }
+}
 carregar();
