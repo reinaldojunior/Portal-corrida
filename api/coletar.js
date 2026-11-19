@@ -184,8 +184,17 @@ async function stravaAccessToken() {
   return t.access_token;
 }
 
+// a API só aceita o número do clube; o nome (slug) é convertido pela página pública do clube
+async function stravaIdClube(clubeSlug) {
+  if (/^\d+$/.test(clubeSlug)) return clubeSlug;
+  const r = await fetch(`https://www.strava.com/clubs/${encodeURIComponent(clubeSlug)}`, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(15000) }).catch(() => null);
+  const html = r && r.ok ? await r.text() : '';
+  return html.match(/strava:\/\/clubs\/(\d+)/)?.[1] || clubeSlug;
+}
+
 async function stravaEventosClubeStrava(clubeSlug, accessToken) {
-  const r = await fetch(`https://www.strava.com/api/v3/clubs/${encodeURIComponent(clubeSlug)}/group_events`, {
+  const id = await stravaIdClube(clubeSlug);
+  const r = await fetch(`https://www.strava.com/api/v3/clubs/${id}/group_events`, {
     headers: { authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(15000)
   });
   if (!r.ok) {
