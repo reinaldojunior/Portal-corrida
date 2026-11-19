@@ -2119,19 +2119,26 @@ const percDist = new WeakMap();
 const infoPerc = (p) => `${String(p.percurso_km).replace('.', ',')} km${p.subida_m != null ? `, +${p.subida_m} m` : ''}`;
 function linhaDist(d = {}) {
   const seJson = JSON.stringify(d.strava_embed || null).replace(/"/g, '&quot;');
+  const temEmbed = !!d.strava_embed?.id;
   return `<div class="dist-form" data-strava-json="${seJson}"><label class="campo">Nome<input name="rotulo" value="${esc(d.rotulo || '')}" placeholder="10K" required></label><label class="campo">Km <small>ou vazio</small><input name="km" type="number" step="any" min="0" inputmode="decimal" value="${d.km ?? ''}" placeholder="10"></label><label class="campo">Duração (h) <small>prova por tempo</small><input name="horas" type="number" step="0.5" min="0" value="${d.horas ?? ''}" placeholder="6"></label><label class="campo">Preço (R$)<input name="preco" type="number" step="0.01" min="0" value="${d.preco ?? ''}"></label><button type="button" class="btn btn-linha" data-rm aria-label="Remover distância">×</button>
     <div class="dist-gpx"><label class="btn btn-linha gpx-btn">GPX desta distância<input type="file" accept=".gpx,application/gpx+xml" data-gpx-dist hidden></label>
     <small data-gpx-info>${temTrajeto(d) ? `Percurso salvo: ${infoPerc(d)}.` : 'Sem percurso próprio.'}</small>
     ${temTrajeto(d) ? '<label class="check"><input type="checkbox" data-gpx-rm> Remover</label>' : ''}</div>
-    <div class="dist-strava"><label class="campo inteiro">Incorporação do Strava <small>Cole o código HTML do botão "Incorporar" na página do percurso no Strava.</small>
-    <textarea data-strava-code rows="2" style="font-size:11px;font-family:monospace;resize:vertical;width:100%" placeholder='<div class="strava-embed-placeholder" data-embed-type="route" data-embed-id="..." data-token="..."></div>'></textarea></label>
-    <small>${d.strava_embed?.id ? `✅ Embed salvo: rota ${esc(String(d.strava_embed.id))}. Cole um novo código para substituir.` : 'Sem embed do Strava.'}</small>
-    <button type="button" class="btn btn-linha" data-strava-gpx>Importar GPX do Strava</button>
-    ${d.strava_embed?.id ? '<label class="check"><input type="checkbox" data-strava-rm> Remover embed</label>' : ''}
-    <label class="campo">Mapa a exibir na página <select data-mapa-sel>
-      <option value="gpx" ${(d.mapa_principal || 'gpx') !== 'strava' ? 'selected' : ''}>Mapa GPX do site</option>
-      <option value="strava" ${d.mapa_principal === 'strava' ? 'selected' : ''}>Incorporação do Strava</option>
-    </select></label></div></div>`;
+    <div class="dist-strava">
+      <div class="dist-strava-topo">
+        <small class="dist-strava-status">${temEmbed ? `✅ Strava: rota ${esc(String(d.strava_embed.id))}` : 'Sem embed do Strava'}</small>
+        <button type="button" class="btn btn-mini" data-strava-toggle>${temEmbed ? 'Alterar código' : '+ Adicionar código'}</button>
+        <button type="button" class="btn btn-linha" data-strava-gpx>Importar GPX do Strava</button>
+        ${temEmbed ? '<label class="check"><input type="checkbox" data-strava-rm> Remover embed</label>' : ''}
+      </div>
+      <div class="dist-strava-code"${temEmbed ? ' hidden' : ''}>
+        <textarea data-strava-code rows="2" style="font-size:11px;font-family:monospace;resize:vertical;width:100%;margin-top:6px" placeholder='<div class="strava-embed-placeholder" data-embed-type="route" data-embed-id="..." data-token="..."></div>'></textarea>
+      </div>
+      <label class="campo">Mapa a exibir na página <select data-mapa-sel>
+        <option value="gpx" ${(d.mapa_principal || 'gpx') !== 'strava' ? 'selected' : ''}>Mapa GPX do site</option>
+        <option value="strava" ${d.mapa_principal === 'strava' ? 'selected' : ''}>Incorporação do Strava</option>
+      </select></label>
+    </div></div>`;
 }
 const coordValida = (la, lo) => isFinite(la) && isFinite(lo) && Math.abs(la) <= 90 && Math.abs(lo) <= 180 && !(la === 0 && lo === 0);
 function lerCoordenadas(txt) {
@@ -2410,7 +2417,7 @@ function formCorrida(c = {}, pendente = null) {
         aplicarGpx(el, rt.gpx, `importado do Strava (${rt.nome || 'rota ' + rt.id})`);
         if (rt.token) {
           el.dataset.stravaJson = JSON.stringify({ id: rt.id, token: rt.token, hash: rt.hash || null });
-          const aviso = $('.dist-strava > small', el); if (aviso) aviso.textContent = `✅ Embed encontrado: rota ${rt.id}. É salvo junto com a corrida.`;
+          const aviso = $('.dist-strava-status', el); if (aviso) aviso.textContent = `✅ Strava: rota ${rt.id}`;
           $('[data-mapa-sel]', el).value = 'strava';
         }
         msgs.push(`${$('[name=rotulo]', el).value}: ${rt.nome || 'rota ' + rt.id}`);
@@ -2423,6 +2430,8 @@ function formCorrida(c = {}, pendente = null) {
   $('#distancias').addEventListener('click', (e) => {
     if (e.target.closest('[data-rm]')) e.target.closest('.dist-form').remove();
     const b = e.target.closest('[data-strava-gpx]'); if (b) importarStrava(b.closest('.dist-form'), b);
+    const t = e.target.closest('[data-strava-toggle]');
+    if (t) { if (!t.dataset.orig) t.dataset.orig = t.textContent; const sc = t.closest('.dist-strava').querySelector('.dist-strava-code'); sc.hidden = !sc.hidden; t.textContent = sc.hidden ? t.dataset.orig : 'Fechar'; }
   });
   $('#cancelar').addEventListener('click', pendente ? adminPendentes : adminCorridas);
 
